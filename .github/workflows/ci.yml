@@ -50,6 +50,7 @@ jobs:
 
       # 3. Migrate the test DB, then integration/e2e
       - run: npx prisma migrate deploy
+      - run: npm run test:integration
       - run: npm run build
       # - run: npx playwright install --with-deps chromium
       # - run: npm run e2e

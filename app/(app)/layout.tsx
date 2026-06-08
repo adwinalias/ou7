@@ -1,8 +1,14 @@
+import { canAccessAdmin, isApprover } from "@/core/authz";
 import AppNav from "@/components/AppNav";
 import ThemeSwitch from "@/components/ThemeSwitch";
+import { requireUser } from "@/lib/rbac";
 
-// Authenticated app shell. (Route protection via getServerSession is added in EPIC 1.4.)
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+// Authenticated app shell. Every route under (app) is guarded here: requireUser()
+// redirects unauthenticated users to /sign-in and unprovisioned/inactive accounts to
+// /not-provisioned (which lives OUTSIDE this group to avoid a redirect loop).
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const actor = await requireUser();
+
   return (
     <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "220px 1fr" }}>
       <aside
@@ -13,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }}
       >
         <div className="t-label" style={{ padding: "0 12px var(--space-3)" }}>N°17 · OU7</div>
-        <AppNav />
+        <AppNav canSeeApprovals={isApprover(actor)} canSeeAdmin={canAccessAdmin(actor)} />
       </aside>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header

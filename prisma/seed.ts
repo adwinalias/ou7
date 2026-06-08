@@ -33,6 +33,20 @@ const leaveTypes = [
   { name: "Out Of Office", code: "O", color: "#B58900", deductsAllowance: false, paid: true, noteRequired: false, attachmentRequired: false, attachmentThresholdDays: null },
 ];
 
+// Bootstrap HR employee. No self-registration exists yet (Directory sync is Epic 2.1),
+// so the first administrator is seeded here. Idempotent (keyed by email). This is the
+// account that can sign in and exercise RBAC end-to-end until HR provisioning lands.
+const HR_BOOTSTRAP = {
+  email: "adwin.alias@interestingtimes.me",
+  firstName: "Adwin",
+  lastName: "Alias",
+  regionName: "UAE",
+  role: "HR" as const,
+  approverLevel: "APPROVER_ADD_EDIT" as const,
+  status: "ACTIVE" as const,
+  joiningDate: new Date("2024-01-01T00:00:00.000Z"),
+};
+
 async function main() {
   for (const r of regions) {
     await db.region.upsert({ where: { name: r.name }, update: r, create: r });
@@ -43,7 +57,21 @@ async function main() {
   for (const lt of leaveTypes) {
     await db.leaveType.upsert({ where: { name: lt.name }, update: lt, create: lt });
   }
-  console.log(`Seeded ${regions.length} regions, ${departments.length} departments, ${leaveTypes.length} leave types.`);
+
+  const uae = await db.region.findUniqueOrThrow({ where: { name: HR_BOOTSTRAP.regionName } });
+  const { regionName: _regionName, ...hr } = HR_BOOTSTRAP;
+  await db.employee.upsert({
+    where: { email: hr.email },
+    // Don't clobber a real photo/name that a later Google sync may have set; only
+    // (re)assert the fields that make this account a usable administrator.
+    update: { role: hr.role, approverLevel: hr.approverLevel, status: hr.status },
+    create: { ...hr, regionId: uae.id },
+  });
+
+  console.log(
+    `Seeded ${regions.length} regions, ${departments.length} departments, ` +
+      `${leaveTypes.length} leave types, and HR bootstrap user ${hr.email}.`,
+  );
 }
 
 main()

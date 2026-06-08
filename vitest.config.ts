@@ -1,4 +1,9 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+
+// Resolve the project root via fileURLToPath so paths with spaces (e.g. the dev
+// folder name) are decoded correctly — `.pathname` would leave "%20" in the path.
+const root = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   test: {
@@ -8,9 +13,7 @@ export default defineConfig({
     globals: true,
   },
   resolve: {
-    alias: {
-      "@/core": new URL("./core", import.meta.url).pathname,
-      "@/lib": new URL("./lib", import.meta.url).pathname,
-    },
+    // Map "@/..." (e.g. @/core/leave) onto the project root, mirroring tsconfig paths.
+    alias: [{ find: /^@\//, replacement: root }],
   },
 });

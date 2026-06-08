@@ -1,22 +1,30 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const items = [
+type Item = { href: Route; label: string; show?: (p: NavPerms) => boolean };
+
+type NavPerms = { canSeeApprovals: boolean; canSeeAdmin: boolean };
+
+const items: Item[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/wall-chart", label: "Wall chart" },
   { href: "/my-leave", label: "My leave" },
   { href: "/request", label: "Request" },
-  { href: "/approvals", label: "Approvals" },
-  { href: "/admin", label: "Admin" },
-] as const;
+  { href: "/approvals", label: "Approvals", show: (p) => p.canSeeApprovals },
+  { href: "/admin", label: "Admin", show: (p) => p.canSeeAdmin },
+];
 
-export default function AppNav() {
+// Role-aware navigation (Epic 1.5): Approvals shows for approvers/HR, Admin for HR only.
+export default function AppNav(perms: NavPerms) {
   const pathname = usePathname();
   return (
     <nav style={{ display: "flex", flexDirection: "column" }}>
-      {items.map((it) => {
+      {items
+        .filter((it) => !it.show || it.show(perms))
+        .map((it) => {
         const active = pathname.startsWith(it.href);
         return (
           <Link

@@ -4,8 +4,9 @@
 export type ISODate = string; // "YYYY-MM-DD"
 
 export function parseISO(d: ISODate): Date {
-  const [y, m, day] = d.split("-").map(Number);
-  return new Date(Date.UTC(y, (m ?? 1) - 1, day ?? 1));
+  // Defaults satisfy noUncheckedIndexedAccess; for a well-formed YYYY-MM-DD all three are present.
+  const [y = 0, m = 1, day = 1] = d.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, day));
 }
 
 export function toISO(d: Date): ISODate {
