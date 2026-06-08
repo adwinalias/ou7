@@ -1,11 +1,23 @@
-export default function RequestPage() {
+import { getRequestContext } from "@/lib/leave";
+import { requireUser } from "@/lib/rbac";
+import RequestForm from "./RequestForm";
+
+export default async function RequestPage() {
+  const actor = await requireUser();
+  const ctx = await getRequestContext(actor.employeeId);
+
   return (
-    <div>
-      <h1 className="t-h1">Request leave</h1>
-      <p className="t-muted" style={{ marginTop: 12 }}>
-        Type → dates → duration → notes → <strong>Check details</strong> (conflict + over-booking blocks, allowance
-        impact) → Submit. Validation lives in <code>core/leave</code>. See EPIC 5.
+    <div style={{ maxWidth: 720 }}>
+      <h1 className="t-h1" style={{ marginBottom: "var(--space-2)" }}>Request leave</h1>
+      <p className="t-muted" style={{ marginBottom: "var(--space-5)" }}>
+        Choose the details, check the impact on your allowance, then submit for approval.
       </p>
+      <RequestForm
+        leaveTypes={ctx.leaveTypes}
+        regionName={ctx.regionName}
+        available={ctx.balance?.available ?? null}
+        hasPeriod={ctx.balance !== null}
+      />
     </div>
   );
 }
