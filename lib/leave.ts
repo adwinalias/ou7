@@ -3,9 +3,10 @@
 //   app/request → previewLeave() (validate) → submitLeave() (persist PENDING).
 // Balances are computed, never hand-stored (CLAUDE.md / ADR 0003).
 import { z } from "zod";
-import { computeAvailable, computeRemaining } from "@/core/allowance";
+import { computeAvailable } from "@/core/allowance";
 import { validateLeaveRequest } from "@/core/leave";
 import type { DateRange, ISODate, RegionCalendar } from "@/core/types";
+import { getOpenPeriodBalance } from "./allowance";
 import { db } from "./db";
 
 // ─── Input contract (shared with the client form + server actions) ───────────────
@@ -106,29 +107,8 @@ async function buildCalendar(regionId: string, startISO: ISODate, endISO: ISODat
 
 /** Current open allowance period + computed balance for an employee (null if none). */
 async function loadBalance(employeeId: string): Promise<RequestContext["balance"]> {
-  const period = await db.allowancePeriod.findFirst({
-    where: { employeeId, endDate: null },
-    orderBy: { startDate: "desc" },
-  });
-  if (!period) return null;
-
-  const grouped = await db.leaveRequest.groupBy({
-    by: ["status"],
-    where: { allowancePeriodId: period.id, status: { in: ["APPROVED", "PENDING"] } },
-    _sum: { allowanceDays: true },
-  });
-  const takenApproved = grouped.find((g) => g.status === "APPROVED")?._sum.allowanceDays ?? 0;
-  const pending = grouped.find((g) => g.status === "PENDING")?._sum.allowanceDays ?? 0;
-
-  const remaining = computeRemaining({
-    opening: period.opening,
-    carryOver: period.carryOver,
-    adjustments: period.adjustments,
-    takenApproved,
-    deductions: period.deductions,
-  });
-  const available = computeAvailable(remaining, pending);
-  return { periodId: period.id, opening: period.opening, remaining, pending, available };
+  const b = await getOpenPeriodBalance(employeeId);
+  return b ? { periodId: b.periodId, opening: b.opening, remaining: b.remaining, pending: b.pending, available: b.available } : null;
 }
 
 /** The employee's existing PENDING/APPROVED ranges, for overlap detection. */

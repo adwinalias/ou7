@@ -1,0 +1,78 @@
+// Shared balance reads. The arithmetic lives in core/allowance (pure); this assembles
+// the inputs from the DB so both lib/leave (preview/submit) and lib/approvals (the
+// approval-time over-booking re-check) compute balances the same way.
+import type { Prisma } from "@prisma/client";
+import { computeAvailable, computeRemaining } from "@/core/allowance";
+import { db } from "./db";
+
+// Works against the base client or a transaction client.
+type Client = Prisma.TransactionClient;
+
+export interface PeriodBalance {
+  periodId: string;
+  opening: number;
+  takenApproved: number;
+  pending: number;
+  remaining: number;
+  available: number;
+}
+
+/** Sum APPROVED/PENDING allowance days for a period, optionally excluding one request. */
+async function sumDays(client: Client, periodId: string, excludeRequestId?: string) {
+  const grouped = await client.leaveRequest.groupBy({
+    by: ["status"],
+    where: {
+      allowancePeriodId: periodId,
+      status: { in: ["APPROVED", "PENDING"] },
+      ...(excludeRequestId ? { id: { not: excludeRequestId } } : {}),
+    },
+    _sum: { allowanceDays: true },
+  });
+  return {
+    takenApproved: grouped.find((g) => g.status === "APPROVED")?._sum.allowanceDays ?? 0,
+    pending: grouped.find((g) => g.status === "PENDING")?._sum.allowanceDays ?? 0,
+  };
+}
+
+/** The employee's current open allowance period + computed balance (null if none). */
+export async function getOpenPeriodBalance(employeeId: string): Promise<PeriodBalance | null> {
+  const period = await db.allowancePeriod.findFirst({
+    where: { employeeId, endDate: null },
+    orderBy: { startDate: "desc" },
+  });
+  if (!period) return null;
+
+  const { takenApproved, pending } = await sumDays(db, period.id);
+  const remaining = computeRemaining({
+    opening: period.opening,
+    carryOver: period.carryOver,
+    adjustments: period.adjustments,
+    takenApproved,
+    deductions: period.deductions,
+  });
+  return {
+    periodId: period.id,
+    opening: period.opening,
+    takenApproved,
+    pending,
+    remaining,
+    available: computeAvailable(remaining, pending),
+  };
+}
+
+/**
+ * Balance for a period EXCLUDING one request — used inside the approval transaction to
+ * re-check over-booking for the request being decided. Run after locking the period row.
+ */
+export async function periodBalanceExcluding(client: Client, periodId: string, excludeRequestId: string) {
+  const period = await client.allowancePeriod.findUniqueOrThrow({ where: { id: periodId } });
+  const { takenApproved, pending } = await sumDays(client, periodId, excludeRequestId);
+  const remainingExclR = computeRemaining({
+    opening: period.opening,
+    carryOver: period.carryOver,
+    adjustments: period.adjustments,
+    takenApproved,
+    deductions: period.deductions,
+  });
+  return { remainingExclR, otherPending: pending };
+}
