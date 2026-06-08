@@ -60,7 +60,7 @@ async function main() {
 
   const uae = await db.region.findUniqueOrThrow({ where: { name: HR_BOOTSTRAP.regionName } });
   const { regionName: _regionName, ...hr } = HR_BOOTSTRAP;
-  await db.employee.upsert({
+  const employee = await db.employee.upsert({
     where: { email: hr.email },
     // Don't clobber a real photo/name that a later Google sync may have set; only
     // (re)assert the fields that make this account a usable administrator.
@@ -68,9 +68,24 @@ async function main() {
     create: { ...hr, regionId: uae.id },
   });
 
+  // A current allowance period so the request flow is usable before Epic 4.7 (Reset/Add
+  // Balance) lands. Idempotent: create only if the employee has no open period.
+  const openPeriod = await db.allowancePeriod.findFirst({ where: { employeeId: employee.id, endDate: null } });
+  if (!openPeriod) {
+    const year = new Date().getUTCFullYear();
+    await db.allowancePeriod.create({
+      data: {
+        employeeId: employee.id,
+        regionId: uae.id,
+        startDate: new Date(Date.UTC(year, 0, 1)),
+        opening: 26,
+      },
+    });
+  }
+
   console.log(
     `Seeded ${regions.length} regions, ${departments.length} departments, ` +
-      `${leaveTypes.length} leave types, and HR bootstrap user ${hr.email}.`,
+      `${leaveTypes.length} leave types, and HR bootstrap user ${hr.email} (with allowance period).`,
   );
 }
 
