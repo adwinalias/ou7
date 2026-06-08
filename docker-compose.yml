@@ -1,0 +1,31 @@
+# Local development: app + Postgres. `docker compose up` then `npm run db:migrate && npm run db:seed`.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ou7
+      POSTGRES_PASSWORD: ou7
+      POSTGRES_DB: ou7
+    ports:
+      - "5432:5432"
+    volumes:
+      - ou7_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ou7"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Optional: run the built app in a container too (mirrors on-prem).
+  # app:
+  #   build: .
+  #   environment:
+  #     DATABASE_URL: postgresql://ou7:ou7@db:5432/ou7?schema=public
+  #     TZ: Asia/Dubai
+  #   ports: ["3000:3000"]
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+
+volumes:
+  ou7_pgdata:

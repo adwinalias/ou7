@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Our Own WhosOff — Explained Simply</title>
+<style>
+  :root{
+    --ink:#11151c; --muted:#5b6675; --line:#e7eaf0; --bg:#f6f7fb; --card:#ffffff;
+    --blue:#2b59ff; --blue-soft:#eaf0ff; --green:#1fae72; --green-soft:#e7f8f0;
+    --amber:#f5a623; --amber-soft:#fff4e0; --violet:#7a5cff; --violet-soft:#efeaff;
+    --radius:18px; --shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px 80px}
+  .hero{background:linear-gradient(135deg,#2b59ff,#7a5cff);color:#fff;border-radius:26px;
+    padding:46px 38px;box-shadow:var(--shadow)}
+  .hero .tag{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+    padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;letter-spacing:.03em;margin-bottom:16px}
+  .hero h1{margin:0 0 10px;font-size:40px;line-height:1.1;letter-spacing:-.02em}
+  .hero p{margin:0;font-size:18px;max-width:640px;opacity:.95}
+  section{margin-top:40px}
+  h2{font-size:24px;letter-spacing:-.01em;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+  h2 .n{flex:none;width:30px;height:30px;border-radius:9px;background:var(--blue-soft);color:var(--blue);
+    font-size:15px;font-weight:700;display:grid;place-items:center}
+  .lead{color:var(--muted);margin:0 0 18px;font-size:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;box-shadow:var(--shadow)}
+  .analogy{font-size:18px}
+  .analogy b{color:var(--blue)}
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:760px){.g3,.g2{grid-template-columns:1fr}.hero h1{font-size:30px}}
+  .mini{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  .mini .ic{font-size:26px;line-height:1;margin-bottom:10px}
+  .mini h3{margin:0 0 4px;font-size:17px}
+  .mini p{margin:0;color:var(--muted);font-size:14.5px}
+  .who .mini{border-top:4px solid var(--blue)}
+  .who .mini:nth-child(2){border-top-color:var(--green)}
+  .who .mini:nth-child(3){border-top-color:var(--violet)}
+  ul.clean{list-style:none;margin:0;padding:0}
+  ul.clean li{padding:10px 0 10px 34px;position:relative;border-bottom:1px dashed var(--line)}
+  ul.clean li:last-child{border-bottom:0}
+  ul.clean li::before{content:"✓";position:absolute;left:0;top:9px;width:22px;height:22px;border-radius:7px;
+    background:var(--green-soft);color:var(--green);font-weight:700;font-size:13px;display:grid;place-items:center}
+  ul.robot li::before{content:"⚙";background:var(--amber-soft);color:#c97f0a}
+  .flow{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;padding:8px 0 4px}
+  .flow .box{background:#fff;border:2px solid var(--line);border-radius:14px;padding:16px 22px;font-weight:700;text-align:center;min-width:150px}
+  .flow .app{border-color:var(--blue);color:var(--blue)}
+  .flow .nt{border-color:#111;color:#111}
+  .flow .arrow{display:flex;flex-direction:column;align-items:center;color:var(--muted);font-size:13px;font-weight:600}
+  .flow .arrow svg{display:block}
+  .pill{display:inline-block;background:var(--blue-soft);color:var(--blue);border-radius:999px;
+    padding:3px 11px;font-size:12.5px;font-weight:700;margin:0 6px 6px 0}
+  .rules li{padding:12px 0 12px 34px}
+  .rules li::before{content:"★";background:var(--violet-soft);color:var(--violet)}
+  .next .mini{display:flex;gap:14px;align-items:flex-start}
+  .next .step{flex:none;width:30px;height:30px;border-radius:50%;background:var(--blue);color:#fff;font-weight:700;display:grid;place-items:center}
+  .foot{margin-top:46px;text-align:center;color:var(--muted);font-size:14px}
+  .foot a{color:var(--blue);font-weight:600;text-decoration:none}
+  .callout{background:var(--blue-soft);border:1px solid #d4e0ff;border-radius:var(--radius);padding:18px 22px;color:#1f3a8a;font-size:15.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="tag">INTERESTING TIMES · INTERNAL TOOL</span>
+    <h1>Our own WhosOff, explained simply</h1>
+    <p>We're building our own staff time-off tracker so we stop paying rent for one and fully own our data. Here's the whole thing in plain English.</p>
+  </div>
+
+  <section>
+    <h2><span class="n">1</span> The big idea</h2>
+    <div class="card analogy">
+      Right now we <b>rent</b> a tool called WhosOff to track who's on holiday, sick, or working from home. Our data lives in <b>their</b> house, and we pay every month.
+      <br><br>
+      We're building <b>our own version</b> that lives in <b>our</b> house. It does everything WhosOff does — book leave, approve it, show the team calendar, track overtime, send reminders — but the data is ours and we can change or restyle it whenever we like. Everyone gets in with their <b>Google work login</b> (no new password to remember).
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span> Three kinds of people use it</h2>
+    <p class="lead">Same app, different powers.</p>
+    <div class="grid g3 who">
+      <div class="mini"><div class="ic">🧑‍💻</div><h3>You (any employee)</h3><p>Book time off, see how many days you have left, and check who else is away.</p></div>
+      <div class="mini"><div class="ic">✅</div><h3>Managers (approvers)</h3><p>Everything above, plus approve or decline their team's requests and see their team's calendar.</p></div>
+      <div class="mini"><div class="ic">🛠️</div><h3>HR (the system bosses)</h3><p>Set everything up: add people, fix balances, set holidays, choose who approves whom, run reports.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span> What you can do</h2>
+    <p class="lead">The everyday stuff every employee touches.</p>
+    <div class="grid g3">
+      <div class="mini"><div class="ic">🔑</div><h3>Log in with Google</h3><p>One click with your work account. No extra sign-up.</p></div>
+      <div class="mini"><div class="ic">🏠</div><h3>Your home screen</h3><p>Days left, your next 7 days, and a quick "book time off" box.</p></div>
+      <div class="mini"><div class="ic">📝</div><h3>Book time off</h3><p>Pick the type and dates. It checks your balance, warns about clashes, and won't let you book more than you have.</p></div>
+      <div class="mini"><div class="ic">📅</div><h3>Team wall chart</h3><p>A big calendar of who's off, filter by team or country.</p></div>
+      <div class="mini"><div class="ic">📜</div><h3>My Leave</h3><p>Your full history, with buttons to cancel a booking or nudge your approver.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span> What HR can do</h2>
+    <div class="card">
+      <ul class="clean">
+        <li><b>Manage everyone</b> — people are pulled in automatically from our Google directory.</li>
+        <li><b>Set the details</b> — each person's country, team, manager and working days.</li>
+        <li><b>Fix balances in one click</b> — the system does the maths, no spreadsheets.</li>
+        <li><b>Set public holidays per country</b> — UAE, KSA, Beirut and Remote all differ.</li>
+        <li><b>Decide who approves whom</b> — and step in as backup whenever needed.</li>
+        <li><b>Run reports</b> — balances, who's off, who hasn't taken enough leave.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span> The robot does the boring stuff</h2>
+    <p class="lead">Things that happen automatically so no one has to chase them.</p>
+    <div class="card">
+      <ul class="clean robot">
+        <li>Counts days correctly for each country (different weekends and holidays).</li>
+        <li>Stops double-bookings and blocks booking more days than you have.</li>
+        <li>Sends notes by <b>email</b> and <b>Microsoft Teams direct message</b>.</li>
+        <li>Posts the Friday <b>"who's off next week"</b> digest.</li>
+        <li>Nudges people sitting on unused leave.</li>
+        <li>Files everyone's yearly record automatically at year end.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span> How Notion fits in</h2>
+    <p class="lead">One-way only. Numbers flow out; Notion never controls the app.</p>
+    <div class="card">
+      <div class="flow">
+        <div class="box app">Our app<br><span style="font-weight:500;font-size:13px;color:var(--muted)">the source of truth</span></div>
+        <div class="arrow">
+          <svg width="90" height="26" viewBox="0 0 90 26"><line x1="2" y1="13" x2="76" y2="13" stroke="#2b59ff" stroke-width="3"/><polygon points="76,5 88,13 76,21" fill="#2b59ff"/></svg>
+          export
+        </div>
+        <div class="box nt">Notion<br><span style="font-weight:500;font-size:13px;color:var(--muted)">for extra maths</span></div>
+      </div>
+      <p style="margin:14px 0 0;color:var(--muted)">When HR needs the figures for other calculations, they hit <b>"Export to Notion"</b> — and it can also send on a schedule. That's the only link. No Notion agents, no n8n, nothing feeding back in.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">7</span> The rules we've locked in</h2>
+    <p class="lead">Decisions already made, in plain words.</p>
+    <div class="card">
+      <ul class="clean rules">
+        <li>You get your <b>whole year of days on 1 January</b> (new joiners get a fair share for their part of the year).</li>
+        <li>Leftover days <b>can roll over — and HR sets the rule for each market</b> (how many, and when they expire).</li>
+        <li>You <b>can't book more days than you have</b>.</li>
+        <li>Time off is in <b>full or half days</b> (no by-the-hour leave, and no overtime tracking).</li>
+        <li><b>One approver each</b>; bigger cases can need two yeses; <b>HR can always step in</b>.</li>
+        <li>It runs on <b>Vercel</b> (we already pay for it) and can move to our own server later.</li>
+        <li>Login is <b>Google</b>; uploaded HR documents <b>auto-delete after 2 years</b>.</li>
+        <li>It's <b>all plain software</b> doing the maths — <b>no AI</b> guessing anything.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">8</span> What's next</h2>
+    <div class="grid g3 next">
+      <div class="mini"><div class="step">1</div><div><h3>A few numbers</h3><p>HR tells us how many leave days each country/role gets.</p></div></div>
+      <div class="mini"><div class="step">2</div><div><h3>Build the core</h3><p>Login, booking, approvals, calendar, balances, reports.</p></div></div>
+      <div class="mini"><div class="step">3</div><div><h3>Switch over</h3><p>Move our data in, run side-by-side, then cancel the WhosOff subscription.</p></div></div>
+    </div>
+  </section>
+
+  <div class="callout" style="margin-top:34px">
+    <b>In one sentence:</b> we're rebuilding WhosOff as our own app — same features, our data, our rules, login with Google, hosted on Vercel — and adding the smart reminders and reports HR already wanted.
+  </div>
+
+  <p class="foot">Full detail lives in <a href="WhosOff-Replacement-PRD.md">WhosOff-Replacement-PRD.md</a> · Interesting Times DMCC</p>
+
+</div>
+</body>
+</html>

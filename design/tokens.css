@@ -1,0 +1,248 @@
+/* ============================================================
+   OU7 — Design Tokens
+   17-inspired application design system. Light + Dark.
+   Single source of truth for colour, type, spacing, motion.
+   Brand basis: Interesting Times "17" visual system, adapted
+   from editorial/poster use into a functional product UI.
+
+   Brand rules kept: warm near-black/near-white (never #000/#FFF),
+   sharp corners, no gradients, Inter + JetBrains Mono + Fraunces,
+   signal accents used as SIGNAL (rings/bars/fills), not neon text.
+   Adapted for product: multiple status colours can coexist
+   on one screen (functional necessity), unlike a poster frame.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ---------- Brand primitives (theme-independent) ---------- */
+  --ink:           #0A0A0A;   /* warm near-black — never pure #000 */
+  --paper:         #F2F0EA;   /* warm off-white — never pure #FFF */
+  --signal-green:  #39FF14;   /* "the system thinks back" — go / approved / accent */
+  --signal-yellow: #FFE600;   /* "make the call" — attention / pending */
+  --signal-red:    #FF3B1F;   /* "make the cut" — destructive / declined */
+
+  /* ---------- Typography families ---------- */
+  --font-ui:        'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:      'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-editorial: 'Fraunces', Georgia, serif; /* rare: page titles, empty states, pull quotes */
+
+  /* ---------- Type scale (app, not poster) ---------- */
+  --text-display: 30px;  /* page hero / empty-state */
+  --text-h1:      24px;
+  --text-h2:      20px;
+  --text-h3:      16px;
+  --text-body:    15px;
+  --text-sm:      13px;
+  --text-xs:      12px;   /* mono micro-labels, metadata */
+  --leading-tight: 1.15;
+  --leading-body:  1.55;
+  --track-tight:  -0.02em; /* Inter display tracking */
+  --track-mono:    0.04em; /* uppercase mono labels */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold:600;
+  --weight-bold:    700;
+
+  /* ---------- Spacing (4px base) ---------- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+
+  /* ---------- Radius (brand = sharp) ---------- */
+  --radius-0: 0;     /* default — true to brand */
+  --radius-sm: 2px;  /* inputs/controls if a touch of softness is wanted */
+  --radius-pill: 999px; /* status pills only */
+
+  /* ---------- Motion ---------- */
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---------- Elevation (prefer borders to shadows) ---------- */
+  --shadow-overlay: 0 8px 28px rgba(10,10,10,0.18); /* modals/toasts only */
+
+  /* ---------- Leave-type categorical palette (functional) ----------
+     Distinct hues for the wall chart, My Leave and reports.
+     Status (pending/approved/declined) is shown separately (see below),
+     so these are category colours, not state colours. */
+  --lt-vacation:        #2F6FEB; /* blue   */
+  --lt-sick-working:    #E8833A; /* amber  */
+  --lt-sick-not:        #FF3B1F; /* red (signal) */
+  --lt-bereavement:     #6B5BD2; /* violet */
+  --lt-maternity:       #14633F; /* deep green  */
+  --lt-paternity:       #79C36A; /* light green */
+  --lt-wedding:         #D6409F; /* magenta — celebratory, distinct from the greens */
+  --lt-national-holiday:#5C3D2E; /* dark brown  */
+  --lt-ooo:             #B58900; /* ochre — non-deducting log */
+  /* Text colour to place ON a leave-type block: paper for dark hues. */
+  --lt-on:              var(--paper);
+}
+
+/* ============================================================
+   LIGHT THEME (default) — paper stage
+   ============================================================ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:            #F2F0EA;  /* paper */
+  --surface:       #FBFAF5;  /* raised card — warm off-white, not pure white */
+  --surface-2:     #ECE9E1;  /* sunken strip / table header */
+  --surface-hover: #EEEBE3;
+
+  --border:        #DCD8CE;  /* hairlines */
+  --border-strong: #C7C2B5;
+
+  --text:          #0A0A0A;  /* ink */
+  --text-muted:    #5C5A52;  /* secondary */
+  --text-subtle:   #8A877C;  /* tertiary / placeholder */
+  --text-on-accent:#0A0A0A;  /* text on green/yellow fills */
+
+  /* Interactive */
+  --accent:        var(--signal-green); /* rings, bars, indicators, selected — NOT body text on paper */
+  --accent-quiet:  color-mix(in srgb, var(--signal-green) 16%, var(--surface)); /* selected row bg */
+  --link:          var(--text);         /* links = ink + underline on light (green text fails contrast) */
+  --focus-ring:    var(--signal-green);
+
+  /* Primary action button = ink architecture block */
+  --btn-primary-bg: var(--ink);
+  --btn-primary-fg: var(--paper);
+  --btn-primary-hover: #1c1c1c;
+
+  /* Secondary / ghost */
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: var(--text);
+  --btn-secondary-border: var(--border-strong);
+
+  /* Status (functional) — GREY IS RESERVED FOR PENDING ONLY */
+  --status-approved-bg: var(--signal-green); --status-approved-fg: var(--ink);
+  --status-pending-bg:  #BDB8AC;             --status-pending-fg: var(--ink);   /* grey = pending */
+  --status-declined-bg: var(--signal-red);   --status-declined-fg: var(--paper);
+  --status-cancelled-bg: transparent;        --status-cancelled-fg: var(--text-subtle); /* outline pill, not grey */
+  --status-cancelled-border: var(--border-strong);
+  --donut-taken: #403D37; /* warm charcoal — 'used' allowance (never grey: grey = pending) */
+
+  /* Feedback text/icons (accessible on light) */
+  --success: #1F7A3D;
+  --warning: #9A6B00;
+  --danger:  #C42B14;
+}
+
+/* ============================================================
+   DARK THEME — ink stage
+   ============================================================ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:            #0A0A0A;  /* ink */
+  --surface:       #161616;  /* raised card */
+  --surface-2:     #202020;  /* sunken strip / table header */
+  --surface-hover: #1E1E1E;
+
+  --border:        #2A2A2A;
+  --border-strong: #3A3A3A;
+
+  --text:          #F2F0EA;  /* paper */
+  --text-muted:    #A8A498;
+  --text-subtle:   #76736A;
+  --text-on-accent:#0A0A0A;
+
+  --accent:        var(--signal-green); /* green reads beautifully on ink — terminal feel */
+  --accent-quiet:  color-mix(in srgb, var(--signal-green) 14%, var(--surface));
+  --link:          var(--signal-green); /* on dark, green links are legible */
+  --focus-ring:    var(--signal-green);
+
+  /* Primary button flips to paper architecture block on dark */
+  --btn-primary-bg: var(--paper);
+  --btn-primary-fg: var(--ink);
+  --btn-primary-hover: #e7e4db;
+
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: var(--text);
+  --btn-secondary-border: var(--border-strong);
+
+  --status-approved-bg: var(--signal-green); --status-approved-fg: var(--ink);
+  --status-pending-bg:  #43423D;             --status-pending-fg: var(--paper);  /* grey = pending */
+  --status-declined-bg: var(--signal-red);   --status-declined-fg: var(--paper);
+  --status-cancelled-bg: transparent;        --status-cancelled-fg: var(--text-subtle);
+  --status-cancelled-border: var(--border-strong);
+  --donut-taken: #C9C3B5; /* warm bone — 'used' allowance on dark */
+
+  --success: #4ADE80;
+  --warning: #FACC15;
+  --danger:  #FF6B57;
+
+  /* National holiday: lighter brown on dark for visibility */
+  --lt-national-holiday:#7A5238;
+}
+
+/* ============================================================
+   Base reset
+   ============================================================ */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--signal-yellow); color: var(--ink); }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ============================================================
+   Typography utilities
+   ============================================================ */
+.t-display { font-family: var(--font-ui); font-weight: var(--weight-bold); font-size: var(--text-display); letter-spacing: var(--track-tight); line-height: var(--leading-tight); }
+.t-h1 { font-weight: var(--weight-bold); font-size: var(--text-h1); letter-spacing: var(--track-tight); line-height: var(--leading-tight); }
+.t-h2 { font-weight: var(--weight-semibold); font-size: var(--text-h2); line-height: var(--leading-tight); }
+.t-h3 { font-weight: var(--weight-semibold); font-size: var(--text-h3); }
+.t-body { font-size: var(--text-body); }
+.t-muted { color: var(--text-muted); }
+.t-editorial { font-family: var(--font-editorial); font-weight: 400; } /* use sparingly */
+.t-num, .tabular { font-family: var(--font-mono); font-variant-numeric: tabular-nums; } /* balances, dates, day counts */
+.t-label { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: var(--track-mono); text-transform: uppercase; color: var(--text-muted); }
+
+/* ============================================================
+   Component primitives (reference implementations)
+   ============================================================ */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-0); }
+
+.btn { font: inherit; font-weight: var(--weight-semibold); padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer; transition: background var(--motion-fast) var(--ease); }
+.btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
+.btn-primary:hover { background: var(--btn-primary-hover); }
+.btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); border-color: var(--btn-secondary-border); }
+.btn-danger { background: var(--signal-red); color: var(--paper); } /* cancel/decline */
+
+.input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
+.input:focus-visible { border-color: var(--accent); outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* Status pills */
+.pill { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: var(--track-mono); text-transform: uppercase; padding: 2px var(--space-2); border-radius: var(--radius-pill); }
+.pill-approved  { background: var(--status-approved-bg);  color: var(--status-approved-fg); }
+.pill-pending   { background: var(--status-pending-bg);   color: var(--status-pending-fg); }
+.pill-declined  { background: var(--status-declined-bg);  color: var(--status-declined-fg); }
+.pill-cancelled { background: var(--status-cancelled-bg); color: var(--status-cancelled-fg); border: 1px solid var(--status-cancelled-border); }
+
+/* Table */
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: var(--track-mono); text-transform: uppercase; color: var(--text-muted); background: var(--surface-2); padding: var(--space-3); border-bottom: 1px solid var(--border); }
+.table td { padding: var(--space-3); border-bottom: 1px solid var(--border); }
+.table tr:hover td { background: var(--surface-hover); }
+
+/* Wall-chart cell helpers (leave-type fill, code letter in --lt-on) */
+.cell { width: 100%; height: 100%; display: grid; place-items: center; font-family: var(--font-mono); font-size: var(--text-xs); }
+.cell--approved { color: var(--lt-on); } /* solid leave-type fill applied via --cell-lt or inline */
+.cell--pending {  /* grey = pending; the leave type shows as a coloured left bar */
+  background: var(--status-pending-bg); color: var(--text);
+  border-left: 3px solid var(--cell-lt, var(--border-strong));
+}
+.cell--off {  /* weekend / non-working — faint hairlines, never a grey fill */
+  background-image: repeating-linear-gradient(45deg, transparent 0 7px, var(--border) 7px 8px);
+  color: var(--text-subtle);
+}

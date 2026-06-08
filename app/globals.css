@@ -1,0 +1,7 @@
+/* Design tokens first (defines CSS variables + base reset), then Tailwind layers.
+   Tailwind preflight doesn't set background/colour, so the token theme wins. */
+@import "../design/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

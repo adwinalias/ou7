@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ou7
+          POSTGRES_PASSWORD: ou7
+          POSTGRES_DB: ou7_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ou7"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://ou7:ou7@localhost:5432/ou7_test?schema=public
+      NEXTAUTH_SECRET: ci-test-secret
+      NEXTAUTH_URL: http://localhost:3000
+      ALLOWED_EMAIL_DOMAIN: interestingtimes.me
+      TZ: Asia/Dubai
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run db:generate
+
+      # 1. Type safety + lint
+      - run: npm run typecheck
+      - run: npm run lint
+
+      # 2. Unit tests (pure domain core — the allowance engine)
+      - run: npm test
+
+      # 3. Migrate the test DB, then integration/e2e
+      - run: npx prisma migrate deploy
+      - run: npm run build
+      # - run: npx playwright install --with-deps chromium
+      # - run: npm run e2e

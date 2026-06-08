@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OU7 — Design System Preview</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ---------- Brand primitives ---------- */
+:root{
+  --ink:#0A0A0A; --paper:#F2F0EA;
+  --signal-green:#39FF14; --signal-yellow:#FFE600; --signal-red:#FF3B1F;
+  --font-ui:'Inter',system-ui,sans-serif; --font-mono:'JetBrains Mono',ui-monospace,monospace; --font-editorial:'Fraunces',Georgia,serif;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;--space-7:48px;
+  --radius-0:0;--radius-sm:2px;--radius-pill:999px;
+  --motion:160ms cubic-bezier(.2,0,0,1);
+  --shadow-overlay:0 8px 28px rgba(10,10,10,.18);
+  /* leave-type categorical */
+  --lt-vacation:#2F6FEB;--lt-sick-working:#E8833A;--lt-sick-not:#FF3B1F;--lt-bereavement:#6B5BD2;
+  --lt-maternity:#14633F;--lt-paternity:#79C36A;--lt-wedding:#D6409F;--lt-national:#5C3D2E;--lt-ooo:#B58900;--lt-on:var(--paper);
+}
+/* ---------- Light ---------- */
+:root,[data-theme="light"]{
+  color-scheme:light;
+  --bg:#F2F0EA;--surface:#FBFAF5;--surface-2:#ECE9E1;--surface-hover:#EEEBE3;
+  --border:#DCD8CE;--border-strong:#C7C2B5;
+  --text:#0A0A0A;--text-muted:#5C5A52;--text-subtle:#8A877C;
+  --accent:var(--signal-green);--accent-quiet:color-mix(in srgb,var(--signal-green) 16%,var(--surface));
+  --link:var(--text);--focus:var(--signal-green);
+  --btn-primary-bg:var(--ink);--btn-primary-fg:var(--paper);--btn-primary-hover:#1c1c1c;
+  --success:#1F7A3D;--warning:#9A6B00;--danger:#C42B14;
+  --donut-track:#E2DED4;--donut-taken:#403D37;
+  --pending-grey:#BDB8AC;--pending-fg:var(--ink);
+}
+/* ---------- Dark ---------- */
+[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A0A0A;--surface:#161616;--surface-2:#202020;--surface-hover:#1E1E1E;
+  --border:#2A2A2A;--border-strong:#3A3A3A;
+  --text:#F2F0EA;--text-muted:#A8A498;--text-subtle:#76736A;
+  --accent:var(--signal-green);--accent-quiet:color-mix(in srgb,var(--signal-green) 14%,var(--surface));
+  --link:var(--signal-green);--focus:var(--signal-green);
+  --btn-primary-bg:var(--paper);--btn-primary-fg:var(--ink);--btn-primary-hover:#e7e4db;
+  --success:#4ADE80;--warning:#FACC15;--danger:#FF6B57;
+  --lt-national:#7A5238;
+  --donut-track:#262626;--donut-taken:#C9C3B5;
+  --pending-grey:#43423D;--pending-fg:var(--paper);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;transition:background var(--motion),color var(--motion)}
+::selection{background:var(--signal-yellow);color:var(--ink)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px}
+header.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);margin-bottom:40px}
+.top-in{max-width:1080px;margin:0 auto;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:12px}
+.mark{font-family:var(--font-mono);font-weight:500;letter-spacing:.04em;border:1px solid var(--border-strong);padding:3px 8px}
+.brand h1{font-size:18px;margin:0;letter-spacing:-.02em}
+.brand .sub{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+
+.t-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+h2.sec{font-size:13px;font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--text-muted)}
+
+.grid{display:grid;gap:14px}
+.cols-2{grid-template-columns:repeat(2,1fr)}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:760px){.cols-2,.cols-3{grid-template-columns:1fr}}
+
+.card{background:var(--surface);border:1px solid var(--border);padding:20px}
+.panel{background:var(--surface);border:1px solid var(--border);padding:24px}
+
+/* swatches */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sw{border:1px solid var(--border)}
+.sw .chip{height:64px}
+.sw .meta{padding:8px 10px;background:var(--surface)}
+.sw .name{font-size:12px;font-weight:600}
+.sw .hex{font-family:var(--font-mono);font-size:11px;color:var(--text-muted)}
+
+/* buttons */
+.btn{font:inherit;font-weight:600;padding:9px 16px;border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;transition:background var(--motion)}
+.btn-primary{background:var(--btn-primary-bg);color:var(--btn-primary-fg)}
+.btn-primary:hover{background:var(--btn-primary-hover)}
+.btn-secondary{background:transparent;color:var(--text);border-color:var(--border-strong)}
+.btn-secondary:hover{background:var(--surface-hover)}
+.btn-danger{background:var(--signal-red);color:var(--paper)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+/* inputs */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:12px;font-weight:600}
+.input{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 12px;width:100%}
+.input:focus-visible{border-color:var(--accent);outline:2px solid var(--focus);outline-offset:1px}
+
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:var(--radius-pill)}
+.pill-approved{background:var(--signal-green);color:var(--ink)}
+.pill-pending{background:var(--pending-grey);color:var(--pending-fg)}
+.pill-declined{background:var(--signal-red);color:var(--paper)}
+.pill-cancelled{background:transparent;color:var(--text-subtle);border:1px solid var(--border-strong)}
+
+/* table */
+table.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);background:var(--surface-2);padding:11px 12px;border-bottom:1px solid var(--border)}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--border)}
+.tbl tr:hover td{background:var(--surface-hover)}
+.tbl .num{text-align:right}
+.lt-key{display:inline-flex;align-items:center;gap:8px}
+.lt-dot{width:10px;height:10px;display:inline-block}
+
+/* typography demo */
+.t-display{font-weight:700;font-size:30px;letter-spacing:-.02em;line-height:1.15}
+.t-h1{font-weight:700;font-size:24px;letter-spacing:-.02em}
+.t-h2{font-weight:600;font-size:20px}
+.t-h3{font-weight:600;font-size:16px}
+.t-editorial{font-family:var(--font-editorial);font-style:italic;font-size:26px;line-height:1.3}
+.type-row{padding:12px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;gap:20px}
+.type-row .tag{font-family:var(--font-mono);font-size:11px;color:var(--text-subtle);white-space:nowrap}
+
+/* wall chart */
+.wc{display:grid;grid-template-columns:120px repeat(10,1fr);border:1px solid var(--border);overflow:hidden}
+.wc>div{border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:36px;display:grid;place-items:center;font-family:var(--font-mono);font-size:12px}
+.wc .name{justify-content:start;justify-items:start;padding-left:12px;font-family:var(--font-ui);font-size:13px;background:var(--surface)}
+.wc .hd{background:var(--surface-2);color:var(--text-muted);font-size:11px}
+.wc .off{background-image:repeating-linear-gradient(45deg,transparent 0 7px,var(--border) 7px 8px);color:var(--text-subtle)}
+.cell-leave{color:var(--lt-on)}
+.wc .pending{background:var(--pending-grey);color:var(--text);border-left:3px solid var(--cell-lt,var(--border-strong))}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:14px;height:14px;display:inline-block;border:1px solid var(--border)}
+
+/* donut */
+.donut-wrap{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+.donut-legend div{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:14px}
+.donut-legend i{width:12px;height:12px;display:inline-block}
+.donut-legend .n{font-family:var(--font-mono);font-variant-numeric:tabular-nums;margin-left:auto;padding-left:24px}
+
+/* toast / modal */
+.toast{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--success);padding:12px 14px;max-width:440px}
+.toast.warn{border-left-color:var(--warning)}
+.toast.err{border-left-color:var(--danger)}
+.toast .ti{font-weight:600;font-size:14px}
+.toast .tb{font-size:13px;color:var(--text-muted)}
+
+.theme-toggle{display:inline-flex;border:1px solid var(--border-strong);border-radius:var(--radius-sm);overflow:hidden}
+.theme-toggle button{font:inherit;font-family:var(--font-mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;background:transparent;color:var(--text-muted);border:0;padding:8px 14px;cursor:pointer}
+.theme-toggle button.active{background:var(--accent);color:var(--ink)}
+
+.note{font-size:13px;color:var(--text-muted);margin:8px 0 0}
+.kbd{font-family:var(--font-mono);font-size:12px;border:1px solid var(--border-strong);padding:1px 6px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <span class="mark">N°17</span>
+      <div>
+        <h1>OU7 — Design System</h1>
+        <div class="sub">Component &amp; token preview · light + dark</div>
+      </div>
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button id="b-light" class="active" onclick="setTheme('light')">Light</button>
+      <button id="b-dark" onclick="setTheme('dark')">Dark</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <p class="note">This page renders straight from the design tokens. Toggle <span class="kbd">Light</span> / <span class="kbd">Dark</span> above — every element re-themes from one attribute (<span class="kbd">data-theme</span>). Sharp corners, warm neutrals (never pure black/white), Inter + JetBrains Mono, signal accents with fixed meaning.</p>
+
+  <!-- COLOUR -->
+  <h2 class="sec">01 — Neutrals</h2>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--bg)"></div><div class="meta"><div class="name">Background</div><div class="hex">--bg</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--surface)"></div><div class="meta"><div class="name">Surface</div><div class="hex">--surface</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--surface-2)"></div><div class="meta"><div class="name">Surface 2</div><div class="hex">--surface-2</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--border-strong)"></div><div class="meta"><div class="name">Border</div><div class="hex">--border-strong</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--text)"></div><div class="meta"><div class="name">Text</div><div class="hex">--text</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--text-muted)"></div><div class="meta"><div class="name">Text muted</div><div class="hex">--text-muted</div></div></div>
+  </div>
+
+  <h2 class="sec">02 — Signal accents (fixed meaning)</h2>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--signal-green)"></div><div class="meta"><div class="name">Green · go / approved</div><div class="hex">#39FF14</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--signal-yellow)"></div><div class="meta"><div class="name">Yellow · attention / pending</div><div class="hex">#FFE600</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--signal-red)"></div><div class="meta"><div class="name">Red · destructive / declined</div><div class="hex">#FF3B1F</div></div></div>
+  </div>
+
+  <h2 class="sec">03 — Leave-type palette (categorical)</h2>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--lt-vacation)"></div><div class="meta"><div class="name">Vacation · V</div><div class="hex">--lt-vacation</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--lt-sick-working)"></div><div class="meta"><div class="name">Sick (working) · SW</div><div class="hex">--lt-sick-working</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--lt-sick-not)"></div><div class="meta"><div class="name">Sick (not working) · SN</div><div class="hex">--lt-sick-not</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--lt-bereavement)"></div><div class="meta"><div class="name">Bereavement · B</div><div class="hex">--lt-bereavement</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--lt-maternity)"></div><div class="meta"><div class="name">Maternity · M</div><div class="hex">--lt-maternity</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--lt-paternity)"></div><div class="meta"><div class="name">Paternity · P</div><div class="hex">--lt-paternity</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--lt-wedding)"></div><div class="meta"><div class="name">Wedding · W</div><div class="hex">--lt-wedding</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--lt-national)"></div><div class="meta"><div class="name">National holiday · H</div><div class="hex">--lt-national</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--lt-ooo)"></div><div class="meta"><div class="name">Out of office · O</div><div class="hex">--lt-ooo</div></div></div>
+  </div>
+
+  <!-- TYPOGRAPHY -->
+  <h2 class="sec">04 — Typography</h2>
+  <div class="panel">
+    <div class="type-row"><span class="t-display">Book your leave.</span><span class="tag">Inter 700 · 30 / display</span></div>
+    <div class="type-row"><span class="t-h1">Team wall chart</span><span class="tag">Inter 700 · 24 / h1</span></div>
+    <div class="type-row"><span class="t-h2">Allowances this year</span><span class="tag">Inter 600 · 20 / h2</span></div>
+    <div class="type-row"><span class="t-h3">My next 7 days</span><span class="tag">Inter 600 · 16 / h3</span></div>
+    <div class="type-row"><span>Request submitted — your approver has been notified.</span><span class="tag">Inter 400 · 15 / body</span></div>
+    <div class="type-row"><span class="num">26.0 opening · 11.0 remaining · 1.0 available</span><span class="tag">JetBrains Mono · tabular</span></div>
+    <div class="type-row"><span class="t-label">From · To · Duration · Allowance</span><span class="tag">Mono · 11 / label</span></div>
+    <div class="type-row"><span class="t-editorial">Time off, made simple.</span><span class="tag">Fraunces italic · rare</span></div>
+  </div>
+
+  <!-- BUTTONS + INPUTS -->
+  <h2 class="sec">05 — Buttons &amp; inputs</h2>
+  <div class="grid cols-2">
+    <div class="panel">
+      <div class="t-label" style="margin-bottom:14px">Buttons</div>
+      <div class="row" style="margin-bottom:14px">
+        <button class="btn btn-primary">Request leave</button>
+        <button class="btn btn-secondary">Check details</button>
+        <button class="btn btn-danger">Cancel leave</button>
+        <button class="btn btn-secondary" disabled>Disabled</button>
+      </div>
+      <p class="note">Primary = high-contrast architecture block (ink-on-paper in light, paper-on-ink in dark). Danger = signal red.</p>
+    </div>
+    <div class="panel">
+      <div class="t-label" style="margin-bottom:14px">Inputs</div>
+      <div class="field"><label>Leave type</label>
+        <select class="input"><option>Vacation</option><option>Sick Leave (Working)</option><option>Bereavement</option></select></div>
+      <div class="field"><label>When should it start? <span class="muted">(click to see focus ring)</span></label>
+        <input class="input" type="date" value="2026-08-18"></div>
+      <div class="field" style="margin-bottom:0"><label>Notes</label>
+        <input class="input" type="text" placeholder="Optional…"></div>
+    </div>
+  </div>
+
+  <!-- STATUS + TABLE -->
+  <h2 class="sec">06 — Status pills</h2>
+  <div class="panel"><div class="row">
+    <span class="pill pill-approved">Approved</span>
+    <span class="pill pill-pending">Pending</span>
+    <span class="pill pill-declined">Declined</span>
+    <span class="pill pill-cancelled">Cancelled</span>
+  </div></div>
+
+  <h2 class="sec">07 — Table (My Leave)</h2>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="tbl">
+      <thead><tr><th>From</th><th>To</th><th class="num">Days</th><th>Type</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="num">18-Aug-2026</td><td class="num">18-Aug-2026</td><td class="num">1.0</td><td><span class="lt-key"><i class="lt-dot" style="background:var(--lt-vacation)"></i>Vacation</span></td><td><span class="pill pill-pending">Pending</span></td></tr>
+        <tr><td class="num">13-Jul-2026</td><td class="num">24-Jul-2026</td><td class="num">10.0</td><td><span class="lt-key"><i class="lt-dot" style="background:var(--lt-vacation)"></i>Vacation</span></td><td><span class="pill pill-approved">Approved</span></td></tr>
+        <tr><td class="num">23-Apr-2026</td><td class="num">24-Apr-2026</td><td class="num">2.0</td><td><span class="lt-key"><i class="lt-dot" style="background:var(--lt-wedding)"></i>Wedding</span></td><td><span class="pill pill-approved">Approved</span></td></tr>
+        <tr><td class="num">26-Jan-2026</td><td class="num">26-Jan-2026</td><td class="num">1.0</td><td><span class="lt-key"><i class="lt-dot" style="background:var(--lt-sick-not)"></i>Sick (not working)</span></td><td><span class="pill pill-declined">Declined</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- WALL CHART -->
+  <h2 class="sec">08 — Wall-chart cells</h2>
+  <div class="panel">
+    <div class="wc">
+      <div class="hd name">Planning</div>
+      <div class="hd">9</div><div class="hd">10</div><div class="hd">11</div><div class="hd">12</div><div class="hd">13</div><div class="hd">14</div><div class="hd">15</div><div class="hd">16</div><div class="hd">17</div><div class="hd">18</div>
+      <div class="name">Cynthia A.</div>
+      <div></div><div></div><div></div><div></div>
+      <div class="off">×</div><div class="off">×</div>
+      <div class="cell-leave" style="background:var(--lt-vacation)">V</div>
+      <div class="cell-leave" style="background:var(--lt-vacation)">V</div>
+      <div></div><div></div>
+      <div class="name">Harish K.</div>
+      <div></div>
+      <div class="pending" style="--cell-lt:var(--lt-vacation)">V</div>
+      <div></div><div></div>
+      <div class="off">×</div><div class="off">×</div>
+      <div></div><div></div><div></div><div></div>
+      <div class="name">Roupen M.</div>
+      <div class="cell-leave" style="background:var(--lt-wedding)">W</div>
+      <div></div><div></div><div></div>
+      <div class="off">×</div><div class="off">×</div>
+      <div class="pending" style="--cell-lt:var(--lt-sick-working)">S</div>
+      <div></div><div></div><div></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--lt-vacation)"></i> Solid = approved</span>
+      <span><i style="background:var(--pending-grey);border-left:3px solid var(--lt-vacation)"></i> Grey + bar = pending (bar = type)</span>
+      <span><i style="background-image:repeating-linear-gradient(45deg,transparent 0 4px,var(--border) 4px 5px)"></i> × = weekend / non-working</span>
+    </div>
+  </div>
+
+  <!-- DONUT -->
+  <h2 class="sec">09 — Allowance donut</h2>
+  <div class="panel donut-wrap">
+    <svg width="160" height="160" viewBox="0 0 140 140" role="img" aria-label="1 of 26 days available">
+      <circle cx="70" cy="70" r="52" fill="none" stroke="var(--donut-track)" stroke-width="16"/>
+      <g transform="rotate(-90 70 70)" fill="none" stroke-width="16">
+        <circle cx="70" cy="70" r="52" stroke="var(--donut-taken)" stroke-dasharray="188.5 138.2" stroke-dashoffset="0"/>
+        <circle cx="70" cy="70" r="52" stroke="var(--pending-grey)" stroke-dasharray="125.7 201" stroke-dashoffset="-188.5"/>
+        <circle cx="70" cy="70" r="52" stroke="var(--signal-green)" stroke-dasharray="12.6 314.1" stroke-dashoffset="-314.2"/>
+      </g>
+      <text x="70" y="66" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="26" font-weight="500" fill="var(--text)">1</text>
+      <text x="70" y="84" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" letter-spacing="1" fill="var(--text-muted)">AVAILABLE</text>
+    </svg>
+    <div class="donut-legend">
+      <div><i style="background:var(--signal-green)"></i> Available to book <span class="n">1.0</span></div>
+      <div><i style="background:var(--pending-grey)"></i> Pending <span class="n">10.0</span></div>
+      <div><i style="background:var(--donut-taken)"></i> Taken <span class="n">15.0</span></div>
+      <div style="border-top:1px solid var(--border);padding-top:8px"><b>Opening entitlement</b><span class="n">26.0</span></div>
+    </div>
+  </div>
+
+  <!-- FEEDBACK -->
+  <h2 class="sec">10 — Toasts &amp; nav</h2>
+  <div class="grid cols-2">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="toast"><div><div class="ti">Leave approved</div><div class="tb">Mo Alghossein approved your 18-Aug request.</div></div></div>
+      <div class="toast warn"><div><div class="ti">Heads up</div><div class="tb">You have 11 days expiring soon for your market.</div></div></div>
+      <div class="toast err"><div><div class="ti">Can't book</div><div class="tb">This exceeds your available balance.</div></div></div>
+    </div>
+    <div class="panel">
+      <div class="t-label" style="margin-bottom:14px">Nav (active = green indicator bar)</div>
+      <div style="display:flex;flex-direction:column">
+        <div style="padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-quiet);font-weight:600">Dashboard</div>
+        <div style="padding:10px 12px;border-left:3px solid transparent;color:var(--text-muted)">Wall chart</div>
+        <div style="padding:10px 12px;border-left:3px solid transparent;color:var(--text-muted)">My leave</div>
+        <div style="padding:10px 12px;border-left:3px solid transparent;color:var(--text-muted)">Approvals</div>
+        <div style="padding:10px 12px;border-left:3px solid transparent;color:var(--text-muted)">Admin</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top:40px">Tokens: <span class="kbd">design/tokens.css</span> · Spec: <span class="kbd">docs/DESIGN-SYSTEM.md</span>. Every colour here is a variable — no hard-coded hex in components.</p>
+
+</div>
+
+<script>
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('b-light').classList.toggle('active', t==='light');
+  document.getElementById('b-dark').classList.toggle('active', t==='dark');
+  try{ localStorage.setItem('ou7-theme', t); }catch(e){}
+}
+try{ var saved = localStorage.getItem('ou7-theme'); if(saved) setTheme(saved);
+  else if(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+}catch(e){}
+</script>
+</body>
+</html>

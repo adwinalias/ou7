@@ -1,0 +1,352 @@
+// OU7 — Prisma schema. Mirrors the PRD §7 data model.
+// Balances are NEVER stored as a single number — they are computed by core/allowance
+// from the AllowancePeriod fields. Postgres for relational integrity.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────
+enum Role {
+  STAFF
+  APPROVER
+  HR
+}
+
+enum ApproverLevel {
+  NONE // staff
+  APPROVER // approve / decline
+  APPROVER_ADD // + add leave on behalf
+  APPROVER_ADD_EDIT // + edit / cancel others' leave
+}
+
+enum EmploymentType {
+  FULL_TIME
+  FLEX
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DurationMode {
+  DAY
+  HALF
+  MULTI
+}
+
+enum HalfDayPeriod {
+  AM
+  PM
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum AllowanceUnit {
+  DAYS
+  HOURS
+}
+
+enum HRLogType {
+  OOO
+  WFH
+  OTHER
+}
+
+enum NotificationChannel {
+  EMAIL
+  TEAMS
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum RestrictedScope {
+  COMPANY
+  DEPARTMENT
+  REGION
+}
+
+// ─── Org structure ───────────────────────────────────────────
+model Region {
+  id          String  @id @default(cuid())
+  name        String  @unique // UAE, KSA, Beirut, Remote
+  weekendDays Int[] // 0=Sun … 6=Sat — differs per market
+  // Per-market carry-over rule (HR-configurable). Null cap = no carry-over.
+  carryOverCapDays Float?
+  carryOverExpiry  String? // ISO month-day, e.g. "03-31"; null = no expiry
+
+  employees      Employee[]
+  holidays       Holiday[]
+  restrictedDays RestrictedDay[]
+  allowancePeriods AllowancePeriod[]
+  leaveTypes     LeaveType[] // m2m: availability per region
+}
+
+model Department {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  minStaffing Int? // minimum present headcount
+
+  employees      Employee[]
+  restrictedDays RestrictedDay[]
+}
+
+model Tag {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  employees Employee[]
+}
+
+model WorkPattern {
+  id  String @id @default(cuid())
+  mon Boolean @default(true)
+  tue Boolean @default(true)
+  wed Boolean @default(true)
+  thu Boolean @default(true)
+  fri Boolean @default(true)
+  sat Boolean @default(false)
+  sun Boolean @default(false)
+
+  employees Employee[]
+}
+
+// ─── People ──────────────────────────────────────────────────
+model Employee {
+  id          String         @id @default(cuid())
+  googleSub   String?        @unique
+  email       String         @unique
+  title       String?
+  firstName   String
+  middleName  String?
+  lastName    String
+  phoneWork   String?
+  phoneMobile String?
+  photoUrl    String?
+  employmentType EmploymentType @default(FULL_TIME)
+  status      EmployeeStatus  @default(ACTIVE)
+  joiningDate DateTime
+  role        Role            @default(STAFF)
+  approverLevel ApproverLevel @default(NONE)
+  mfaEnabled  Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  region       Region      @relation(fields: [regionId], references: [id])
+  regionId     String
+  department   Department? @relation(fields: [departmentId], references: [id])
+  departmentId String?
+  workPattern   WorkPattern? @relation(fields: [workPatternId], references: [id])
+  workPatternId String?
+
+  manager   Employee?  @relation("Manager", fields: [managerId], references: [id])
+  managerId String?
+  reports   Employee[] @relation("Manager")
+
+  tags Tag[]
+
+  approvers   ApproverAssignment[] @relation("EmployeeApprovers")
+  approverFor ApproverAssignment[] @relation("ApproverFor")
+
+  allowancePeriods AllowancePeriod[]
+  leaveRequests    LeaveRequest[] @relation("OwnLeave")
+  decisions        LeaveRequest[] @relation("Decisions")
+  createdLeave     LeaveRequest[] @relation("CreatedLeave")
+  hrLogs           HRLog[]        @relation("EmployeeLogs")
+  createdLogs      HRLog[]        @relation("CreatedLogs")
+  notifications    Notification[] @relation("Recipient")
+  auditEvents      AuditEvent[]   @relation("AuditActor")
+
+  @@index([regionId])
+  @@index([departmentId])
+  @@index([managerId])
+}
+
+// An employee's approver(s), ordered. HR is always an implicit fallback (see core/approvals).
+model ApproverAssignment {
+  id         String   @id @default(cuid())
+  employee   Employee @relation("EmployeeApprovers", fields: [employeeId], references: [id])
+  employeeId String
+  approver   Employee @relation("ApproverFor", fields: [approverId], references: [id])
+  approverId String
+  order      Int      @default(0)
+
+  @@unique([employeeId, approverId])
+}
+
+// ─── Leave configuration ─────────────────────────────────────
+model LeaveType {
+  id                      String  @id @default(cuid())
+  name                    String  @unique
+  code                    String  @unique // e.g. V, SW, SN, B, M, P, W, H, O
+  color                   String // hex; maps to a --lt-* token
+  deductsAllowance        Boolean @default(true)
+  paid                    Boolean @default(true)
+  noteRequired            Boolean @default(false)
+  attachmentRequired      Boolean @default(false)
+  attachmentThresholdDays Int? // e.g. sick > 2 days needs a medical report
+  annualCapDays           Int? // optional per-type yearly cap
+  visibleOnWallChart      Boolean @default(true)
+  active                  Boolean @default(true)
+
+  regions  Region[] // availability per region
+  requests LeaveRequest[]
+}
+
+// ─── Allowances ──────────────────────────────────────────────
+// One period per employee per year (and a new period on base change).
+model AllowancePeriod {
+  id                  String        @id @default(cuid())
+  employee            Employee      @relation(fields: [employeeId], references: [id])
+  employeeId          String
+  region              Region        @relation(fields: [regionId], references: [id]) // snapshot at period start
+  regionId            String
+  startDate           DateTime
+  endDate             DateTime? // null = current/open period
+  unit                AllowanceUnit @default(DAYS)
+  opening             Float         @default(0) // granted UPFRONT (pro-rated for joiners)
+  carryOver           Float         @default(0) // from previous period, capped per market
+  adjustments         Float         @default(0) // HR manual +/-
+  deductions          Float         @default(0) // unpaid leave
+  publicHolidays      Float         @default(0)
+  sickTakenWorking    Float         @default(0)
+  sickTakenNotWorking Float         @default(0)
+  createdAt           DateTime      @default(now())
+
+  requests LeaveRequest[]
+
+  @@index([employeeId])
+}
+
+// ─── Leave requests ──────────────────────────────────────────
+model LeaveRequest {
+  id                 String        @id @default(cuid())
+  employee           Employee      @relation("OwnLeave", fields: [employeeId], references: [id])
+  employeeId         String
+  leaveType          LeaveType     @relation(fields: [leaveTypeId], references: [id])
+  leaveTypeId        String
+  startDate          DateTime
+  endDate            DateTime
+  durationMode       DurationMode  @default(DAY)
+  halfDayPeriod      HalfDayPeriod?
+  workingDays        Float         @default(0)
+  freeDays           Float         @default(0)
+  allowanceDays      Float         @default(0)
+  notes              String?
+  attachmentUrl      String?
+  attachmentExpiresAt DateTime? // medical/bereavement docs auto-purge after 2 years
+  status             LeaveStatus   @default(PENDING)
+  followUpCount      Int           @default(0)
+  decisionComment    String?
+  decisionAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  decisionBy        Employee?       @relation("Decisions", fields: [decisionById], references: [id])
+  decisionById      String?
+  createdBy         Employee?       @relation("CreatedLeave", fields: [createdById], references: [id])
+  createdById       String?
+  allowancePeriod   AllowancePeriod? @relation(fields: [allowancePeriodId], references: [id])
+  allowancePeriodId String?
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+// HR-only logs (OOO / WFH). Private; never notify.
+model HRLog {
+  id         String    @id @default(cuid())
+  employee   Employee  @relation("EmployeeLogs", fields: [employeeId], references: [id])
+  employeeId String
+  type       HRLogType
+  startDate  DateTime
+  endDate    DateTime
+  notes      String?
+  isPrivate  Boolean   @default(true)
+  createdBy   Employee? @relation("CreatedLogs", fields: [createdById], references: [id])
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([employeeId])
+}
+
+// ─── Calendars ───────────────────────────────────────────────
+model Holiday {
+  id       String   @id @default(cuid())
+  region   Region   @relation(fields: [regionId], references: [id])
+  regionId String
+  year     Int
+  date     DateTime
+  name     String
+
+  @@unique([regionId, date])
+  @@index([regionId, year])
+}
+
+model RestrictedDay {
+  id           String          @id @default(cuid())
+  scope        RestrictedScope
+  region       Region?         @relation(fields: [regionId], references: [id])
+  regionId     String?
+  department   Department?     @relation(fields: [departmentId], references: [id])
+  departmentId String?
+  startDate    DateTime
+  endDate      DateTime
+  reason       String?
+}
+
+// ─── Notifications, reports, audit ───────────────────────────
+model Notification {
+  id          String              @id @default(cuid())
+  recipient   Employee            @relation("Recipient", fields: [recipientId], references: [id])
+  recipientId String
+  channel     NotificationChannel
+  eventType   String
+  payload     Json
+  status      NotificationStatus  @default(QUEUED)
+  error       String?
+  sentAt      DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([recipientId])
+  @@index([status])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  type        String // balance | weekly | quarterly | annual | integrity
+  periodStart DateTime?
+  periodEnd   DateTime?
+  payload     Json?
+  status      String   @default("generated")
+  generatedAt DateTime @default(now())
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  actor     Employee? @relation("AuditActor", fields: [actorId], references: [id])
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+}
