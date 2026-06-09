@@ -26,8 +26,10 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://ou7:ou7@localhost:5432/ou7_test?schema=public
-      NEXTAUTH_SECRET: ci-test-secret
-      NEXTAUTH_URL: http://localhost:3000
+      AUTH_URL: http://localhost:3000
+      AUTH_SECRET: ci-test-secret
+      GOOGLE_CLIENT_ID: ci-test-google-id
+      GOOGLE_CLIENT_SECRET: ci-test-google-secret
       ALLOWED_EMAIL_DOMAIN: interestingtimes.me
       TZ: Asia/Dubai
 

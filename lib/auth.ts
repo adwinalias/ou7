@@ -65,6 +65,7 @@ if (process.env.E2E_TEST_LOGIN === "1") {
  */
 export const authOptions: NextAuthOptions = {
   providers,
+  secret: env.AUTH_SECRET,
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
   pages: { signIn: "/sign-in" },
   callbacks: {

@@ -1,0 +1,20 @@
+# Netlify build/serve config for the Next.js (App Router) app.
+# The official Next runtime (@netlify/plugin-nextjs) builds + serves SSR/route handlers;
+# Netlify installs it automatically from this plugin declaration.
+#
+# Build runs `prisma generate` (so the client matches the schema) then `next build`.
+# It does NOT run migrations — schema changes are applied out-of-band
+# (`prisma migrate deploy`) as a reviewed step, never during a deploy build.
+#
+# Required environment variables (set in the Netlify site settings, never committed):
+#   DATABASE_URL, AUTH_URL, AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+#   ALLOWED_EMAIL_DOMAIN  — lib/env.ts fails the boot fast if any is missing.
+
+[build]
+  command = "prisma generate && next build"
+
+[build.environment]
+  TZ = "Asia/Dubai"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
