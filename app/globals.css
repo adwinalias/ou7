@@ -11,3 +11,9 @@
   .no-print { display: none !important; }
   main { padding: 0 !important; }
 }
+
+/* Brand logo — light theme shows the light-bg lockup, dark theme the dark-bg one. */
+.brand-logo img { height: 44px; width: auto; display: block; }
+.brand-logo .logo-dark { display: none; }
+[data-theme="dark"] .brand-logo .logo-light { display: none; }
+[data-theme="dark"] .brand-logo .logo-dark { display: block; }
