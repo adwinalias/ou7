@@ -58,6 +58,16 @@ export default async function globalSetup() {
     await db.allowanceAdjustment.deleteMany({ where: { periodId: allowPeriod.id } });
     await db.allowancePeriod.update({ where: { id: allowPeriod.id }, data: { opening: 20, adjustments: 0, deductions: 0 } });
 
+    // Remote-holiday fixture: a Remote employee with the holiday balance reset to the default.
+    if (remote) {
+      const remoteEmp = await db.employee.upsert({
+        where: { email: "e2e-remote@interestingtimes.me" },
+        update: { status: "ACTIVE", regionId: remote.id },
+        create: { email: "e2e-remote@interestingtimes.me", firstName: "Remy", lastName: "Remote", regionId: remote.id, joiningDate: day("2024-01-01"), role: "STAFF" },
+      });
+      await db.holidayBalance.deleteMany({ where: { employeeId: remoteEmp.id } });
+    }
+
     // The HR user books their own leave in request.spec — start clean.
     await db.leaveRequest.deleteMany({ where: { employee: { email: HR_EMAIL } } });
 

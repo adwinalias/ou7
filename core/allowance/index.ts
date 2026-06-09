@@ -58,3 +58,12 @@ export function applyCarryOver(previousRemaining: number, rule: CarryOverRule): 
 export function canBook(available: number, requestedDays: number): boolean {
   return requestedDays <= available + 1e-9;
 }
+
+/**
+ * Remaining in the Remote-only Holiday ledger (v2b / ADR-0010): an HR-set, per-year,
+ * NON-CARRY balance, separate from annual leave. Remaining = set days − taken (taken comes
+ * from holiday-bucket consumption, which is planned, not yet built). Engine-derived.
+ */
+export function holidayRemaining(days: number, taken = 0): number {
+  return round(days - taken);
+}

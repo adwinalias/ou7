@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { AdjustmentKind } from "@prisma/client";
 import { isHR } from "@/core/authz";
 import { addLedgerEntry, resetBalance } from "@/lib/allowance-admin";
+import { setHolidayBalance } from "@/lib/holiday-balance";
 import { AuthError, requireActor } from "@/lib/rbac";
 
 async function hr() {
@@ -29,5 +30,11 @@ export async function addEntryAction(_prev: EntryState, formData: FormData): Pro
 export async function resetAction(formData: FormData) {
   const actor = await hr();
   await resetBalance(actor.employeeId, String(formData.get("employeeId")), Number(formData.get("year")));
+  revalidatePath("/admin/allowance");
+}
+
+export async function setHolidayAction(formData: FormData) {
+  const actor = await hr();
+  await setHolidayBalance(actor.employeeId, String(formData.get("employeeId")), Number(formData.get("year")), Number(formData.get("days")));
   revalidatePath("/admin/allowance");
 }

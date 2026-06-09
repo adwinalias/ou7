@@ -86,3 +86,13 @@ describe("calendar day-counting", () => {
     expect(c.freeDays).toBe(1);
   });
 });
+
+describe("holidayRemaining (v2b Remote holiday ledger)", () => {
+  it("is set-days minus taken, engine-derived", async () => {
+    const { holidayRemaining } = await import("@/core/allowance");
+    expect(holidayRemaining(5)).toBe(5);
+    expect(holidayRemaining(5, 2)).toBe(3);
+    expect(holidayRemaining(7, 7)).toBe(0);
+    expect(holidayRemaining(0.1 + 0.2, 0)).toBe(0.3);
+  });
+});
