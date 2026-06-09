@@ -53,3 +53,10 @@ export interface DateRange {
   startISO: ISODate;
   endISO: ISODate;
 }
+
+/** A company/department/region blackout range (Epic 10.2). */
+export interface RestrictedRange {
+  startISO: ISODate;
+  endISO: ISODate;
+  reason?: string;
+}

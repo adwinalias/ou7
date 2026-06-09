@@ -7,6 +7,7 @@ import { computeAvailable } from "@/core/allowance";
 import { validateLeaveRequest } from "@/core/leave";
 import type { DateRange, ISODate, RegionCalendar } from "@/core/types";
 import { getOpenPeriodBalance } from "./allowance";
+import { getRestrictedRangesFor } from "./calendars";
 import { db } from "./db";
 
 // ─── Input contract (shared with the client form + server actions) ───────────────
@@ -192,6 +193,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     deductsAllowance: type.deductsAllowance,
     available,
     existing: await existingRanges(employeeId),
+    restricted: await getRestrictedRangesFor(employeeId, input.startDate, endISO),
     noteRequired: type.noteRequired,
     note: input.notes,
     attachmentRequired: type.attachmentRequired,

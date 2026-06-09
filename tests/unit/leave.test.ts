@@ -36,6 +36,23 @@ describe("leave validation", () => {
     expect(r.errors.join()).toContain("exceeds your available balance");
   });
 
+  it("blocks leave overlapping a restricted/blackout period, naming the reason (Epic 10.2)", () => {
+    const r = validateLeaveRequest({
+      ...base,
+      restricted: [{ startISO: "2026-08-17", endISO: "2026-08-19", reason: "Year-end freeze" }],
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain("restricted period: Year-end freeze");
+  });
+
+  it("allows leave that does not touch any restricted period", () => {
+    const r = validateLeaveRequest({
+      ...base,
+      restricted: [{ startISO: "2026-12-01", endISO: "2026-12-05", reason: "Audit week" }],
+    });
+    expect(r.ok).toBe(true);
+  });
+
   it("requires a supporting document for sick leave over 2 days", () => {
     const r = validateLeaveRequest({
       ...base,
