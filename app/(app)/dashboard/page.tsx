@@ -2,6 +2,7 @@ import Link from "next/link";
 import { donutSegments } from "@/core/allowance";
 import { letterColorToken, type WallCell } from "@/core/wallchart";
 import { getDashboard } from "@/lib/dashboard";
+import { getHolidayBalance } from "@/lib/holiday-balance";
 import { requireUser } from "@/lib/rbac";
 import Donut from "./Donut";
 
@@ -37,7 +38,11 @@ function DayCell({ cell }: { cell: WallCell }) {
 
 export default async function DashboardPage() {
   const actor = await requireUser();
-  const { balance, days } = await getDashboard(actor.employeeId);
+  const year = Number(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }).slice(0, 4));
+  const [{ balance, days }, holidayDays] = await Promise.all([
+    getDashboard(actor.employeeId),
+    getHolidayBalance(actor.employeeId, year), // null for non-Remote
+  ]);
   const donut = balance
     ? donutSegments({ taken: balance.takenApproved, pending: balance.pending, available: balance.available })
     : null;
@@ -58,6 +63,11 @@ export default async function DashboardPage() {
             </>
           ) : (
             <p className="t-muted">No allowance period yet — contact HR.</p>
+          )}
+          {holidayDays !== null && (
+            <p className="t-muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-sm)" }} data-testid="dash-holiday">
+              Holiday (Remote): <span className="t-num">{holidayDays}</span> day(s)
+            </p>
           )}
         </section>
 

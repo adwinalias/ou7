@@ -1,6 +1,14 @@
+import { isHR } from "@/core/authz";
+import { canCancel } from "@/core/cancellation";
 import { getAllPeriodBalances } from "@/lib/allowance";
-import { getLeaveHistory, type HistoryFilters } from "@/lib/myleave";
+import { getHolidayBalance } from "@/lib/holiday-balance";
+import { getLeaveHistory, type HistoryFilters, type HistoryRow } from "@/lib/myleave";
 import { requireUser } from "@/lib/rbac";
+import { cancelOwnAction, remindOwnAction } from "./actions";
+
+function dubaiToday() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
+}
 
 const STATUS_PILL: Record<string, string> = {
   PENDING: "pill pill-pending",
@@ -37,11 +45,16 @@ export default async function MyLeavePage({
     type: sp.type,
     page: sp.page ? Number(sp.page) : 1,
   };
-  const [periods, history] = await Promise.all([
+  const todayISO = dubaiToday();
+  const year = Number(todayISO.slice(0, 4));
+  const [periods, history, holidayDays] = await Promise.all([
     getAllPeriodBalances(actor.employeeId),
     getLeaveHistory(actor.employeeId, filters),
+    getHolidayBalance(actor.employeeId, year), // null for non-Remote
   ]);
   const f = history.filters;
+  const hr = isHR(actor);
+  const rowCanCancel = (r: HistoryRow) => canCancel({ status: r.status, isOwner: true, isHR: hr, todayISO, startISO: r.fromISO }).allowed;
 
   return (
     <div>
@@ -76,6 +89,11 @@ export default async function MyLeavePage({
               ))}
             </tbody>
           </table>
+        )}
+        {holidayDays !== null && (
+          <p className="t-muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-sm)" }} data-testid="holiday-balance">
+            Holiday allowance (Remote, {year}): <strong className="t-num">{holidayDays}</strong> day(s) — separate, non-carry.
+          </p>
         )}
       </section>
 
@@ -120,6 +138,7 @@ export default async function MyLeavePage({
                   <th style={num}>Allowance</th>
                   <th>Type</th>
                   <th>Status</th>
+                  <th>Options</th>
                 </tr>
               </thead>
               <tbody>
@@ -138,6 +157,22 @@ export default async function MyLeavePage({
                       </span>
                     </td>
                     <td><span className={STATUS_PILL[r.status]}>{STATUS_LABEL[r.status]}</span></td>
+                    <td>
+                      <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                        {rowCanCancel(r) && (
+                          <form action={cancelOwnAction}>
+                            <input type="hidden" name="requestId" value={r.id} />
+                            <button type="submit" className="btn btn-danger" style={{ padding: "2px 10px" }} data-testid="row-cancel">Cancel</button>
+                          </form>
+                        )}
+                        {r.status === "PENDING" && (
+                          <form action={remindOwnAction}>
+                            <input type="hidden" name="requestId" value={r.id} />
+                            <button type="submit" className="btn btn-secondary" style={{ padding: "2px 10px" }} data-testid="row-remind">Remind</button>
+                          </form>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -147,7 +182,7 @@ export default async function MyLeavePage({
                   <td style={num} className="t-num">{history.totals.freeDays}</td>
                   <td style={num} className="t-num">{history.totals.workingDays}</td>
                   <td style={num} className="t-num">{history.totals.allowanceDays}</td>
-                  <td colSpan={2} />
+                  <td colSpan={3} />
                 </tr>
               </tfoot>
             </table>
