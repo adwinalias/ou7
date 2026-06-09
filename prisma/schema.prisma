@@ -86,7 +86,10 @@ model Region {
   id          String  @id @default(cuid())
   name        String  @unique // UAE, KSA, Beirut, Remote
   weekendDays Int[] // 0=Sun … 6=Sat — differs per market
-  // Per-market carry-over rule (HR-configurable). Null cap = no carry-over.
+  // Legacy per-market carry-over fields. NOTE (ADR-0008/0009): EntitlementPolicy is the
+  // SOURCE OF TRUTH for carry-over (per region × role); nothing in core/lib reads these for
+  // balance math. Kept in sync with the policy (all regions cap 5 / expiry 03-31) and NOT
+  // dropped here — schema removal is a separate reviewed change.
   carryOverCapDays Float?
   carryOverExpiry  String? // ISO month-day, e.g. "03-31"; null = no expiry
 
