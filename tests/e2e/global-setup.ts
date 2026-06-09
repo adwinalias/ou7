@@ -58,6 +58,28 @@ export default async function globalSetup() {
     await db.allowanceAdjustment.deleteMany({ where: { periodId: allowPeriod.id } });
     await db.allowancePeriod.update({ where: { id: allowPeriod.id }, data: { opening: 20, adjustments: 0, deductions: 0 } });
 
+    // Cancellation fixture: a distinctly-named employee with one PENDING request the
+    // cancellation spec cancels (filtered by name in the company queue). Re-created each run.
+    const cancelEmp = await db.employee.upsert({
+      where: { email: "e2e-cancel@interestingtimes.me" },
+      update: { status: "ACTIVE" },
+      create: { email: "e2e-cancel@interestingtimes.me", firstName: "Cancella", lastName: "Test", regionId: uae.id, joiningDate: day("2024-01-01"), role: "STAFF" },
+    });
+    let cPeriod = await db.allowancePeriod.findFirst({ where: { employeeId: cancelEmp.id, endDate: null } });
+    if (!cPeriod) cPeriod = await db.allowancePeriod.create({ data: { employeeId: cancelEmp.id, regionId: uae.id, startDate: day("2026-01-01"), opening: 26 } });
+    await db.leaveRequest.deleteMany({ where: { employeeId: cancelEmp.id } });
+    await db.leaveRequest.create({ data: { employeeId: cancelEmp.id, leaveTypeId: vacation.id, startDate: day("2026-12-07"), endDate: day("2026-12-07"), durationMode: "DAY", workingDays: 1, allowanceDays: 1, status: "PENDING", allowancePeriodId: cPeriod.id, createdById: cancelEmp.id } });
+
+    // Remote-holiday fixture (from #18): a Remote employee with the holiday balance reset.
+    if (remote) {
+      const remoteEmp = await db.employee.upsert({
+        where: { email: "e2e-remote@interestingtimes.me" },
+        update: { status: "ACTIVE", regionId: remote.id },
+        create: { email: "e2e-remote@interestingtimes.me", firstName: "Remy", lastName: "Remote", regionId: remote.id, joiningDate: day("2024-01-01"), role: "STAFF" },
+      });
+      await db.holidayBalance.deleteMany({ where: { employeeId: remoteEmp.id } });
+    }
+
     // The HR user books their own leave in request.spec — start clean.
     await db.leaveRequest.deleteMany({ where: { employee: { email: HR_EMAIL } } });
 

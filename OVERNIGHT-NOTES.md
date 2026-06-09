@@ -15,6 +15,48 @@ Each entry: what / where / why.
   (brand assets, Teams/Azure) and Epic 11. **Multi-level approval routing is Epic 5.5**,
   explicitly excluded from this run. No guardrail involved — these need inputs/decisions.
 
+## v2b — Remote Holiday bucket-aware CONSUMPTION — PLAN ONLY, STOP for review
+
+**Built:** the Remote Holiday balance (HR-set, default 5, non-carry) + HR edit in
+`/admin/allowance` + `core/allowance.holidayRemaining` (ADR-0010). **Not built (plan):** a
+leave type that *deducts from the holiday ledger instead of annual* — it touches the
+leave→balance path, so it's left for review.
+
+### Plan
+- **Mark the bucket on the leave type.** Add `LeaveType.allowanceBucket` enum
+  (`ANNUAL` | `HOLIDAY`, default `ANNUAL`). A "Holiday / office-closure" type is `HOLIDAY`.
+  (Decision for reviewer: a flag on the type vs a dedicated hard-coded code — flag is more
+  configurable and stays "config as data".)
+- **Route validation + debit to the right ledger.** In `core/leave.validateLeaveRequest`,
+  when the type's bucket is HOLIDAY, check against **holiday remaining** (set days − holiday
+  taken) instead of annual `available`; annual is untouched. `lib/leave` passes the holiday
+  remaining when the type is HOLIDAY.
+- **Taken = approved HOLIDAY-bucket leave for the year.** `holidayRemaining(days, taken)`
+  where taken = Σ approved holiday-bucket `allowanceDays` in the year. No new "balance"
+  stored — engine-derived, same as annual.
+- **Remote-only guard:** HOLIDAY-bucket requests only valid for Remote employees (else the
+  type isn't offered / is rejected).
+- **Edge cases:** non-Remote requesting a HOLIDAY type → blocked; holiday over-booking →
+  blocked (engine); year boundary (non-carry) — taken/days are per-year; half-days as usual.
+- **Tests:** core unit (holiday bucket over-booking, boundary); integration (preview/submit
+  debits holiday not annual; annual unaffected; Remote-only); e2e.
+
+### Why stopped
+Per instruction (touches the leave→balance path) + a real product decision (bucket flag on
+the type, and the Remote-Holiday joiner/pro-rata rule for `days` isn't finalised). Awaiting
+sign-off.
+
+## v2b — Holiday balance display in My Leave / Dashboard — DEFERRED (dependency)
+
+- **What:** showing the Remote Holiday balance alongside the annual balance in **My Leave**
+  and the **Dashboard**.
+- **Where:** those pages are in **unmerged PRs #7 (My Leave) and #8 (Dashboard)** — on `main`
+  they're still stubs. `lib/holiday-balance.getHolidayBalance(employeeId, year)` is ready.
+- **Why:** building the display on the stub pages would be throwaway and would conflict with
+  #7/#8 at merge. It should be folded into those pages when they land (or as a follow-up once
+  merged). The HR-facing set/edit + display in `/admin/allowance` IS delivered. No guardrail
+  involved — purely a not-on-main dependency.
+
 ## Epic 9.2 — Allowance management (adjustments + Reset/Add Balance) — PLAN ONLY, STOP for review
 
 **Status: not implemented — awaiting human review of this plan (per instructions).**
@@ -89,6 +131,18 @@ and it carries a genuine product decision (adjustments **ledger** vs running **c
 whether Reset zeroes carry-over/adjustments). Awaiting human sign-off before coding.
 
 ---
+
+## Epic 5.6 — owner self-cancel UI + HR-cancel-approved view — DEFERRED (dependency)
+
+- **What:** the cancellation **rule + service** are built and tested (`core/cancellation`,
+  `lib/cancellation`, ADR-0011), with an HR Cancel wired into the company pending queue. Not
+  built: the **owner self-cancel button in My Leave** and an **HR list of approved leave to
+  cancel** (last-day/approved path UI).
+- **Where:** `feat/epic-5.6-cancellation`. Those UIs belong in **My Leave (PR #7, unmerged)** —
+  a stub on `main`. `lib/cancellation.cancelLeaveRequest` is ready to wire.
+- **Why:** building a leave list on the stub would be throwaway and conflict with #7. The
+  owner/HR rules are fully exercised by unit + integration tests; the e2e covers the HR queue
+  cancel. No guardrail involved — purely not-on-main dependency.
 
 ## Epic 9.4 — HR logs on the wall chart "per config" — DEFERRED
 
