@@ -4,6 +4,7 @@
 // notes are NEVER selected, so they can't reach the client.
 import {
   buildRow,
+  cellCsv,
   groupRows,
   monthDays,
   sortRows,
@@ -12,6 +13,7 @@ import {
   type SortBy,
   type WallCell,
 } from "@/core/wallchart";
+import { toCsv } from "@/core/csv";
 import type { ISODate, RegionCalendar } from "@/core/types";
 import { db } from "./db";
 
@@ -50,6 +52,21 @@ export interface WallChartData {
   prev: { y: number; m: number };
   next: { y: number; m: number };
   todayISO: ISODate;
+}
+
+/**
+ * CSV of the chart reflecting whatever filters/sort produced `data` (Epic 6.4): one row
+ * per employee, a column per day of the month. Notes are never present (6.5).
+ */
+export function buildWallChartCsv(data: WallChartData): string {
+  const header = ["Employee", "Department", "Region", ...data.days.map((d) => String(d.day))];
+  const body = data.rows.map((row) => [
+    row.name,
+    row.departmentName ?? "",
+    row.regionName,
+    ...row.cells.map(cellCsv),
+  ]);
+  return toCsv([header, ...body]);
 }
 
 /** Today in Asia/Dubai (all scheduling/date logic is Dubai time). */
