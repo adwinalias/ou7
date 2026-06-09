@@ -58,6 +58,23 @@ async function main() {
     await db.leaveType.upsert({ where: { name: lt.name }, update: lt, create: lt });
   }
 
+  // Confirmed entitlement policy (editable in the config hub) — per region × role.
+  // The numbers are region-level; seeded for all roles so any employee can be provisioned.
+  // Carry-over cap 5 / expiry 31 Mar for all. HR can change these. (ADR-0008/0009.)
+  const annualByRegion: Record<string, number> = { UAE: 22, KSA: 21, Beirut: 15, Remote: 22 };
+  const policyRoles = ["STAFF", "APPROVER", "HR"] as const;
+  for (const [regionName, annualDays] of Object.entries(annualByRegion)) {
+    const region = await db.region.findUniqueOrThrow({ where: { name: regionName } });
+    for (const role of policyRoles) {
+      const data = { annualDays, carryOverCapDays: 5, carryOverExpiry: "03-31" };
+      await db.entitlementPolicy.upsert({
+        where: { regionId_role: { regionId: region.id, role } },
+        update: data,
+        create: { regionId: region.id, role, ...data },
+      });
+    }
+  }
+
   const uae = await db.region.findUniqueOrThrow({ where: { name: HR_BOOTSTRAP.regionName } });
   const { regionName: _regionName, ...hr } = HR_BOOTSTRAP;
   const employee = await db.employee.upsert({

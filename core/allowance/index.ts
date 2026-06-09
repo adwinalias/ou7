@@ -1,6 +1,6 @@
 // The allowance engine. Pure, deterministic, exhaustively tested. No I/O, no AI.
 // Balances are always DERIVED here — never hand-stored.
-import { daysInclusive, parseISO } from "../dates";
+import { parseISO } from "../dates";
 import type { AllowanceInputs, CarryOverRule, ISODate } from "../types";
 
 /** Round to a fixed number of decimals to avoid floating-point noise. */
@@ -25,8 +25,10 @@ export function computeAvailable(remaining: number, pending: number): number {
 }
 
 /**
- * Full annual entitlement granted UPFRONT, pro-rated for mid-year joiners by joining date.
- * Joined on/before the year start → full annual. After year end → 0.
+ * Full annual entitlement granted UPFRONT, pro-rated for mid-year joiners — MONTH-BASED
+ * (ADR-0009): annual ÷ 12 × (months from the joining month through December, inclusive),
+ * rounded UP to a whole day. The joining month counts as a full month. Joined on/before the
+ * year start → full annual, unrounded. Joined after the year → 0.
  */
 export function proRataOpening(
   annual: number,
@@ -37,11 +39,10 @@ export function proRataOpening(
   const ys = parseISO(yearStartISO);
   const ye = parseISO(yearEndISO);
   const j = parseISO(joiningISO);
-  if (j <= ys) return annual;
-  if (j > ye) return 0;
-  const totalDays = daysInclusive(ys, ye);
-  const remainingDays = daysInclusive(j, ye);
-  return roundToHalf(annual * (remainingDays / totalDays));
+  if (j <= ys) return annual; // on/before year start → full annual (unrounded)
+  if (j > ye) return 0; // joined after the year → none
+  const months = 12 - j.getUTCMonth(); // join month → Dec inclusive: Jan(0)→12 … Dec(11)→1
+  return Math.ceil((annual / 12) * months);
 }
 
 /**

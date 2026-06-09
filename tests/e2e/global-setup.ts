@@ -44,6 +44,20 @@ export default async function globalSetup() {
     const remote = await db.region.findFirst({ where: { name: "Remote" } });
     if (remote) await db.entitlementPolicy.deleteMany({ where: { regionId: remote.id } });
 
+    // Allowance-management fixture: a UAE STAFF employee (policy 22, full-year joiner) with a
+    // period reset to opening 20 and an empty ledger, so allowance.spec is deterministic.
+    const allowEmp = await db.employee.upsert({
+      where: { email: "e2e-allow@interestingtimes.me" },
+      update: { status: "ACTIVE" },
+      create: { email: "e2e-allow@interestingtimes.me", firstName: "Allowy", lastName: "Manager", regionId: uae.id, joiningDate: day("2024-01-01"), role: "STAFF" },
+    });
+    let allowPeriod = await db.allowancePeriod.findFirst({ where: { employeeId: allowEmp.id, endDate: null } });
+    if (!allowPeriod) {
+      allowPeriod = await db.allowancePeriod.create({ data: { employeeId: allowEmp.id, regionId: uae.id, startDate: day("2026-01-01"), opening: 20 } });
+    }
+    await db.allowanceAdjustment.deleteMany({ where: { periodId: allowPeriod.id } });
+    await db.allowancePeriod.update({ where: { id: allowPeriod.id }, data: { opening: 20, adjustments: 0, deductions: 0 } });
+
     // The HR user books their own leave in request.spec — start clean.
     await db.leaveRequest.deleteMany({ where: { employee: { email: HR_EMAIL } } });
 
