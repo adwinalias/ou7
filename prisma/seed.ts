@@ -12,7 +12,7 @@ const regions = [
   { name: "UAE", weekendDays: [6, 0], carryOverCapDays: 5, carryOverExpiry: "03-31" },
   { name: "KSA", weekendDays: [5, 6], carryOverCapDays: 5, carryOverExpiry: "03-31" },
   { name: "Beirut", weekendDays: [6, 0], carryOverCapDays: 5, carryOverExpiry: "03-31" },
-  { name: "Remote", weekendDays: [6, 0], carryOverCapDays: null, carryOverExpiry: null },
+  { name: "Remote", weekendDays: [6, 0], carryOverCapDays: 5, carryOverExpiry: "03-31" },
 ];
 
 const departments = [
