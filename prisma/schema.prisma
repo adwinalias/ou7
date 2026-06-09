@@ -190,6 +190,7 @@ model Employee {
   auditEvents      AuditEvent[]   @relation("AuditActor")
   allowanceAdjustments AllowanceAdjustment[] @relation("AdjustmentSubject")
   adjustmentsActed     AllowanceAdjustment[] @relation("AdjustmentActor")
+  holidayBalances      HolidayBalance[]
 
   @@index([regionId])
   @@index([departmentId])
@@ -257,6 +258,21 @@ model AllowancePeriod {
 enum AdjustmentKind {
   ADJUSTMENT // manual +/- to allowance (signed delta)
   DEDUCTION // reduces effective allowance, e.g. unpaid leave (positive magnitude)
+}
+
+// Remote-only "Holiday" allowance (v2b / ADR-0010): a SEPARATE, HR-set, per-year,
+// NON-CARRY balance distinct from annual leave. Default 5, editable per employee. The
+// stored `days` is the input; remaining is engine-derived (core/allowance.holidayRemaining).
+model HolidayBalance {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  year       Int
+  days       Float    @default(5)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, year])
 }
 
 // Allowance adjustment/deduction ledger (Epic 9.2 / ADR-0009). The AllowancePeriod's
