@@ -52,5 +52,9 @@ npm run e2e             # Playwright
 npm run build
 ```
 
+## CI & deploys
+- **The merge gate is the GitHub Actions `build-and-test` job** (`.github/workflows/ci.yml`): typecheck → lint → unit → migrate → integration → build. Green there = mergeable.
+- **Netlify deploy-preview checks (`ou7in17`) are a temporary experiment, not a gate.** The app targets **Vercel** (ADR-0002); the Netlify previews may fail and should be ignored when deciding to merge.
+
 ## Current state (start here)
 Scaffolded and verified: tooling, CI, Prisma schema + seed, the `core/` engine (allowance, calendar, leave validation — tests pass), Auth.js Google SSO config, env validation, the app shell with working light/dark switch, and route **stubs** for dashboard/wall-chart/my-leave/request/approvals/admin. The route pages are placeholders — your job is to build them out per the epics, starting with finishing **Epic 1** (RBAC guard + session→Employee mapping) and the **Epic 5** request→preview→submit slice on top of the already-tested `core/leave`.
