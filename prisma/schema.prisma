@@ -95,6 +95,24 @@ model Region {
   restrictedDays RestrictedDay[]
   allowancePeriods AllowancePeriod[]
   leaveTypes     LeaveType[] // m2m: availability per region
+  entitlementPolicies EntitlementPolicy[]
+}
+
+// Entitlement / carry-over policy (Epic 9.5): per region × role → annual days granted
+// upfront + carry-over rule. EDITABLE DATA entered by HR — shipped empty; the engine
+// (core/allowance) reads these numbers to compute a joiner's opening. Never hard-coded.
+model EntitlementPolicy {
+  id               String   @id @default(cuid())
+  region           Region   @relation(fields: [regionId], references: [id])
+  regionId         String
+  role             Role
+  annualDays       Float // full-year entitlement; pro-rated for mid-year joiners by the engine
+  carryOverCapDays Float? // null = no carry-over
+  carryOverExpiry  String? // ISO month-day "MM-DD"; null = no expiry
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([regionId, role])
 }
 
 model Department {
