@@ -94,6 +94,14 @@ export function buildRow(
   });
 }
 
+/** The value a cell contributes to a CSV export (Epic 6.4): code (with ½ for half days),
+ *  "—" for non-working, "" for an available working day. */
+export function cellCsv(cell: WallCell): string {
+  if (cell.kind === "off") return "—";
+  if (cell.kind === "none") return "";
+  return `${cell.half ? "½" : ""}${cell.code ?? ""}`;
+}
+
 // ─── Grouping & sorting (Epic 6.2) — pure ────────────────────────────────────────
 export type GroupBy = "none" | "department" | "region" | "tag";
 export type SortBy = "name" | "department";

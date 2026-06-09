@@ -2,7 +2,7 @@
 // correct cells per status, region weekends as "off", wall-chart visibility honoured, and
 // the privacy guarantee that notes never reach the rendered data. Self-skips without a DB.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getWallChart } from "@/lib/wallchart";
+import { buildWallChartCsv, getWallChart } from "@/lib/wallchart";
 import { db } from "@/lib/db";
 
 let dbUp = false;
@@ -91,6 +91,14 @@ suite("Wall chart assembly (integration)", () => {
   it("PRIVACY: notes never reach the rendered data (6.5)", async () => {
     const data = await getWallChart(2026, 6);
     expect(JSON.stringify(data)).not.toContain(SECRET);
+  });
+
+  it("CSV export reflects the chart and never includes notes (6.4/6.5)", async () => {
+    const csv = buildWallChartCsv(await getWallChart(2026, 6));
+    expect(csv.split("\r\n")[0]).toMatch(/^Employee,Department,Region,1,/);
+    expect(csv).toContain("Wall Chart");
+    expect(csv).toContain(VISIBLE); // the approved code appears in a day column
+    expect(csv).not.toContain(SECRET);
   });
 
   it("navigation metadata wraps months correctly", async () => {

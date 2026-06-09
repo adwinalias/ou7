@@ -12,6 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "220px 1fr" }}>
       <aside
+        className="no-print"
         style={{
           borderRight: "1px solid var(--border)",
           background: "var(--surface)",
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header
+          className="no-print"
           style={{
             display: "flex",
             justifyContent: "space-between",

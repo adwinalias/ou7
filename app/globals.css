@@ -5,3 +5,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Print-friendly view (Epic 6.4): hide app chrome + controls, let the grid fill the page. */
+@media print {
+  .no-print { display: none !important; }
+  main { padding: 0 !important; }
+}

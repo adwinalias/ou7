@@ -1,6 +1,7 @@
 import { getWallChart, type WallChartOptions } from "@/lib/wallchart";
 import { requireUser } from "@/lib/rbac";
 import type { GroupBy, SortBy } from "@/core/wallchart";
+import PrintButton from "./PrintButton";
 import WallGrid from "./WallGrid";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -61,16 +62,21 @@ export default async function WallChartPage({
       </p>
 
       {/* Navigation (6.3) — Prev/Next preserve the current grouping/filters. */}
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-3)" }}>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-3)", flexWrap: "wrap" }}>
         <a className="btn btn-secondary" href={href(data.prev.y, data.prev.m, o)} data-testid="wc-prev">← Prev</a>
         <strong className="t-num" data-testid="wc-month" style={{ minWidth: 160, textAlign: "center" }}>{data.monthLabel}</strong>
         <a className="btn btn-secondary" href={href(data.next.y, data.next.m, o)} data-testid="wc-next">Next →</a>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "var(--space-2)" }}>
+          <a className="btn btn-secondary" href={`/wall-chart/export?${href(year, month, o).split("?")[1]}`} data-testid="wc-export">Export CSV</a>
+          <PrintButton />
+        </div>
       </div>
 
       {/* Controls (6.2 + 6.3): one GET form carries month/year, grouping, filters, sort. */}
       <form
         method="get"
         action="/wall-chart"
+        className="no-print"
         style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "end", marginBottom: "var(--space-4)" }}
       >
         <Field label="Month" htmlFor="m">

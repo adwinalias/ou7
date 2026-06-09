@@ -43,3 +43,20 @@ test("wall chart groups and filters (Epic 6.2)", async ({ page }) => {
   await expect(page.getByText("Wanda Waller")).toBeVisible();
   await expect(page.locator("body")).not.toContainText("Adwin Alias");
 });
+
+test("wall chart exports CSV and offers a print view (Epic 6.4)", async ({ page }) => {
+  await signIn(page, HR_EMAIL);
+
+  // CSV reflects the requested month + filters and is downloadable.
+  const res = await page.request.get("/wall-chart/export?y=2026&m=9&name=Wanda");
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("text/csv");
+  const body = await res.text();
+  expect(body.split("\r\n")[0]).toMatch(/^Employee,Department,Region,1,/);
+  expect(body).toContain("Wanda Waller");
+  expect(body).not.toContain("WALL-SECRET-NOTE");
+
+  // Print control is present on the page.
+  await page.goto("/wall-chart?y=2026&m=9");
+  await expect(page.getByTestId("wc-print")).toBeVisible();
+});
