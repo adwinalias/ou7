@@ -6,6 +6,7 @@ import { type DecisionAction, decideLeave } from "@/core/approvals";
 import { canApproveFor, isApprover, isHR } from "@/core/authz";
 import type { Actor } from "@/core/types";
 import { periodBalanceExcluding } from "./allowance";
+import { recordAudit } from "./audit";
 import { db } from "./db";
 import { notifier } from "./notify";
 import { AuthError } from "./rbac";
@@ -128,6 +129,17 @@ export async function decideLeaveRequest(
     if (updated.count === 0) {
       return { ok: false as const, errors: ["This request has already been decided."] };
     }
+
+    // Audit the decision atomically with the write (Epic 16.1).
+    await recordAudit(tx, {
+      actorId: actor.employeeId,
+      action: action === "APPROVE" ? "LEAVE_APPROVE" : "LEAVE_DECLINE",
+      entity: "LeaveRequest",
+      entityId: requestId,
+      before: { status: "PENDING" },
+      after: { status: decision.nextStatus, decisionComment: comment?.trim() || null, decidedBy: actor.employeeId },
+    });
+
     return { ok: true as const, status: decision.nextStatus };
   });
 
