@@ -67,3 +67,36 @@ export function canBook(available: number, requestedDays: number): boolean {
 export function holidayRemaining(days: number, taken = 0): number {
   return round(days - taken);
 }
+
+/** One slice of the allowance donut (Epic 8.1). `fraction` is 0..1 of the total. */
+export interface DonutSegment {
+  key: "taken" | "pending" | "available";
+  label: string;
+  value: number;
+  fraction: number;
+}
+
+/**
+ * Split the year's allowance into Taken / Pending / Available slices for the donut.
+ * total = taken + pending + available (= approved-taken + remaining). Negatives are
+ * clamped to 0; when the total is 0 every fraction is 0 (caller renders an empty ring).
+ * Every slice is labelled so the donut is never distinguished by colour alone.
+ */
+export function donutSegments(input: { taken: number; pending: number; available: number }): {
+  total: number;
+  segments: DonutSegment[];
+} {
+  const taken = Math.max(0, input.taken);
+  const pending = Math.max(0, input.pending);
+  const available = Math.max(0, input.available);
+  const total = round(taken + pending + available);
+  const frac = (v: number) => (total > 0 ? round(v / total, 4) : 0);
+  return {
+    total,
+    segments: [
+      { key: "taken", label: "Taken", value: round(taken), fraction: frac(taken) },
+      { key: "pending", label: "Pending", value: round(pending), fraction: frac(pending) },
+      { key: "available", label: "Available", value: round(available), fraction: frac(available) },
+    ],
+  };
+}
