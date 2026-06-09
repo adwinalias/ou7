@@ -19,12 +19,41 @@ describe("allowance engine", () => {
     expect(computeAvailable(11, 10)).toBe(1);
   });
 
-  it("grants full allowance upfront to early joiners, pro-rates mid-year joiners", () => {
-    expect(proRataOpening(26, "2025-12-01", "2026-01-01", "2026-12-31")).toBe(26);
-    const half = proRataOpening(24, "2026-07-01", "2026-01-01", "2026-12-31");
-    expect(half).toBeGreaterThan(11.5);
-    expect(half).toBeLessThan(12.5);
-    expect(proRataOpening(26, "2027-01-01", "2026-01-01", "2026-12-31")).toBe(0);
+  describe("proRataOpening — month-based, ceil (ADR-0009)", () => {
+    const ys = "2026-01-01";
+    const ye = "2026-12-31";
+    const open = (annual: number, joinISO: string) => proRataOpening(annual, joinISO, ys, ye);
+
+    it("grants the full annual (unrounded) to anyone joined on/before the year start", () => {
+      expect(open(22, "2025-12-01")).toBe(22); // prior year
+      expect(open(22, "2026-01-01")).toBe(22); // exactly year start
+      expect(open(22.5, "2025-06-01")).toBe(22.5); // fractional annual stays unrounded
+    });
+
+    it("returns 0 for anyone joining after the year", () => {
+      expect(open(22, "2027-01-01")).toBe(0);
+    });
+
+    it("a January joiner (after Jan 1) gets the full annual (12 months)", () => {
+      expect(open(22, "2026-01-15")).toBe(22); // ceil(22/12*12) = 22
+    });
+
+    it("a December joiner gets ceil(annual/12) (1 month)", () => {
+      expect(open(22, "2026-12-20")).toBe(2); // ceil(22/12) = ceil(1.83) = 2
+      expect(open(24, "2026-12-31")).toBe(2); // ceil(24/12) = 2
+    });
+
+    it("matches the confirmed sanity values for a March joiner (10 months)", () => {
+      expect(open(22, "2026-03-10")).toBe(19); // UAE: ceil(18.33)
+      expect(open(21, "2026-03-31")).toBe(18); // KSA: ceil(17.5)
+      expect(open(15, "2026-03-01")).toBe(13); // Beirut: ceil(12.5)
+      expect(open(22, "2026-03-01")).toBe(19); // Remote (annual 22) == UAE
+    });
+
+    it("counts the joining month as a full month regardless of day", () => {
+      expect(open(22, "2026-07-01")).toBe(open(22, "2026-07-31")); // both 6 months → ceil(11)=11
+      expect(open(22, "2026-07-15")).toBe(11); // ceil(22/12*6) = ceil(11) = 11
+    });
   });
 
   it("applies per-market carry-over cap; null = no carry-over", () => {

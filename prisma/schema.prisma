@@ -188,6 +188,8 @@ model Employee {
   createdLogs      HRLog[]        @relation("CreatedLogs")
   notifications    Notification[] @relation("Recipient")
   auditEvents      AuditEvent[]   @relation("AuditActor")
+  allowanceAdjustments AllowanceAdjustment[] @relation("AdjustmentSubject")
+  adjustmentsActed     AllowanceAdjustment[] @relation("AdjustmentActor")
 
   @@index([regionId])
   @@index([departmentId])
@@ -246,8 +248,34 @@ model AllowancePeriod {
   createdAt           DateTime      @default(now())
 
   requests LeaveRequest[]
+  // Adjustment/deduction ledger; `adjustments`/`deductions` above are the SUM projections.
+  adjustmentEntries AllowanceAdjustment[]
 
   @@index([employeeId])
+}
+
+enum AdjustmentKind {
+  ADJUSTMENT // manual +/- to allowance (signed delta)
+  DEDUCTION // reduces effective allowance, e.g. unpaid leave (positive magnitude)
+}
+
+// Allowance adjustment/deduction ledger (Epic 9.2 / ADR-0009). The AllowancePeriod's
+// `adjustments`/`deductions` input columns are the SUM of these rows (a derived projection),
+// recomputed under a period-row lock on every insert. Every entry is audited.
+model AllowanceAdjustment {
+  id         String         @id @default(cuid())
+  employee   Employee       @relation("AdjustmentSubject", fields: [employeeId], references: [id])
+  employeeId String
+  period     AllowancePeriod @relation(fields: [periodId], references: [id])
+  periodId   String
+  kind       AdjustmentKind
+  delta      Float
+  reason     String
+  actor      Employee?      @relation("AdjustmentActor", fields: [actorId], references: [id])
+  actorId    String?
+  createdAt  DateTime       @default(now())
+
+  @@index([periodId])
 }
 
 // ─── Leave requests ──────────────────────────────────────────
