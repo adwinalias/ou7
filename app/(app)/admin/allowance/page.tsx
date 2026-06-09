@@ -1,8 +1,9 @@
 import { getOpenPeriodBalance } from "@/lib/allowance";
 import { listAdjustments, previewReset } from "@/lib/allowance-admin";
+import { getHolidayBalance } from "@/lib/holiday-balance";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { resetAction } from "./actions";
+import { resetAction, setHolidayAction } from "./actions";
 import AddEntryForm from "./AddEntryForm";
 
 const num: React.CSSProperties = { textAlign: "right", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" };
@@ -20,6 +21,7 @@ export default async function AllowanceAdminPage({ searchParams }: { searchParam
   const balance = employee ? await getOpenPeriodBalance(employee.id) : null;
   const ledger = balance ? await listAdjustments(balance.periodId) : [];
   const preview = employee ? await previewReset(employee.id, year) : null;
+  const holidayDays = employee ? await getHolidayBalance(employee.id, year) : null; // null = non-Remote
 
   return (
     <div style={{ maxWidth: 820 }}>
@@ -38,6 +40,25 @@ export default async function AllowanceAdminPage({ searchParams }: { searchParam
         <input type="hidden" name="year" value={year} />
         <button type="submit" className="btn btn-secondary">View</button>
       </form>
+
+      {/* Remote-only Holiday allowance (v2b) — separate non-carry ledger */}
+      {employee && holidayDays !== null && (
+        <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }} data-testid="holiday-section">
+          <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Holiday allowance · Remote ({year})</div>
+          <p className="t-muted" style={{ marginBottom: "var(--space-3)" }}>
+            Separate from annual leave; non-carry (lapses at year-end). Remaining{" "}
+            <strong className="t-num" data-testid="holiday-days">{holidayDays}</strong> day(s).
+          </p>
+          <form action={setHolidayAction} style={{ display: "flex", gap: "var(--space-2)", alignItems: "end" }}>
+            <input type="hidden" name="employeeId" value={employee.id} />
+            <input type="hidden" name="year" value={year} />
+            <label className="t-label" style={{ display: "flex", flexDirection: "column", gap: 2 }}>Set days
+              <input type="number" step="0.5" min="0" name="days" defaultValue={holidayDays} className="input t-num" data-testid="holiday-input" />
+            </label>
+            <button type="submit" className="btn btn-primary" data-testid="holiday-save">Save</button>
+          </form>
+        </section>
+      )}
 
       {!employee ? (
         <p className="t-muted">No employees.</p>
