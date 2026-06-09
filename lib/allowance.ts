@@ -60,6 +60,41 @@ export async function getOpenPeriodBalance(employeeId: string): Promise<PeriodBa
   };
 }
 
+export interface YearPeriodBalance extends PeriodBalance {
+  startISO: string;
+  endISO: string | null;
+  year: number;
+}
+
+/** Every allowance period for an employee (open + closed) with engine-computed balances,
+ *  newest first — for the My-Leave allowance panel (Epic 7.3). */
+export async function getAllPeriodBalances(employeeId: string): Promise<YearPeriodBalance[]> {
+  const periods = await db.allowancePeriod.findMany({ where: { employeeId }, orderBy: { startDate: "desc" } });
+  const out: YearPeriodBalance[] = [];
+  for (const p of periods) {
+    const { takenApproved, pending } = await sumDays(db, p.id);
+    const remaining = computeRemaining({
+      opening: p.opening,
+      carryOver: p.carryOver,
+      adjustments: p.adjustments,
+      takenApproved,
+      deductions: p.deductions,
+    });
+    out.push({
+      periodId: p.id,
+      opening: p.opening,
+      takenApproved,
+      pending,
+      remaining,
+      available: computeAvailable(remaining, pending),
+      startISO: p.startDate.toISOString().slice(0, 10),
+      endISO: p.endDate ? p.endDate.toISOString().slice(0, 10) : null,
+      year: p.startDate.getUTCFullYear(),
+    });
+  }
+  return out;
+}
+
 /**
  * Balance for a period EXCLUDING one request — used inside the approval transaction to
  * re-check over-booking for the request being decided. Run after locking the period row.
