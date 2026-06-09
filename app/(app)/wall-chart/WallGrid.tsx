@@ -122,12 +122,31 @@ export default function WallGrid({ data }: { data: WallChartData }) {
           );
         })}
 
-        {/* Rows */}
-        {data.rows.map((row) => (
-          <div key={row.employeeId} style={{ display: "contents" }}>
-            <div style={nameCol} title={`${row.name} · ${row.regionName}`}>{row.name}</div>
-            {row.cells.map((cell) => (
-              <Cell key={cell.iso} cell={cell} name={row.name} />
+        {/* Rows, optionally grouped (6.2) */}
+        {data.groups.map((group) => (
+          <div key={group.key} style={{ display: "contents" }}>
+            {data.options.groupBy !== "none" && (
+              <div
+                className="t-label"
+                style={{
+                  gridColumn: "1 / -1",
+                  position: "sticky",
+                  left: 0,
+                  background: "var(--surface-2)",
+                  borderBottom: "1px solid var(--border-strong)",
+                  padding: "var(--space-2) var(--space-3)",
+                }}
+              >
+                {group.label} · {group.rows.length}
+              </div>
+            )}
+            {group.rows.map((row) => (
+              <div key={`${group.key}-${row.employeeId}`} style={{ display: "contents" }}>
+                <div style={nameCol} title={`${row.name} · ${row.regionName}`}>{row.name}</div>
+                {row.cells.map((cell) => (
+                  <Cell key={cell.iso} cell={cell} name={row.name} />
+                ))}
+              </div>
             ))}
           </div>
         ))}

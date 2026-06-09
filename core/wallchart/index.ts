@@ -94,6 +94,61 @@ export function buildRow(
   });
 }
 
+// ─── Grouping & sorting (Epic 6.2) — pure ────────────────────────────────────────
+export type GroupBy = "none" | "department" | "region" | "tag";
+export type SortBy = "name" | "department";
+
+export interface GroupableRow {
+  name: string;
+  departmentName: string | null;
+  regionName: string;
+  tags: string[];
+}
+
+export interface RowGroup<T> {
+  key: string;
+  label: string;
+  rows: T[];
+}
+
+const NO_DEPT = "No department";
+const UNTAGGED = "Untagged";
+
+/** Stable sort by employee name, or by department (then name). Does not mutate input. */
+export function sortRows<T extends GroupableRow>(rows: T[], by: SortBy): T[] {
+  const byName = (a: T, b: T) => a.name.localeCompare(b.name);
+  return [...rows].sort((a, b) => {
+    if (by === "department") {
+      const d = (a.departmentName ?? NO_DEPT).localeCompare(b.departmentName ?? NO_DEPT);
+      if (d !== 0) return d;
+    }
+    return byName(a, b);
+  });
+}
+
+/**
+ * Group rows by company (none → one group), department, region, or tag. A row with
+ * several tags appears under each; a row with none falls under "Untagged". Groups are
+ * label-sorted; row order within a group is preserved (sort first if you want it ordered).
+ */
+export function groupRows<T extends GroupableRow>(rows: T[], by: GroupBy): RowGroup<T>[] {
+  if (by === "none") return rows.length ? [{ key: "all", label: "Company", rows }] : [];
+
+  const map = new Map<string, T[]>();
+  const add = (label: string, row: T) => (map.get(label) ?? map.set(label, []).get(label)!).push(row);
+
+  for (const row of rows) {
+    if (by === "department") add(row.departmentName ?? NO_DEPT, row);
+    else if (by === "region") add(row.regionName, row);
+    else if (row.tags.length === 0) add(UNTAGGED, row);
+    else for (const tag of row.tags) add(tag, row);
+  }
+
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, groupRows]) => ({ key: label, label, rows: groupRows }));
+}
+
 /**
  * Choose a readable letter colour for a solid leave-type block: ink on light hues,
  * paper on dark hues (relative luminance, sRGB). Returns a semantic token name so the

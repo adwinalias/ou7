@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { buildRow, daysInMonth, letterColorToken, monthDays, monthHeader, type WallSegment } from "../../core/wallchart";
+import {
+  buildRow,
+  daysInMonth,
+  groupRows,
+  letterColorToken,
+  monthDays,
+  monthHeader,
+  sortRows,
+  type GroupableRow,
+  type WallSegment,
+} from "../../core/wallchart";
 import type { ISODate, RegionCalendar } from "../../core/types";
 
 // UAE-style calendar: weekend = Sat(6)/Sun(0). One holiday to prove holidays read as "off".
@@ -97,6 +107,64 @@ describe("buildRow", () => {
     const cells = buildRow(days, [], cal, "2026-06-15");
     expect(cellFor(cells, "2026-06-15").today).toBe(true);
     expect(cellFor(cells, "2026-06-16").today).toBe(false);
+  });
+});
+
+describe("sortRows / groupRows (Epic 6.2)", () => {
+  const row = (name: string, departmentName: string | null, regionName: string, tags: string[] = []): GroupableRow => ({
+    name,
+    departmentName,
+    regionName,
+    tags,
+  });
+  const people: GroupableRow[] = [
+    row("Bea", "Engineering", "UAE", ["lead"]),
+    row("Ada", "Engineering", "KSA", []),
+    row("Cy", null, "UAE", ["lead", "remote"]),
+  ];
+
+  it("sorts by name", () => {
+    expect(sortRows(people, "name").map((r) => r.name)).toEqual(["Ada", "Bea", "Cy"]);
+  });
+
+  it("sorts by department then name (null department last under 'No department')", () => {
+    expect(sortRows(people, "department").map((r) => r.name)).toEqual(["Ada", "Bea", "Cy"]);
+  });
+
+  it("does not mutate the input array", () => {
+    const original = [...people];
+    sortRows(people, "name");
+    expect(people).toEqual(original);
+  });
+
+  it("groups by company into a single group", () => {
+    const groups = groupRows(people, "none");
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.label).toBe("Company");
+    expect(groups[0]!.rows).toHaveLength(3);
+  });
+
+  it("groups by department, with null → 'No department'", () => {
+    const groups = groupRows(people, "department");
+    expect(groups.map((g) => g.label)).toEqual(["Engineering", "No department"]);
+    expect(groups[0]!.rows.map((r) => r.name)).toEqual(["Bea", "Ada"]);
+  });
+
+  it("groups by region", () => {
+    const groups = groupRows(people, "region");
+    expect(groups.map((g) => g.label)).toEqual(["KSA", "UAE"]);
+  });
+
+  it("groups by tag: multi-tag rows appear in each; untagged → 'Untagged'", () => {
+    const groups = groupRows(people, "tag");
+    expect(groups.map((g) => g.label)).toEqual(["lead", "remote", "Untagged"]);
+    expect(groups.find((g) => g.label === "lead")!.rows.map((r) => r.name)).toEqual(["Bea", "Cy"]);
+    expect(groups.find((g) => g.label === "Untagged")!.rows.map((r) => r.name)).toEqual(["Ada"]);
+  });
+
+  it("empty input yields no groups", () => {
+    expect(groupRows([], "none")).toEqual([]);
+    expect(groupRows([], "department")).toEqual([]);
   });
 });
 

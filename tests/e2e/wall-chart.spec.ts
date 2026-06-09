@@ -30,3 +30,16 @@ test("wall chart renders leave, navigates months, and hides notes", async ({ pag
   await page.getByTestId("wc-prev").click();
   await expect(page.getByTestId("wc-month")).toHaveText("September 2026");
 });
+
+test("wall chart groups and filters (Epic 6.2)", async ({ page }) => {
+  await signIn(page, HR_EMAIL);
+
+  // Group by department → a group header row appears (seeded users have no department).
+  await page.goto("/wall-chart?y=2026&m=9&group=department");
+  await expect(page.getByText("No department").first()).toBeVisible();
+
+  // Filter by name narrows the chart to matching employees only.
+  await page.goto("/wall-chart?y=2026&m=9&name=Wanda");
+  await expect(page.getByText("Wanda Waller")).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("Adwin Alias");
+});
