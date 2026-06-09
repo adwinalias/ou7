@@ -13,6 +13,7 @@ export default async function AdminPage() {
         routing, branding, reports, Notion export. HR-only. See EPIC 9.
       </p>
       <nav style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+        <a className="btn btn-secondary" href="/admin/employees">Employees</a>
         <a className="btn btn-secondary" href="/admin/config">Configuration</a>
         <a className="btn btn-secondary" href="/admin/audit">Audit log</a>
         <a className="btn btn-secondary" href="/admin/calendars">Regional calendars</a>

@@ -36,6 +36,13 @@ export default async function globalSetup() {
     await db.holiday.deleteMany({ where: { name: { startsWith: "E2E " } } });
     await db.restrictedDay.deleteMany({ where: { reason: { startsWith: "E2E " } } });
 
+    // Employees.spec creates an "e2e-emp-" employee in the Remote region and expects the
+    // "no policy" stop-flag — clear those employees + Remote's policies so it's deterministic.
+    await db.allowancePeriod.deleteMany({ where: { employee: { email: { startsWith: "e2e-emp-" } } } });
+    await db.employee.deleteMany({ where: { email: { startsWith: "e2e-emp-" } } });
+    const remote = await db.region.findFirst({ where: { name: "Remote" } });
+    if (remote) await db.entitlementPolicy.deleteMany({ where: { regionId: remote.id } });
+
     // The HR user books their own leave in request.spec — start clean.
     await db.leaveRequest.deleteMany({ where: { employee: { email: HR_EMAIL } } });
 
