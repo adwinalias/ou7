@@ -14,6 +14,8 @@ export default async function AdminPage() {
       </p>
       <nav style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
         <a className="btn btn-secondary" href="/admin/audit">Audit log</a>
+        <a className="btn btn-secondary" href="/admin/calendars">Regional calendars</a>
+        <a className="btn btn-secondary" href="/admin/restricted-days">Restricted days</a>
       </nav>
     </div>
   );

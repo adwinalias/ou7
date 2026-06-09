@@ -31,6 +31,11 @@ export default async function globalSetup() {
     const uae = await db.region.findFirstOrThrow({ where: { name: "UAE" } });
     const vacation = await db.leaveType.findFirstOrThrow({ where: { code: "V" } });
 
+    // Calendars.spec creates an "E2E "-prefixed holiday + restricted day via the UI — clear
+    // them so it's re-runnable. (Dates chosen in the spec avoid other specs' booked dates.)
+    await db.holiday.deleteMany({ where: { name: { startsWith: "E2E " } } });
+    await db.restrictedDay.deleteMany({ where: { reason: { startsWith: "E2E " } } });
+
     // The HR user books their own leave in request.spec — start clean.
     await db.leaveRequest.deleteMany({ where: { employee: { email: HR_EMAIL } } });
 

@@ -3,7 +3,7 @@
 import { canBook } from "../allowance";
 import { countDays } from "../calendar";
 import { rangesOverlap } from "../dates";
-import type { DateRange, DurationMode, ISODate, RegionCalendar } from "../types";
+import type { DateRange, DurationMode, ISODate, RegionCalendar, RestrictedRange } from "../types";
 
 export interface LeaveValidationInput {
   startISO: ISODate;
@@ -13,6 +13,7 @@ export interface LeaveValidationInput {
   deductsAllowance: boolean;
   available: number;
   existing: DateRange[]; // the employee's current approved/pending ranges
+  restricted?: RestrictedRange[]; // company/department/region blackout ranges (Epic 10.2)
   noteRequired?: boolean;
   note?: string;
   attachmentRequired?: boolean;
@@ -39,6 +40,13 @@ export function validateLeaveRequest(input: LeaveValidationInput): LeaveValidati
 
   if (input.existing.some((r) => rangesOverlap(input.startISO, input.endISO, r.startISO, r.endISO))) {
     errors.push("Leave already requested for these/this date(s).");
+  }
+
+  // Restricted / blackout days (Epic 10.2): block when the requested range hits one.
+  for (const r of input.restricted ?? []) {
+    if (rangesOverlap(input.startISO, input.endISO, r.startISO, r.endISO)) {
+      errors.push(r.reason ? `Leave overlaps a restricted period: ${r.reason}.` : "Leave overlaps a restricted period.");
+    }
   }
 
   if (allowanceDays > 0 && !canBook(input.available, allowanceDays)) {
