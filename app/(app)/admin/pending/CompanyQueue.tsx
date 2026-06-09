@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { CompanyPendingItem } from "@/lib/approvals";
 import { decideAction } from "../../approvals/actions";
+import { cancelAction } from "./actions";
 
 const num: React.CSSProperties = { fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" };
 
@@ -26,6 +27,15 @@ function Row({ item }: { item: CompanyPendingItem }) {
     });
   }
 
+  function cancel() {
+    setError(null);
+    start(async () => {
+      const res = await cancelAction({ requestId: item.id });
+      if (res.ok) router.refresh();
+      else setError(res.error);
+    });
+  }
+
   return (
     <tr data-testid="pending-row">
       <td>{item.requesterName}</td>
@@ -38,6 +48,7 @@ function Row({ item }: { item: CompanyPendingItem }) {
           <input className="input" placeholder="reason (to decline)" value={comment} onChange={(e) => { setComment(e.target.value); setError(null); }} style={{ width: 150 }} data-testid="pending-reason" />
           <button className="btn btn-primary" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => decide("APPROVE")} data-testid="pending-approve">Approve</button>
           <button className="btn btn-danger" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => decide("DECLINE")}>Decline</button>
+          <button className="btn btn-secondary" style={{ padding: "2px 10px" }} disabled={pending} onClick={cancel} data-testid="pending-cancel">Cancel</button>
         </div>
         {error && <div role="alert" style={{ color: "var(--danger)", fontSize: "var(--text-xs)" }}>{error}</div>}
       </td>

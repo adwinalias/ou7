@@ -90,6 +90,18 @@ whether Reset zeroes carry-over/adjustments). Awaiting human sign-off before cod
 
 ---
 
+## Epic 5.6 — owner self-cancel UI + HR-cancel-approved view — DEFERRED (dependency)
+
+- **What:** the cancellation **rule + service** are built and tested (`core/cancellation`,
+  `lib/cancellation`, ADR-0011), with an HR Cancel wired into the company pending queue. Not
+  built: the **owner self-cancel button in My Leave** and an **HR list of approved leave to
+  cancel** (last-day/approved path UI).
+- **Where:** `feat/epic-5.6-cancellation`. Those UIs belong in **My Leave (PR #7, unmerged)** —
+  a stub on `main`. `lib/cancellation.cancelLeaveRequest` is ready to wire.
+- **Why:** building a leave list on the stub would be throwaway and conflict with #7. The
+  owner/HR rules are fully exercised by unit + integration tests; the e2e covers the HR queue
+  cancel. No guardrail involved — purely not-on-main dependency.
+
 ## Epic 9.4 — HR logs on the wall chart "per config" — DEFERRED
 
 - **What:** HR-only OOO/WFH logs shipped (create/list/delete, audited, **no notification**).
