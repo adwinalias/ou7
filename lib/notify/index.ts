@@ -13,8 +13,16 @@ export interface LeaveDecidedEvent {
   comment?: string | null;
 }
 
+export interface LeaveReminderEvent {
+  to: string; // approver (placeholder = requester until Epic 11 routes to the approver)
+  requesterName: string;
+  leaveTypeName: string;
+  startISO: string;
+}
+
 export interface Notifier {
   leaveDecided(event: LeaveDecidedEvent): Promise<void>;
+  leaveReminder(event: LeaveReminderEvent): Promise<void>;
 }
 
 // Default no-op: logs so the intent is visible in dev/CI; sends nothing.
@@ -23,6 +31,9 @@ export const consoleNotifier: Notifier = {
     console.info(
       `[notify] leave ${event.status} → ${event.to} (${event.leaveTypeName} ${event.startISO}…${event.endISO})`,
     );
+  },
+  async leaveReminder(event) {
+    console.info(`[notify] reminder for ${event.requesterName}'s ${event.leaveTypeName} (${event.startISO}) → ${event.to}`);
   },
 };
 
