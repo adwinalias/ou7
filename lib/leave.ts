@@ -4,11 +4,14 @@
 // Balances are computed, never hand-stored (CLAUDE.md / ADR 0003).
 import { z } from "zod";
 import { computeAvailable } from "@/core/allowance";
+import { canAddLeaveForOthers } from "@/core/authz";
 import { validateLeaveRequest } from "@/core/leave";
-import type { DateRange, ISODate, RegionCalendar } from "@/core/types";
+import type { Actor, DateRange, ISODate, RegionCalendar } from "@/core/types";
 import { getOpenPeriodBalance } from "./allowance";
+import { recordAudit } from "./audit";
 import { getRestrictedRangesFor } from "./calendars";
 import { db } from "./db";
+import { AuthError } from "./rbac";
 
 // ─── Input contract (shared with the client form + server actions) ───────────────
 export const leaveInputSchema = z
@@ -217,7 +220,11 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
 }
 
 /** Re-validate and persist a PENDING request. Never trusts a prior preview. */
-export async function submitLeave(employeeId: string, rawInput: LeaveInput): Promise<SubmitResult> {
+export async function submitLeave(
+  employeeId: string,
+  rawInput: LeaveInput,
+  opts: { createdById?: string } = {},
+): Promise<SubmitResult> {
   const preview = await previewLeave(employeeId, rawInput);
   if (!preview.ok) return { ok: false, errors: preview.errors };
 
@@ -245,11 +252,33 @@ export async function submitLeave(employeeId: string, rawInput: LeaveInput): Pro
       attachmentExpiresAt,
       status: "PENDING", // allowance is debited only on approval (Epic 5.4)
       allowancePeriodId: preview.deductsAllowance ? (balance?.periodId ?? null) : null,
-      createdById: employeeId,
+      createdById: opts.createdById ?? employeeId,
     },
     select: { id: true },
   });
 
   // NOTE: approver notification (email + Teams DM) is Epic 11 — wired here later.
   return { ok: true, id: created.id };
+}
+
+/**
+ * Add leave on behalf of another employee (Epic 9.3). Authorized for HR or approvers with
+ * the +Add level (core/authz.canAddLeaveForOthers). Goes through the SAME validation +
+ * PENDING create as a self-request (so over-booking/restricted/conflict rules all apply);
+ * unpaid leave is simply added as a PENDING (unapproved) request and notified on approval
+ * via the existing decide path. The creation is audited.
+ */
+export async function addLeaveOnBehalf(actor: Actor, targetEmployeeId: string, rawInput: LeaveInput): Promise<SubmitResult> {
+  if (!canAddLeaveForOthers(actor)) throw new AuthError(403, "You don't have permission to add leave for others.");
+  const res = await submitLeave(targetEmployeeId, rawInput, { createdById: actor.employeeId });
+  if (res.ok) {
+    await recordAudit(db, {
+      actorId: actor.employeeId,
+      action: "LEAVE_CREATE_ON_BEHALF",
+      entity: "LeaveRequest",
+      entityId: res.id,
+      after: { employeeId: targetEmployeeId, leaveTypeId: rawInput.leaveTypeId, startDate: rawInput.startDate },
+    });
+  }
+  return res;
 }
