@@ -15,6 +15,16 @@ Each entry: what / where / why.
   (brand assets, Teams/Azure) and Epic 11. **Multi-level approval routing is Epic 5.5**,
   explicitly excluded from this run. No guardrail involved — these need inputs/decisions.
 
+## Epic 9.4 — HR logs on the wall chart "per config" — DEFERRED
+
+- **What:** HR-only OOO/WFH logs shipped (create/list/delete, audited, **no notification**).
+  Displaying them **on the wall chart per a visibility config** was not built.
+- **Where:** `feat/epic-9.4-hrlogs`. `HRLog.isPrivate` exists; no `showOnWallChart` flag yet.
+- **Why:** It needs a schema flag + a `lib/wallchart` change to merge HRLog entries into the
+  grid (as a generic OOO/WFH marker, no private notes), which is a wall-chart enhancement
+  better done as its own slice. The core 9.4 requirement (private, HR-only, no-notify record)
+  is delivered. No guardrail involved.
+
 ## Epic 10.3 — Minimum staffing levels — SKIPPED (noted, not built)
 
 - **What:** 10.3 (warn/block requests that would breach a department's minimum present
