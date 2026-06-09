@@ -18,6 +18,11 @@ const WALL_APPROVED = "2026-09-15"; // Tuesday
 const WALL_PENDING = "2026-09-16"; // Wednesday
 const WALL_SECRET = "WALL-SECRET-NOTE"; // must never appear in the wall-chart page (privacy)
 
+// Audit fixture: a dedicated employee with a PENDING request only audit.spec touches.
+const AUDIT_EMAIL = "e2e-audit@interestingtimes.me";
+const AUDIT_DATE = "2026-11-16"; // Monday
+const AUDIT_NOTE = "AUDIT approve me";
+
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
 export default async function globalSetup() {
@@ -111,6 +116,21 @@ export default async function globalSetup() {
         allowancePeriodId: wPeriod.id,
         createdById: waller.id,
       },
+    });
+    // Audit fixture: a dedicated employee + one PENDING request for audit.spec to approve.
+    const auditor = await db.employee.upsert({
+      where: { email: AUDIT_EMAIL },
+      update: { status: "ACTIVE" },
+      create: { email: AUDIT_EMAIL, firstName: "Aud", lastName: "Itor", regionId: uae.id, joiningDate: day("2024-01-01"), role: "STAFF" },
+    });
+    let aPeriod = await db.allowancePeriod.findFirst({ where: { employeeId: auditor.id, endDate: null } });
+    if (!aPeriod) {
+      aPeriod = await db.allowancePeriod.create({ data: { employeeId: auditor.id, regionId: uae.id, startDate: day("2026-01-01"), opening: 26 } });
+    }
+    await db.auditEvent.deleteMany({ where: { entity: "LeaveRequest", entityId: { in: (await db.leaveRequest.findMany({ where: { employeeId: auditor.id }, select: { id: true } })).map((r) => r.id) } } });
+    await db.leaveRequest.deleteMany({ where: { employeeId: auditor.id } });
+    await db.leaveRequest.create({
+      data: { employeeId: auditor.id, leaveTypeId: vacation.id, startDate: day(AUDIT_DATE), endDate: day(AUDIT_DATE), durationMode: "DAY", workingDays: 1, allowanceDays: 1, status: "PENDING", allowancePeriodId: aPeriod.id, createdById: auditor.id, notes: AUDIT_NOTE },
     });
   } finally {
     await db.$disconnect();
