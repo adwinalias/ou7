@@ -19,7 +19,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           padding: "var(--space-4) 0",
         }}
       >
-        <div className="t-label" style={{ padding: "0 12px var(--space-3)" }}>N°17 · OU7</div>
+        <div className="brand-logo" style={{ padding: "0 12px var(--space-3)" }}>
+          {/* Theme-swapped brand lockups; next/image's optimisation isn't needed for a tiny static logo. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="logo-light" src="/brand/ou7-light-bg.png" alt="OU7" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="logo-dark" src="/brand/ou7-dark-bg.png" alt="OU7" />
+        </div>
         <AppNav canSeeApprovals={isApprover(actor)} canSeeAdmin={canAccessAdmin(actor)} />
       </aside>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
