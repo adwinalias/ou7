@@ -70,6 +70,17 @@ export default async function globalSetup() {
     await db.leaveRequest.deleteMany({ where: { employeeId: cancelEmp.id } });
     await db.leaveRequest.create({ data: { employeeId: cancelEmp.id, leaveTypeId: vacation.id, startDate: day("2026-12-07"), endDate: day("2026-12-07"), durationMode: "DAY", workingDays: 1, allowanceDays: 1, status: "PENDING", allowancePeriodId: cPeriod.id, createdById: cancelEmp.id } });
 
+    // My-Leave owner fixture: the owner signs in and self-cancels their own future PENDING.
+    const ownerEmp = await db.employee.upsert({
+      where: { email: "e2e-myleave@interestingtimes.me" },
+      update: { status: "ACTIVE" },
+      create: { email: "e2e-myleave@interestingtimes.me", firstName: "Olive", lastName: "Owner", regionId: uae.id, joiningDate: day("2024-01-01"), role: "STAFF" },
+    });
+    let oPeriod = await db.allowancePeriod.findFirst({ where: { employeeId: ownerEmp.id, endDate: null } });
+    if (!oPeriod) oPeriod = await db.allowancePeriod.create({ data: { employeeId: ownerEmp.id, regionId: uae.id, startDate: day("2026-01-01"), opening: 26 } });
+    await db.leaveRequest.deleteMany({ where: { employeeId: ownerEmp.id } });
+    await db.leaveRequest.create({ data: { employeeId: ownerEmp.id, leaveTypeId: vacation.id, startDate: day("2026-11-30"), endDate: day("2026-11-30"), durationMode: "DAY", workingDays: 1, allowanceDays: 1, status: "PENDING", allowancePeriodId: oPeriod.id, createdById: ownerEmp.id } });
+
     // Remote-holiday fixture (from #18): a Remote employee with the holiday balance reset.
     if (remote) {
       const remoteEmp = await db.employee.upsert({
