@@ -5,6 +5,7 @@ import {
   proRataOpening,
   applyCarryOver,
   canBook,
+  donutSegments,
 } from "@/core/allowance";
 import { countDays } from "@/core/calendar";
 import type { RegionCalendar } from "@/core/types";
@@ -94,5 +95,37 @@ describe("holidayRemaining (v2b Remote holiday ledger)", () => {
     expect(holidayRemaining(5, 2)).toBe(3);
     expect(holidayRemaining(7, 7)).toBe(0);
     expect(holidayRemaining(0.1 + 0.2, 0)).toBe(0.3);
+  });
+});
+
+describe("donutSegments (Epic 8.1)", () => {
+  it("splits into labelled Taken/Pending/Available with fractions summing to 1", () => {
+    const { total, segments } = donutSegments({ taken: 5, pending: 3, available: 12 });
+    expect(total).toBe(20);
+    expect(segments.map((s) => [s.key, s.label, s.value])).toEqual([
+      ["taken", "Taken", 5],
+      ["pending", "Pending", 3],
+      ["available", "Available", 12],
+    ]);
+    expect(segments.reduce((n, s) => n + s.fraction, 0)).toBeCloseTo(1, 5);
+    expect(segments[2]!.fraction).toBeCloseTo(0.6, 5);
+  });
+
+  it("returns zero fractions when the total is zero (empty ring)", () => {
+    const { total, segments } = donutSegments({ taken: 0, pending: 0, available: 0 });
+    expect(total).toBe(0);
+    expect(segments.every((s) => s.fraction === 0)).toBe(true);
+  });
+
+  it("clamps negatives to zero", () => {
+    const { total, segments } = donutSegments({ taken: -2, pending: 0, available: 4 });
+    expect(total).toBe(4);
+    expect(segments[0]!.value).toBe(0);
+    expect(segments[2]!.fraction).toBeCloseTo(1, 5);
+  });
+
+  it("always labels every arc (never colour-only)", () => {
+    const labels = donutSegments({ taken: 1, pending: 1, available: 1 }).segments.map((s) => s.label);
+    expect(labels).toEqual(["Taken", "Pending", "Available"]);
   });
 });
