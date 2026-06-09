@@ -12,6 +12,12 @@ const REQUESTER_EMAIL = "e2e-requester@interestingtimes.me";
 const APPROVE_DATE = "2026-09-07"; // a Monday (working day in UAE)
 const DECLINE_DATE = "2026-10-05"; // a Monday
 
+// Wall-chart fixture: a separate employee so wall-chart.spec is isolated from approvals.spec.
+const WALL_EMAIL = "e2e-wall@interestingtimes.me";
+const WALL_APPROVED = "2026-09-15"; // Tuesday
+const WALL_PENDING = "2026-09-16"; // Wednesday
+const WALL_SECRET = "WALL-SECRET-NOTE"; // must never appear in the wall-chart page (privacy)
+
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
 export default async function globalSetup() {
@@ -65,6 +71,47 @@ export default async function globalSetup() {
         },
       });
     }
+
+    // Wall-chart fixture employee with one APPROVED (carrying a private note) + one PENDING.
+    const waller = await db.employee.upsert({
+      where: { email: WALL_EMAIL },
+      update: { status: "ACTIVE" },
+      create: { email: WALL_EMAIL, firstName: "Wanda", lastName: "Waller", regionId: uae.id, joiningDate: day("2024-01-01"), role: "STAFF" },
+    });
+    let wPeriod = await db.allowancePeriod.findFirst({ where: { employeeId: waller.id, endDate: null } });
+    if (!wPeriod) {
+      wPeriod = await db.allowancePeriod.create({ data: { employeeId: waller.id, regionId: uae.id, startDate: day("2026-01-01"), opening: 26 } });
+    }
+    await db.leaveRequest.deleteMany({ where: { employeeId: waller.id } });
+    await db.leaveRequest.create({
+      data: {
+        employeeId: waller.id,
+        leaveTypeId: vacation.id,
+        startDate: day(WALL_APPROVED),
+        endDate: day(WALL_APPROVED),
+        durationMode: "DAY",
+        workingDays: 1,
+        allowanceDays: 1,
+        status: "APPROVED",
+        allowancePeriodId: wPeriod.id,
+        createdById: waller.id,
+        notes: WALL_SECRET,
+      },
+    });
+    await db.leaveRequest.create({
+      data: {
+        employeeId: waller.id,
+        leaveTypeId: vacation.id,
+        startDate: day(WALL_PENDING),
+        endDate: day(WALL_PENDING),
+        durationMode: "DAY",
+        workingDays: 1,
+        allowanceDays: 1,
+        status: "PENDING",
+        allowancePeriodId: wPeriod.id,
+        createdById: waller.id,
+      },
+    });
   } finally {
     await db.$disconnect();
   }
