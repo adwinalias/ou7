@@ -35,6 +35,7 @@ export default async function globalSetup() {
     // them so it's re-runnable. (Dates chosen in the spec avoid other specs' booked dates.)
     await db.holiday.deleteMany({ where: { name: { startsWith: "E2E " } } });
     await db.restrictedDay.deleteMany({ where: { reason: { startsWith: "E2E " } } });
+    await db.hRLog.deleteMany({ where: { notes: { startsWith: "E2E " } } });
 
     // Employees.spec creates an "e2e-emp-" employee in the Remote region and expects the
     // "no policy" stop-flag — clear those employees + Remote's policies so it's deterministic.
