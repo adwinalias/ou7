@@ -28,6 +28,46 @@ export interface PendingItem {
 
 export type DecideResult = { ok: true } | { ok: false; errors: string[] };
 
+export interface CompanyPendingItem extends PendingItem {
+  departmentName: string | null;
+  regionName: string;
+  daysPending: number; // whole days since the request was created
+}
+
+/** Every PENDING request org-wide, with time-in-pending — for the HR company queue
+ *  (Epic 9.6). Optional name / department filters. HR acts via the existing decide path. */
+export async function listCompanyPending(opts: { name?: string; departmentId?: string } = {}): Promise<CompanyPendingItem[]> {
+  const name = opts.name?.trim().toLowerCase() ?? "";
+  const rows = await db.leaveRequest.findMany({
+    where: {
+      status: "PENDING",
+      ...(opts.departmentId ? { employee: { departmentId: opts.departmentId } } : {}),
+    },
+    include: { employee: { select: { firstName: true, lastName: true, department: { select: { name: true } }, region: { select: { name: true } } } }, leaveType: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const nowMs = Date.now();
+  return rows
+    .map((r) => ({
+      id: r.id,
+      requesterName: `${r.employee.firstName} ${r.employee.lastName}`.trim(),
+      leaveTypeName: r.leaveType.name,
+      leaveTypeColor: r.leaveType.color,
+      code: r.leaveType.code,
+      startISO: iso(r.startDate),
+      endISO: iso(r.endDate),
+      durationMode: r.durationMode,
+      workingDays: r.workingDays,
+      allowanceDays: r.allowanceDays,
+      deductsAllowance: r.leaveType.deductsAllowance,
+      notes: r.notes,
+      departmentName: r.employee.department?.name ?? null,
+      regionName: r.employee.region.name,
+      daysPending: Math.max(0, Math.floor((nowMs - r.createdAt.getTime()) / 86_400_000)),
+    }))
+    .filter((r) => !name || r.requesterName.toLowerCase().includes(name));
+}
+
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /** PENDING requests the actor may act on: HR → all (fallback); approver → assigned only;
