@@ -1,6 +1,7 @@
 import Link from "next/link";
 import DashboardGrid, { type DashboardWidget } from "@/components/DashboardGrid";
 import { isApprover } from "@/core/authz";
+import { greetingForHour } from "@/core/dates";
 import { donutSegments } from "@/core/allowance";
 import { countPendingForApprover } from "@/lib/approvals";
 import { letterColorToken, type WallCell } from "@/core/wallchart";
@@ -121,7 +122,7 @@ export default async function DashboardPage() {
   // entirely (AC2), so don't even query. countPendingForApprover shares its WHERE with
   // listPendingForApprover, so this number equals the /approvals queue exactly (AC1).
   const approver = isApprover(actor);
-  const [{ balance, days }, holidayDays, whosOff, upcomingHolidays, pendingCount] = await Promise.all([
+  const [{ balance, days, firstName }, holidayDays, whosOff, upcomingHolidays, pendingCount] = await Promise.all([
     getDashboard(actor.employeeId),
     getHolidayBalance(actor.employeeId, year), // null for non-Remote
     getWhosOff(actor), // company-wide; four-category abstraction enforced server-side
@@ -262,9 +263,30 @@ export default async function DashboardPage() {
     });
   }
 
+  // Greeting + today's date, both computed in Asia/Dubai (Epic 19.6, L3). The hour drives a
+  // deterministic time-of-day greeting (pure greetingForHour); the date is the Dubai "today"
+  // rendered long-form. No clock logic lives in core — only the hour→word mapping does.
+  const now = new Date();
+  const dubaiHour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Dubai", hour: "2-digit", hour12: false }).format(now),
+  );
+  const greeting = greetingForHour(dubaiHour);
+  const todayLong = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Dubai",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(now);
+
   return (
     <div>
-      <h1 className="t-h1" style={{ marginBottom: "var(--space-5)" }}>My Dashboard</h1>
+      <header style={{ marginBottom: "var(--space-5)" }}>
+        <h1 className="t-h1" style={{ marginBottom: "var(--space-1)" }}>My Dashboard</h1>
+        <p className="t-muted" style={{ margin: 0 }} data-testid="dash-greeting">
+          Good {greeting}, {firstName}. <span className="t-num">{todayLong}</span>
+        </p>
+      </header>
       <DashboardGrid widgets={widgets} />
     </div>
   );

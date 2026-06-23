@@ -221,6 +221,14 @@ body {
 
 .input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
 .input:focus-visible { border-color: var(--accent); outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* Native date inputs (Epic 19.6, ML2) — keep the native + APG-conformant <input type=date>
+   widget, but standardise its look so every date field reads the same across the app: the
+   typed date in JetBrains Mono (matches .t-num), a consistent min-height to line up with
+   text inputs/selects, and the calendar picker indicator tinted to the text colour so it
+   re-themes. The .t-num class supplies the mono family; this just unifies sizing + chrome. */
+.input[type="date"] { font-family: var(--font-mono); min-height: 40px; }
+.input[type="date"]::-webkit-datetime-edit { font-variant-numeric: tabular-nums; }
+.input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.7; cursor: pointer; }
 
 /* Status pills */
 .pill { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: var(--track-mono); text-transform: uppercase; padding: 2px var(--space-2); border-radius: var(--radius-pill); }

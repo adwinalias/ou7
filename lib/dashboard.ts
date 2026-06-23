@@ -10,6 +10,7 @@ import { db } from "./db";
 export interface DashboardData {
   balance: PeriodBalance | null;
   regionName: string;
+  firstName: string; // viewer's first name, for the dashboard greeting (Epic 19.6, L3)
   days: WallCell[]; // next 7 days from today (Dubai), reusing the wall-chart cell vocabulary
 }
 
@@ -37,6 +38,7 @@ export async function getDashboard(employeeId: string): Promise<DashboardData> {
   const employee = await db.employee.findUniqueOrThrow({
     where: { id: employeeId },
     select: {
+      firstName: true,
       region: { select: { name: true, weekendDays: true } },
       workPattern: { select: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: true } },
     },
@@ -86,6 +88,7 @@ export async function getDashboard(employeeId: string): Promise<DashboardData> {
   return {
     balance: await getOpenPeriodBalance(employeeId),
     regionName: employee.region.name,
+    firstName: employee.firstName,
     days: buildRow(dayList, segments, effectiveCal, todayISO),
   };
 }
