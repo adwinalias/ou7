@@ -29,7 +29,7 @@ export default function BottomTabBar(perms: TabPerms) {
   const moreActive = more.some((t) => pathname.startsWith(t.href));
 
   return (
-    <nav className="bottom-tabs no-print" aria-label="Primary">
+    <nav className="bottom-tabs no-print" aria-label="Primary (mobile)">
       {primaryTabs.map((t) => {
         const active = pathname.startsWith(t.href);
         return (

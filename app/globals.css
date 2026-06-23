@@ -12,6 +12,31 @@
   main { padding: 0 !important; }
 }
 
+/* Skip-to-content link (Epic 20.4) — visually hidden until it receives keyboard focus,
+   then it reveals pinned to the top-left as the first stop in the tab order so keyboard
+   users can bypass the navigation. Tokens only; the global :focus-visible rule supplies
+   the green ring. Clipped (not display:none) so it stays focusable. */
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  z-index: 100;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-weight: var(--weight-semibold);
+  /* hide off-screen until focused */
+  transform: translateY(calc(-100% - var(--space-5)));
+  transition: transform var(--motion-fast) var(--ease);
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
 /* Brand logo (Epic 17.5, L2) — a SINGLE accessible node (.brand-mark, role="img") in the
    top header, which renders at every breakpoint (so the wordmark shows on desktop AND
    mobile; the sidebar is hidden ≤640px). The lockup is a CSS background-image swapped by
