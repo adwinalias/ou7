@@ -25,9 +25,13 @@ already provides a native orchestrator + subagent model, so no second vendor is 
    test + build, exit 2 blocks), the `code-reviewer` subagent, and the GitHub `build-and-test` job.
    A change ships only when all three agree.
 
-4. **Safety rails in `.claude/settings.json`:** `acceptEdits` mode for a no-prompt loop, but a
-   deny-list blocks pushing/merging to `main`, force-push, `reset --hard`, destructive shell, DB
-   mutations, raw network, and `.env` access. Work lands via feature branches + PRs only.
+4. **Run truly hands-off via `--dangerously-skip-permissions`, with a hook as the rail.** A
+   plain `acceptEdits` run still prompts on every shell command, which defeats hands-off, so the
+   session runs in skip-permissions mode. Safety is enforced by a **`PreToolUse` guard hook**
+   (`.claude/hooks/guard.cjs`) that runs even in that mode and hard-blocks (exit 2): `rm -rf`,
+   push/force-push to `main`, `reset --hard`, `gh pr merge --admin`, DB mutations, raw network,
+   and `.env` writes. The settings `allow`/`deny` list is the second layer for the prompt-on
+   fallback. Work lands via feature branches + PRs only.
 
 5. **Merge policy (chosen 2026-06-23): auto-merge on green + milestone audits.** Since Eddy
    reviews nothing per-PR, a manual merge click would add no real safety. PRs auto-merge once
@@ -55,9 +59,10 @@ Full operating procedure: `docs/BUILD-WORKFLOW.md`.
 - **OpenAI Codex (CLI/MCP/GitHub) as implementer** — workable (`codex exec`, `codex mcp`, GitHub
   app) but adds a second paid vendor and key management; rejected since Claude Code covers it under
   Eddy's existing subscription.
-- **`bypassPermissions` / `--dangerously-skip-permissions` as the default** — rejected as the
-  standing config; too broad for an unattended non-technical operator. Offered only as an opt-in
-  for a throwaway clone. The `acceptEdits` + deny-list is the safer default.
+- **`acceptEdits` (prompt-on) as the run mode** — rejected after first run: it prompts on every
+  shell command (`find`/`grep`/etc.), so it isn't hands-off for a non-technical operator. Replaced
+  by `--dangerously-skip-permissions` made safe by the `guard.cjs` PreToolUse hook (point 4);
+  `acceptEdits` + the allow/deny list remains the documented prompt-on fallback.
 - **Manual click-to-merge on green** — rejected: Eddy reviews nothing per-PR, so the click would
   be a rubber-stamp that adds no safety while implying control he isn't exercising. Replaced by
   auto-merge + milestone audits (point 5), which puts oversight at a cadence he'll actually use.
