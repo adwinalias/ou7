@@ -203,6 +203,32 @@ export type GridNavKey =
  * Home/End go to the start/end of the current row; CtrlHome/CtrlEnd to the grid corners.
  * Returns the (possibly unchanged) position; never out of bounds.
  */
+// --- Wall-chart row windowing (Epic 21.3) ---------------------------------------------
+// Pure fixed-height row-virtualisation math: given the scroll offset, the viewport height,
+// a uniform row height and the TOTAL data-row count, which contiguous slice of rows is
+// on-screen (plus an overscan margin on each side)? No DOM, no React — kept here so it is
+// deterministic and unit-tested. The component sizes off-screen blocks with spacers using
+// `start` / `(total - end)` so the scrollbar reflects the full list while only `[start,end)`
+// rows render. Returns 0-based `start` (inclusive) and `end` (exclusive), always clamped to
+// `[0, total]` with `start <= end`; for `total <= 0` it returns an empty `{0,0}` range.
+export function windowRange(
+  scrollTop: number,
+  viewportH: number,
+  rowH: number,
+  total: number,
+  overscan: number,
+): { start: number; end: number } {
+  if (total <= 0 || rowH <= 0 || viewportH <= 0) return { start: 0, end: 0 };
+  const over = Math.max(0, Math.floor(overscan));
+  const top = Math.max(0, scrollTop);
+  const first = Math.floor(top / rowH) - over;
+  // Number of rows that can be visible in the viewport, rounded up, plus the overscan band.
+  const visible = Math.ceil(viewportH / rowH) + over * 2;
+  const start = Math.max(0, Math.min(first, total));
+  const end = Math.max(start, Math.min(start + visible, total));
+  return { start, end };
+}
+
 export function nextCell(active: GridPos, key: GridNavKey, rows: number, cols: number): GridPos {
   if (rows <= 0 || cols <= 0) return active;
   const maxR = rows - 1;
