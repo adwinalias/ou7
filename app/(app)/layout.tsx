@@ -20,13 +20,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           padding: "var(--space-4) 0",
         }}
       >
-        <div className="brand-logo" style={{ padding: "0 12px var(--space-3)" }}>
-          {/* Theme-swapped brand lockups; next/image's optimisation isn't needed for a tiny static logo. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="logo-light" src="/brand/ou7-light-bg.png" alt="OU7" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="logo-dark" src="/brand/ou7-dark-bg.png" alt="OU7" />
-        </div>
         <AppNav canSeeApprovals={isApprover(actor)} canSeeAdmin={canAccessAdmin(actor)} />
       </aside>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -36,11 +29,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: "var(--space-3)",
             padding: "var(--space-3) var(--space-5)",
             borderBottom: "1px solid var(--border)",
           }}
         >
-          <div className="t-muted" style={{ fontSize: 13 }}>Interesting Times DMCC</div>
+          {/* Brand lockup + org name. The logo lives HERE (not the sidebar) so it renders at
+              every breakpoint — the sidebar is hidden ≤640px (Epic 17.1), so a sidebar-only
+              logo would vanish on mobile (Epic 17.5 AC: visibly larger in both themes AND on
+              mobile). */}
+          <div className="brand-logo" style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
+            {/* Single accessible logo node (L2): one element announced to screen readers.
+                The lockup PNG is a CSS background-image swapped by [data-theme="dark"] — the
+                app toggles theme via data-theme on <html>, so a <picture media> query would
+                NOT track the toggle. Explicit width+height avoid CLS. */}
+            <span className="brand-mark" role="img" aria-label="OU7 — Interesting Times leave management" />
+            <div className="t-muted" style={{ fontSize: 13 }}>Interesting Times</div>
+          </div>
           <ThemeSwitch />
         </header>
         <main className="app-main">{children}</main>

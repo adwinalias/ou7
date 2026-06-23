@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "OU7",
-  description: "Leave & absence management — Interesting Times DMCC",
+  description: "Leave & absence management — Interesting Times",
 };
 
 // Set the theme before first paint to avoid a flash (reads saved choice / OS preference).
