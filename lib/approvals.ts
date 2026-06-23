@@ -70,16 +70,24 @@ export async function listCompanyPending(opts: { name?: string; departmentId?: s
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
+/** The Prisma WHERE used for the approver's pending queue. SHARED between the list and the
+ *  count so the dashboard tile (Epic 18.3) can never disagree with /approvals. Caller must
+ *  first check isApprover(actor) — a non-approver has no queue (returns []/0). */
+function pendingForApproverWhere(actor: Actor) {
+  return {
+    status: "PENDING" as const,
+    // HR → everyone (but never their own); approver → only assigned, never their own.
+    employeeId: isHR(actor) ? { not: actor.employeeId } : { in: actor.approverForIds, not: actor.employeeId },
+  };
+}
+
 /** PENDING requests the actor may act on: HR → all (fallback); approver → assigned only;
  *  never the actor's own request. */
 export async function listPendingForApprover(actor: Actor): Promise<PendingItem[]> {
   if (!isApprover(actor)) return [];
 
   const rows = await db.leaveRequest.findMany({
-    where: {
-      status: "PENDING",
-      employeeId: isHR(actor) ? { not: actor.employeeId } : { in: actor.approverForIds, not: actor.employeeId },
-    },
+    where: pendingForApproverWhere(actor),
     include: { employee: true, leaveType: true },
     orderBy: { createdAt: "asc" },
   });
@@ -98,6 +106,14 @@ export async function listPendingForApprover(actor: Actor): Promise<PendingItem[
     deductsAllowance: r.leaveType.deductsAllowance,
     notes: r.notes,
   }));
+}
+
+/** How many PENDING requests the actor would see at /approvals — EXACTLY the set
+ *  listPendingForApprover returns (same WHERE, no rows fetched). For the dashboard tile
+ *  (Epic 18.3). Non-approvers have no queue → 0. */
+export async function countPendingForApprover(actor: Actor): Promise<number> {
+  if (!isApprover(actor)) return 0;
+  return db.leaveRequest.count({ where: pendingForApproverWhere(actor) });
 }
 
 /**

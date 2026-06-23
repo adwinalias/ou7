@@ -1,6 +1,8 @@
 import Link from "next/link";
 import DashboardGrid, { type DashboardWidget } from "@/components/DashboardGrid";
+import { isApprover } from "@/core/authz";
 import { donutSegments } from "@/core/allowance";
+import { countPendingForApprover } from "@/lib/approvals";
 import { letterColorToken, type WallCell } from "@/core/wallchart";
 import { getDashboard } from "@/lib/dashboard";
 import { getHolidayBalance } from "@/lib/holiday-balance";
@@ -113,10 +115,15 @@ function DayCell({ cell }: { cell: WallCell }) {
 export default async function DashboardPage() {
   const actor = await requireUser();
   const year = Number(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }).slice(0, 4));
-  const [{ balance, days }, holidayDays, whosOff] = await Promise.all([
+  // Pending count only matters for approvers/HR; for everyone else the tile is omitted
+  // entirely (AC2), so don't even query. countPendingForApprover shares its WHERE with
+  // listPendingForApprover, so this number equals the /approvals queue exactly (AC1).
+  const approver = isApprover(actor);
+  const [{ balance, days }, holidayDays, whosOff, pendingCount] = await Promise.all([
     getDashboard(actor.employeeId),
     getHolidayBalance(actor.employeeId, year), // null for non-Remote
     getWhosOff(actor), // company-wide; four-category abstraction enforced server-side
+    approver ? countPendingForApprover(actor) : Promise.resolve(0),
   ]);
   const donut = balance
     ? donutSegments({ taken: balance.takenApproved, pending: balance.pending, available: balance.available })
@@ -191,6 +198,42 @@ export default async function DashboardPage() {
       ),
     },
   ];
+
+  // Role-aware "Pending approvals (N)" tile (Epic 18.3) — present in the registry ONLY for
+  // approvers/HR; non-approvers never get the widget at all (AC2). Deep-links to /approvals.
+  if (approver) {
+    widgets.push({
+      id: "pending-approvals",
+      title: "Pending approvals",
+      content: (
+        <>
+          <div className="t-label">Pending approvals</div>
+          <p
+            className="t-muted"
+            style={{ marginTop: 8, marginBottom: "var(--space-4)", fontSize: "var(--text-sm)" }}
+            data-testid="dash-pending-count"
+          >
+            {pendingCount === 0 ? (
+              "No requests are waiting for you."
+            ) : (
+              <>
+                <span className="t-num">{pendingCount}</span> request{pendingCount === 1 ? "" : "s"}{" "}
+                {pendingCount === 1 ? "is" : "are"} waiting for your decision.
+              </>
+            )}
+          </p>
+          <Link
+            className="btn btn-secondary"
+            href="/approvals"
+            data-testid="dash-pending-link"
+            style={{ minHeight: 40, display: "inline-flex", alignItems: "center" }}
+          >
+            {pendingCount === 0 ? "No pending approvals" : `Pending approvals (${pendingCount})`}
+          </Link>
+        </>
+      ),
+    });
+  }
 
   return (
     <div>
