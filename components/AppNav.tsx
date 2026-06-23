@@ -21,7 +21,10 @@ const items: Item[] = [
 export default function AppNav(perms: NavPerms) {
   const pathname = usePathname();
   return (
-    <nav style={{ display: "flex", flexDirection: "column" }}>
+    // Desktop sidebar navigation landmark (Epic 20.4). A distinct accessible name
+    // ("Primary") disambiguates it from the mobile BottomTabBar nav ("Primary (mobile)"),
+    // so the two navigation landmarks are never identical/ambiguous to a screen reader.
+    <nav aria-label="Primary" style={{ display: "flex", flexDirection: "column" }}>
       {items
         .filter((it) => !it.show || it.show(perms))
         .map((it) => {

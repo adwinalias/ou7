@@ -208,6 +208,10 @@ export default function WallGrid({ data }: { data: WallChartData }) {
           display: "grid",
           gridTemplateColumns: `180px repeat(${n}, minmax(${CELL_MIN}px, 1fr))`,
           minWidth: "fit-content",
+          // The grid uses the aria-activedescendant pattern: the visible green focus
+          // indicator is the active cell's FOCUS_RING (always rendered), not a ring on the
+          // container. Suppressing the container outline here avoids a doubled/misplaced
+          // ring — focus remains visible everywhere (Epic 20.4 AC2).
           outline: "none",
         }}
       >

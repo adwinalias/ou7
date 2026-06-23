@@ -12,6 +12,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "220px 1fr" }}>
+      {/* Skip-to-content link (Epic 20.4): visually hidden until focused, then it reveals as
+          the first focusable element so keyboard users can jump past the nav to the page.
+          Styled via tokens (.skip-link in globals.css); shows the global green focus ring. */}
+      <a href="#main-content" className="skip-link no-print">Skip to content</a>
       <aside
         className="no-print app-sidebar"
         style={{
@@ -25,6 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header
           className="no-print"
+          aria-label="OU7"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -48,7 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <ThemeSwitch />
         </header>
-        <main className="app-main">{children}</main>
+        <main id="main-content" className="app-main">{children}</main>
       </div>
       <BottomTabBar canSeeApprovals={isApprover(actor)} canSeeAdmin={canAccessAdmin(actor)} />
     </div>
