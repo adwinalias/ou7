@@ -93,7 +93,7 @@ On each PR (GitHub Actions): `install → typecheck → lint → unit → (spin 
 
 - Code + tests (unit/integration/e2e as appropriate) passing in CI.
 - Meets acceptance criteria; reviewed and approved.
-- Accessible (keyboard + contrast) for any new UI.
+- Accessible (keyboard + contrast) for any new UI. The `eslint-plugin-jsx-a11y` **recommended** ruleset runs as part of `npm run lint` in the CI `build-and-test` gate (errors fail the build); any violation must be fixed (no blanket rule disables).
 - Works in **both light and dark** themes.
 - Docs/ADR updated if behaviour or a decision changed.
 - Migration reviewed; feature behind a flag if risky.

@@ -126,6 +126,12 @@ export default function Modal({
   }
 
   return createPortal(
+    // The backdrop is a pointer-only convenience that mirrors Escape (handled on the
+    // panel via onKeyDown). Keyboard users close with Escape, so the backdrop needs no
+    // key handler and is not an interactive element in the a11y tree — these two
+    // jsx-a11y rules are false positives for a decorative backdrop with a redundant
+    // click-to-close shortcut.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
     <div
       onClick={onBackdropClick}
       style={{
