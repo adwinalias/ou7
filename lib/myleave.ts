@@ -109,3 +109,53 @@ export async function getLeaveHistory(employeeId: string, filters: HistoryFilter
 
   return { rows: pageRows, totals, page, pageCount, total, filters: { from, to, decision, type }, types };
 }
+
+export interface YearLeaveRecord {
+  id: string;
+  fromISO: string;
+  toISO: string;
+  duration: string;
+  allowanceDays: number;
+  typeName: string;
+  typeCode: string;
+  typeColor: string;
+  status: LeaveStatus;
+}
+
+/**
+ * Per-year drill-in for the HR Admin allowance surface (Epic 24.2 / ADR-0013). Returns one
+ * employee's leave requests overlapping the given calendar year (the records "behind" that
+ * year's balance), newest first. `employeeId` is HR-supplied here (the caller has already
+ * re-checked HR server-side); this is the same employee's data HR already manages. Read-only.
+ */
+export async function getEmployeeLeaveRecordsForYear(employeeId: string, year: number): Promise<YearLeaveRecord[]> {
+  const records = await db.leaveRequest.findMany({
+    where: {
+      employeeId,
+      startDate: { lte: atUtc(`${year}-12-31`) },
+      endDate: { gte: atUtc(`${year}-01-01`) },
+    },
+    select: {
+      id: true,
+      startDate: true,
+      endDate: true,
+      durationMode: true,
+      allowanceDays: true,
+      status: true,
+      leaveType: { select: { name: true, code: true, color: true } },
+    },
+    orderBy: { startDate: "desc" },
+  });
+
+  return records.map((r) => ({
+    id: r.id,
+    fromISO: iso(r.startDate),
+    toISO: iso(r.endDate),
+    duration: durationLabel(r.durationMode, iso(r.startDate), iso(r.endDate)),
+    allowanceDays: r.allowanceDays,
+    typeName: r.leaveType.name,
+    typeCode: r.leaveType.code,
+    typeColor: r.leaveType.color,
+    status: r.status,
+  }));
+}

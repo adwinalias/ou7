@@ -16,9 +16,14 @@ function signed(v: number) {
 export default function AllowanceBreakdown({
   balance,
   testid = "allowance-breakdown",
+  rowPrefix = "bd",
 }: {
   balance: BreakdownInput;
   testid?: string;
+  // Prefix for the per-row value testids (default "bd"). When two breakdowns render on one
+  // page (e.g. current + prior year in Admin, Epic 24.2), give the secondary one a distinct
+  // prefix so `bd-opening` etc. stay uniquely addressable (Playwright strict mode).
+  rowPrefix?: string;
 }) {
   const b = allowanceBreakdown(balance);
 
@@ -33,34 +38,34 @@ export default function AllowanceBreakdown({
           {b.held.map((r) => (
             <tr key={r.key}>
               <th scope="row" style={{ fontWeight: 400 }}>{r.label}</th>
-              <td style={num} className="t-num" data-testid={`bd-${r.key}`}>{r.value}</td>
+              <td style={num} className="t-num" data-testid={`${rowPrefix}-${r.key}`}>{r.value}</td>
             </tr>
           ))}
           <tr style={{ borderTop: "1px solid var(--border-strong)" }}>
             <th scope="row" className="t-label">Total held</th>
-            <td style={num} className="t-num" data-testid="bd-held-total">{b.heldTotal}</td>
+            <td style={num} className="t-num" data-testid={`${rowPrefix}-held-total`}>{b.heldTotal}</td>
           </tr>
 
           {/* Used/requested: Taken + Pending (+ Deductions) — shown as subtractions */}
           {b.used.map((r) => (
             <tr key={r.key}>
               <th scope="row" style={{ fontWeight: 400 }}>{r.label}</th>
-              <td style={num} className="t-num" data-testid={`bd-${r.key}`}>{signed(r.value)}</td>
+              <td style={num} className="t-num" data-testid={`${rowPrefix}-${r.key}`}>{signed(r.value)}</td>
             </tr>
           ))}
           <tr style={{ borderTop: "1px solid var(--border-strong)" }}>
             <th scope="row" className="t-label">Used / requested</th>
-            <td style={num} className="t-num" data-testid="bd-used-total">{signed(b.usedTotal)}</td>
+            <td style={num} className="t-num" data-testid={`${rowPrefix}-used-total`}>{signed(b.usedTotal)}</td>
           </tr>
 
           {/* Headline: Available (= held − used) with Remaining shown alongside */}
           <tr>
             <th scope="row">Remaining</th>
-            <td style={num} className="t-num" data-testid="bd-remaining">{b.remaining}</td>
+            <td style={num} className="t-num" data-testid={`${rowPrefix}-remaining`}>{b.remaining}</td>
           </tr>
           <tr style={{ borderTop: "2px solid var(--accent)" }}>
             <th scope="row"><strong>Available to book</strong></th>
-            <td style={{ ...num, fontWeight: 700 }} className="t-num" data-testid="bd-available">{b.available}</td>
+            <td style={{ ...num, fontWeight: 700 }} className="t-num" data-testid={`${rowPrefix}-available`}>{b.available}</td>
           </tr>
         </tbody>
       </table>
