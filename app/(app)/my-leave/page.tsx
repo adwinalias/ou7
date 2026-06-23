@@ -2,6 +2,7 @@ import AllowanceBreakdown from "@/components/AllowanceBreakdown";
 import { isHR } from "@/core/authz";
 import { canCancel } from "@/core/cancellation";
 import { getAllPeriodBalances } from "@/lib/allowance";
+import { getMyApprovers } from "@/lib/approvals";
 import { getHolidayBalance } from "@/lib/holiday-balance";
 import { getLeaveHistory, type HistoryFilters, type HistoryRow } from "@/lib/myleave";
 import { requireUser } from "@/lib/rbac";
@@ -48,10 +49,11 @@ export default async function MyLeavePage({
   };
   const todayISO = dubaiToday();
   const year = Number(todayISO.slice(0, 4));
-  const [periods, history, holidayDays] = await Promise.all([
+  const [periods, history, holidayDays, approvers] = await Promise.all([
     getAllPeriodBalances(actor.employeeId),
     getLeaveHistory(actor.employeeId, filters),
     getHolidayBalance(actor.employeeId, year), // null for non-Remote
+    getMyApprovers(actor.employeeId),
   ]);
   const f = history.filters;
   const hr = isHR(actor);
@@ -63,52 +65,75 @@ export default async function MyLeavePage({
       <h1 className="t-h1" style={{ marginBottom: "var(--space-2)" }}>My leave</h1>
       <p className="t-muted" style={{ marginBottom: "var(--space-5)" }}>Your allowance and leave history.</p>
 
-      {/* 7.3 — allowance panel (per year) */}
-      <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>
-        <div className="t-label" style={{ marginBottom: "var(--space-4)" }}>Allowance</div>
-        {periods.length === 0 ? (
-          <p className="t-muted">No allowance period yet — contact HR.</p>
-        ) : (
-          <>
-          {/* Current (open) period — shared labelled breakdown (Epic 18.4; H4/AD9). */}
-          {currentPeriod && (
-            <div style={{ marginBottom: "var(--space-5)" }}>
-              <AllowanceBreakdown balance={currentPeriod} testid="my-leave-breakdown" />
-            </div>
-          )}
-          {/* Prior years kept for multi-year visibility (Epic 7.3). */}
-          <div className="table-scroll">
-            <table className="table" data-testid="allowance-panel">
-              <thead>
-                <tr>
-                  <th>Year</th>
-                  <th style={num}>Opening</th>
-                  <th style={num}>Remaining</th>
-                  <th style={num}>Pending</th>
-                  <th style={num}>Available</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periods.map((p) => (
-                  <tr key={p.periodId}>
-                    <td className="t-num">{p.year}{p.endISO ? "" : " (current)"}</td>
-                    <td style={num}>{p.opening}</td>
-                    <td style={num}>{p.remaining}</td>
-                    <td style={num}>{p.pending}</td>
-                    <td style={num}>{p.available}</td>
+      {/* 19.8 — allowance + "My approvers" side-by-side (reflows to one column ≤640px). */}
+      <div
+        className="reflow-1col"
+        style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "var(--space-5)", alignItems: "start", marginBottom: "var(--space-6)" }}
+      >
+        {/* 7.3 — allowance panel (per year); slimmed so it shares the row (Epic 19.8). */}
+        <section className="card" style={{ padding: "var(--space-5)" }}>
+          <div className="t-label" style={{ marginBottom: "var(--space-4)" }}>Allowance</div>
+          {periods.length === 0 ? (
+            <p className="t-muted">No allowance period yet — contact HR.</p>
+          ) : (
+            <>
+            {/* Current (open) period — shared labelled breakdown (Epic 18.4; H4/AD9). */}
+            {currentPeriod && (
+              <div style={{ marginBottom: "var(--space-5)" }}>
+                <AllowanceBreakdown balance={currentPeriod} testid="my-leave-breakdown" />
+              </div>
+            )}
+            {/* Prior years kept for multi-year visibility (Epic 7.3). */}
+            <div className="table-scroll">
+              <table className="table" data-testid="allowance-panel">
+                <thead>
+                  <tr>
+                    <th>Year</th>
+                    <th style={num}>Opening</th>
+                    <th style={num}>Remaining</th>
+                    <th style={num}>Pending</th>
+                    <th style={num}>Available</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          </>
-        )}
-        {holidayDays !== null && (
-          <p className="t-muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-sm)" }} data-testid="holiday-balance">
-            Holiday allowance (Remote, {year}): <strong className="t-num">{holidayDays}</strong> day(s) — separate, non-carry.
-          </p>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {periods.map((p) => (
+                    <tr key={p.periodId}>
+                      <td className="t-num">{p.year}{p.endISO ? "" : " (current)"}</td>
+                      <td style={num}>{p.opening}</td>
+                      <td style={num}>{p.remaining}</td>
+                      <td style={num}>{p.pending}</td>
+                      <td style={num}>{p.available}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            </>
+          )}
+          {holidayDays !== null && (
+            <p className="t-muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-sm)" }} data-testid="holiday-balance">
+              Holiday allowance (Remote, {year}): <strong className="t-num">{holidayDays}</strong> day(s) — separate, non-carry.
+            </p>
+          )}
+        </section>
+
+        {/* 19.8 — My approvers: the approval chain in level order (ML4). */}
+        <section className="card" style={{ padding: "var(--space-5)" }} aria-labelledby="my-approvers-label" data-testid="my-approvers">
+          <div id="my-approvers-label" className="t-label" style={{ marginBottom: "var(--space-4)" }}>My approvers</div>
+          {approvers.length === 0 ? (
+            <p className="t-muted">No approvers assigned.</p>
+          ) : (
+            <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+              {approvers.map((a) => (
+                <li key={a.level} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span className="t-label">Level {a.level}</span>
+                  <span>{a.name}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      </div>
 
       {/* 7.1 — history list */}
       <section className="card" style={{ padding: "var(--space-5)" }}>

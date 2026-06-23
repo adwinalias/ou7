@@ -71,6 +71,26 @@ export async function listCompanyPending(opts: { name?: string; departmentId?: s
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
+export interface ApproverChainEntry {
+  level: number; // 1-based: Level 1 is the lowest `order`
+  name: string;
+}
+
+/** The employee's approval chain (Epic 19.8; ML4), ordered Level 1 → N by ApproverAssignment.order.
+ *  Returns only the level + approver name — no notes or other sensitive data. Empty array when the
+ *  employee has no approvers assigned. */
+export async function getMyApprovers(employeeId: string): Promise<ApproverChainEntry[]> {
+  const rows = await db.approverAssignment.findMany({
+    where: { employeeId },
+    orderBy: { order: "asc" },
+    include: { approver: { select: { firstName: true, lastName: true } } },
+  });
+  return rows.map((r, index) => ({
+    level: index + 1,
+    name: `${r.approver.firstName} ${r.approver.lastName}`.trim(),
+  }));
+}
+
 /** The Prisma WHERE used for the approver's pending queue. SHARED between the list and the
  *  count so the dashboard tile (Epic 18.3) can never disagree with /approvals. Caller must
  *  first check isApprover(actor) — a non-approver has no queue (returns []/0). */

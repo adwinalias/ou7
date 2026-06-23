@@ -2,7 +2,7 @@
 // queue scoping, RBAC-guarded decisions, approve→debit, decline+reason, and the
 // over-booking re-check at approval. Self-skips when the DB is unreachable.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { countPendingForApprover, decideLeaveRequest, listPendingForApprover } from "@/lib/approvals";
+import { countPendingForApprover, decideLeaveRequest, getMyApprovers, listPendingForApprover } from "@/lib/approvals";
 import { getOpenPeriodBalance } from "@/lib/allowance";
 import { db } from "@/lib/db";
 import { AuthError } from "@/lib/rbac";
@@ -197,5 +197,27 @@ suite("Approval workflow (integration)", () => {
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.errors.join(" ")).toMatch(/HR must adjust/i);
     expect((await db.leaveRequest.findUniqueOrThrow({ where: { id: req.id } })).status).toBe("PENDING");
+  });
+
+  // Epic 19.8 (ML4): the "My approvers" chain — levels in `order`, name only, empty for none.
+  it("getMyApprovers returns the chain in level order with the approver's name", async () => {
+    // requester has one approver (seeded). Add a second at a higher order; assert Level 1/2 ordering.
+    await db.approverAssignment.deleteMany({ where: { employeeId: requesterId } });
+    await db.approverAssignment.create({ data: { employeeId: requesterId, approverId: hrId, order: 1 } });
+    await db.approverAssignment.create({ data: { employeeId: requesterId, approverId, order: 0 } });
+
+    const chain = await getMyApprovers(requesterId);
+    expect(chain).toEqual([
+      { level: 1, name: "approver T" }, // order 0 → Level 1
+      { level: 2, name: "hr T" }, // order 1 → Level 2
+    ]);
+
+    // restore the original single-approver seed for any later runs
+    await db.approverAssignment.deleteMany({ where: { employeeId: requesterId } });
+    await db.approverAssignment.create({ data: { employeeId: requesterId, approverId } });
+  });
+
+  it("getMyApprovers returns [] when the employee has no approvers", async () => {
+    expect(await getMyApprovers(otherId)).toEqual([]);
   });
 });
