@@ -5,6 +5,10 @@ const nextConfig = {
   output: "standalone",
   experimental: {
     typedRoutes: true,
+    // Epic 22.1 — opt into app/global-not-found.tsx (experimental in Next 15.5):
+    // a top-level 404 that renders its own <html>/<body> for URLs that never reach
+    // a route layout. The conventional app/not-found.tsx still handles notFound().
+    globalNotFound: true,
   },
 };
 

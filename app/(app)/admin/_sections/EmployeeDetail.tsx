@@ -116,7 +116,7 @@ export default function EmployeeDetail({
           </select>
         </label>
         <button type="submit" className="btn btn-primary" disabled={pending} data-testid="ed-save">{pending ? "…" : "Save changes"}</button>
-        {state && <span role="status" style={{ fontSize: "var(--text-xs)", color: state.ok ? "var(--success)" : "var(--danger)" }} data-testid="ed-result">{state.message}</span>}
+        {state && <span role={state.ok ? "status" : "alert"} style={{ fontSize: "var(--text-xs)", color: state.ok ? "var(--success)" : "var(--danger)" }} data-testid="ed-result">{state.message}</span>}
       </form>
 
       {/* Change-safety confirm step (AD8), now via the accessible Modal primitive (Epic 20.3):
