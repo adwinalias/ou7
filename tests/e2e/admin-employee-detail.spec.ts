@@ -51,3 +51,38 @@ test("HR opens an employee inline, edits a non-sensitive field, and confirms a s
   await page.getByTestId("ed-confirm-apply").click();
   await expect(page.getByTestId("ed-result")).toContainText(/saved/i);
 });
+
+// Epic 20.3 — the change-safety confirm now uses the accessible Modal primitive: it is an
+// alertdialog with aria-modal, focus trapped while open, Escape closes it with no change
+// applied, and focus returns to the Save button that opened it.
+test("change-safety confirm is an accessible modal: focus-trapped, Escape-closable, focus restored (Epic 20.3)", async ({ page }) => {
+  await signIn(page, HR_EMAIL);
+  await page.goto("/admin?mode=employee");
+
+  const row = page.locator("tr", { hasText: "Allowy Manager" });
+  await row.getByRole("link", { name: /Manage|Selected/ }).click();
+  await expect(page.getByTestId("employee-detail")).toBeVisible();
+
+  // Open the confirm via a sensitive edit.
+  await page.getByTestId("ed-level").selectOption("APPROVER");
+  await page.getByTestId("ed-save").click();
+
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+
+  // On open, focus has moved into the dialog (the first focusable = Confirm & save).
+  await expect(page.getByTestId("ed-confirm-apply")).toBeFocused();
+
+  // Tab cycles within the dialog: Confirm -> Cancel -> wraps back to Confirm.
+  await page.keyboard.press("Tab");
+  await expect(page.getByTestId("ed-confirm-cancel")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByTestId("ed-confirm-apply")).toBeFocused();
+
+  // Escape closes with NO change applied, and focus returns to the Save button.
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("ed-confirm")).toHaveCount(0);
+  await expect(page.getByTestId("ed-save")).toBeFocused();
+  await expect(page.getByTestId("ed-result")).toHaveCount(0);
+});

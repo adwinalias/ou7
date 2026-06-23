@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useId, useRef, useState } from "react";
+import { useActionState, useRef, useState } from "react";
+import Modal from "@/components/Modal";
 import { updateEmployeeAction, type UpdateEmployeeState } from "../employees/actions";
 
 const LEVELS = ["NONE", "APPROVER", "APPROVER_ADD", "APPROVER_ADD_EDIT"] as const;
@@ -40,7 +41,6 @@ export default function EmployeeDetail({
 }) {
   const [state, action, pending] = useActionState<UpdateEmployeeState, FormData>(updateEmployeeAction, null);
   const formRef = useRef<HTMLFormElement>(null);
-  const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
   // Controlled values so we can diff against the original on save.
   const [regionId, setRegionId] = useState(employee.regionId);
@@ -66,8 +66,6 @@ export default function EmployeeDetail({
     if (changes.length > 0) {
       e.preventDefault();
       setConfirming(changes);
-      // Move focus to the confirm action once the step renders.
-      requestAnimationFrame(() => confirmBtnRef.current?.focus());
     }
   }
 
@@ -75,8 +73,6 @@ export default function EmployeeDetail({
     setConfirming(null);
     formRef.current?.requestSubmit();
   }
-
-  const headingId = useId();
 
   return (
     <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }} data-testid="employee-detail">
@@ -123,33 +119,35 @@ export default function EmployeeDetail({
         {state && <span role="status" style={{ fontSize: "var(--text-xs)", color: state.ok ? "var(--success)" : "var(--danger)" }} data-testid="ed-result">{state.message}</span>}
       </form>
 
-      {/* Change-safety confirm step (AD8). An alertdialog listing the sensitive changes;
-          focus is moved here on open and the Confirm/Cancel are keyboard-operable. */}
-      {confirming && (
-        <div
-          role="alertdialog"
-          aria-modal="false"
-          aria-labelledby={headingId}
-          data-testid="ed-confirm"
-          style={{ marginTop: "var(--space-4)", padding: "var(--space-4)", border: "1px solid var(--border-strong)", background: "var(--surface)" }}
-        >
-          <div id={headingId} className="t-label" style={{ marginBottom: "var(--space-2)" }}>Confirm sensitive changes</div>
-          <p className="t-muted" style={{ fontSize: "var(--text-sm)", marginBottom: "var(--space-3)" }}>
-            You&apos;re about to change {confirming.length} setting{confirming.length === 1 ? "" : "s"} for {employee.firstName} {employee.lastName}:
-          </p>
-          <ul style={{ margin: "0 0 var(--space-4)", paddingLeft: "var(--space-5)" }} data-testid="ed-confirm-list">
-            {confirming.map((c) => (
-              <li key={c.label} className="t-num" style={{ fontSize: "var(--text-sm)", marginBottom: 2 }}>
-                <span className="t-label">{c.label}:</span> {c.from} → {c.to}
-              </li>
-            ))}
-          </ul>
-          <div style={{ display: "flex", gap: "var(--space-2)" }}>
-            <button ref={confirmBtnRef} type="button" className="btn btn-primary" onClick={confirmAndSave} data-testid="ed-confirm-apply">Confirm &amp; save</button>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirming(null)} data-testid="ed-confirm-cancel">Cancel</button>
+      {/* Change-safety confirm step (AD8), now via the accessible Modal primitive (Epic 20.3):
+          alertdialog role (an explicit Confirm/Cancel choice — no click-outside dismiss), focus
+          trapped while open, Escape/Cancel cancels with no change applied, and on close focus
+          returns to the Save button that opened it. */}
+      <Modal
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        role="alertdialog"
+        title="Confirm sensitive changes"
+      >
+        {confirming && (
+          <div data-testid="ed-confirm">
+            <p className="t-muted" style={{ fontSize: "var(--text-sm)", marginBottom: "var(--space-3)" }}>
+              You&apos;re about to change {confirming.length} setting{confirming.length === 1 ? "" : "s"} for {employee.firstName} {employee.lastName}:
+            </p>
+            <ul style={{ margin: "0 0 var(--space-4)", paddingLeft: "var(--space-5)" }} data-testid="ed-confirm-list">
+              {confirming.map((c) => (
+                <li key={c.label} className="t-num" style={{ fontSize: "var(--text-sm)", marginBottom: 2 }}>
+                  <span className="t-label">{c.label}:</span> {c.from} → {c.to}
+                </li>
+              ))}
+            </ul>
+            <div style={{ display: "flex", gap: "var(--space-2)" }}>
+              <button type="button" className="btn btn-primary" onClick={confirmAndSave} data-testid="ed-confirm-apply">Confirm &amp; save</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirming(null)} data-testid="ed-confirm-cancel">Cancel</button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </section>
   );
 }
