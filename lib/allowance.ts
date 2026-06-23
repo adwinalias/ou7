@@ -11,7 +11,10 @@ type Client = Prisma.TransactionClient;
 export interface PeriodBalance {
   periodId: string;
   opening: number;
+  carryOver: number;
+  adjustments: number;
   takenApproved: number;
+  deductions: number;
   pending: number;
   remaining: number;
   available: number;
@@ -53,7 +56,10 @@ export async function getOpenPeriodBalance(employeeId: string): Promise<PeriodBa
   return {
     periodId: period.id,
     opening: period.opening,
+    carryOver: period.carryOver,
+    adjustments: period.adjustments,
     takenApproved,
+    deductions: period.deductions,
     pending,
     remaining,
     available: computeAvailable(remaining, pending),
@@ -83,7 +89,10 @@ export async function getAllPeriodBalances(employeeId: string): Promise<YearPeri
     out.push({
       periodId: p.id,
       opening: p.opening,
+      carryOver: p.carryOver,
+      adjustments: p.adjustments,
       takenApproved,
+      deductions: p.deductions,
       pending,
       remaining,
       available: computeAvailable(remaining, pending),

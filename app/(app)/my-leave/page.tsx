@@ -1,3 +1,4 @@
+import AllowanceBreakdown from "@/components/AllowanceBreakdown";
 import { isHR } from "@/core/authz";
 import { canCancel } from "@/core/cancellation";
 import { getAllPeriodBalances } from "@/lib/allowance";
@@ -54,6 +55,7 @@ export default async function MyLeavePage({
   ]);
   const f = history.filters;
   const hr = isHR(actor);
+  const currentPeriod = periods.find((p) => p.endISO === null);
   const rowCanCancel = (r: HistoryRow) => canCancel({ status: r.status, isOwner: true, isHR: hr, todayISO, startISO: r.fromISO }).allowed;
 
   return (
@@ -67,6 +69,14 @@ export default async function MyLeavePage({
         {periods.length === 0 ? (
           <p className="t-muted">No allowance period yet — contact HR.</p>
         ) : (
+          <>
+          {/* Current (open) period — shared labelled breakdown (Epic 18.4; H4/AD9). */}
+          {currentPeriod && (
+            <div style={{ marginBottom: "var(--space-5)" }}>
+              <AllowanceBreakdown balance={currentPeriod} testid="my-leave-breakdown" />
+            </div>
+          )}
+          {/* Prior years kept for multi-year visibility (Epic 7.3). */}
           <div className="table-scroll">
             <table className="table" data-testid="allowance-panel">
               <thead>
@@ -91,6 +101,7 @@ export default async function MyLeavePage({
               </tbody>
             </table>
           </div>
+          </>
         )}
         {holidayDays !== null && (
           <p className="t-muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-sm)" }} data-testid="holiday-balance">
