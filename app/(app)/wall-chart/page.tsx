@@ -1,6 +1,7 @@
 import { getWallChart, type WallChartOptions } from "@/lib/wallchart";
 import { requireUser } from "@/lib/rbac";
 import type { GroupBy, SortBy } from "@/core/wallchart";
+import LeaveKey from "@/components/LeaveKey";
 import PrintButton from "./PrintButton";
 import WallGrid from "./WallGrid";
 
@@ -123,22 +124,10 @@ export default async function WallChartPage({
 
       <WallGrid data={data} />
 
-      {/* Legend */}
-      <div style={{ display: "flex", gap: "var(--space-5)", flexWrap: "wrap", marginTop: "var(--space-4)", fontSize: "var(--text-sm)" }}>
-        {data.legend.map((lt) => (
-          <span key={lt.code} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <i aria-hidden style={{ width: 14, height: 14, background: lt.color, border: "1px solid var(--border)" }} />
-            {lt.name} ({lt.code})
-          </span>
-        ))}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <i aria-hidden style={{ width: 14, height: 14, background: "var(--status-pending-bg)", borderLeft: "3px solid var(--border-strong)" }} />
-          Pending
-        </span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <i aria-hidden className="cell--off" style={{ width: 14, height: 14, border: "1px solid var(--border)" }} />
-          Weekend / holiday
-        </span>
+      {/* Legend — shared key in `types` mode (Epic 19.1). The Team Calendar abstraction
+          + RBAC is Epic 19.7; this story keeps the same real types it shows today. */}
+      <div style={{ marginTop: "var(--space-4)" }}>
+        <LeaveKey mode="types" types={data.legend} />
       </div>
     </div>
   );
