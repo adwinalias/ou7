@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import WebVitals from "@/components/WebVitals";
 
 export const metadata: Metadata = {
   title: "OU7",
@@ -15,7 +16,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* CWV reporter (Epic 21.4) — dev-only console.debug, never transmits off-device. */}
+        <WebVitals />
+        {children}
+      </body>
     </html>
   );
 }

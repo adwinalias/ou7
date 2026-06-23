@@ -95,6 +95,7 @@ On each PR (GitHub Actions): `install → typecheck → lint → unit → (spin 
 - Meets acceptance criteria; reviewed and approved.
 - Accessible (keyboard + contrast) for any new UI. The `eslint-plugin-jsx-a11y` **recommended** ruleset runs as part of `npm run lint` in the CI `build-and-test` gate (errors fail the build); any violation must be fixed (no blanket rule disables).
 - Works in **both light and dark** themes.
+- **Core Web Vitals targets met (Epic 21.4):** **LCP ≤ 2.5s**, **INP ≤ 100ms** (and legacy **FID ≤ 100ms**), and **low CLS** (no new layout shift on a route's load). Measured with **Lighthouse** (incognito), the **Web Vitals** Chrome extension, the in-app **`useReportWebVitals`** reporter (`components/WebVitals.tsx`, dev-only console — never transmitted), and **Unlighthouse** across routes. An **Unlighthouse run is recorded before go-live** and any regression against these targets is **flagged** and resolved before merge/release.
 - Docs/ADR updated if behaviour or a decision changed.
 - Migration reviewed; feature behind a flag if risky.
 - No new high/critical security or dependency alerts.
