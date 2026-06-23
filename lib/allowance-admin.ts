@@ -5,7 +5,7 @@ import "server-only"; // Epic 22.4: DB-backed HR allowance ledger — server-onl
 // Reset/Add Balance recomputes OPENING only, via the engine, from the entitlement policy.
 // Balances stay engine-derived — only inputs are ever stored.
 import type { AdjustmentKind } from "@prisma/client";
-import { computeRemaining, proRataOpening, round } from "@/core/allowance";
+import { computeRemaining, computeRollover, proRataOpening, round } from "@/core/allowance";
 import { recordAudit } from "./audit";
 import { getEntitlementPolicy } from "./config";
 import { db } from "./db";
@@ -103,6 +103,94 @@ export async function resetBalance(actorId: string, employeeId: string, year: nu
     await tx.allowancePeriod.update({ where: { id: existing.id }, data: { opening } }); // carry-over + adjustments untouched
     await recordAudit(tx, { actorId, action: "ALLOWANCE_RESET", entity: "AllowancePeriod", entityId: existing.id, before: { opening: existing.opening }, after: { opening, annualDays: policy.annualDays, joiningISO: toISO(emp.joiningDate) } });
     return { ok: true as const, opening, created: false };
+  });
+}
+
+export type RolloverResult =
+  | { ok: true; created: true; opening: number; carryOver: number; newPeriodId: string; nextYear: number }
+  | { ok: true; created: false; reason: "ALREADY_ROLLED" | "NO_OPEN_PERIOD"; nextYear: number }
+  | { ok: false; error: string };
+
+/**
+ * Year rollover (Epic 24.1 / ADR-0013), HR-only at the call site. In ONE transaction:
+ * load the employee's `fromYear` OPEN period + its engine-derived remaining + the region×role
+ * entitlement policy; CLOSE the current period (set `endDate = ${fromYear}-12-31` only — its
+ * financial fields stay immutable); CREATE the `fromYear+1` period with `opening`+`carryOver`
+ * from the pure `computeRollover` (which reuses the locked engine rules). Audited
+ * (`YEAR_ROLLOVER`). Idempotent/guarded: if a `fromYear+1` period already exists it is a no-op,
+ * and the prior period is left untouched.
+ */
+export async function rolloverYear(actorId: string, employeeId: string, fromYear: number): Promise<RolloverResult> {
+  const nextYear = fromYear + 1;
+  const emp = await db.employee.findUniqueOrThrow({ where: { id: employeeId }, select: { regionId: true, role: true, joiningDate: true } });
+  const policy = await getEntitlementPolicy(emp.regionId, emp.role);
+  if (!policy) return { ok: false, error: "No entitlement policy is configured for this employee's region and role. Set it under Admin → Configuration first." };
+
+  return db.$transaction(async (tx) => {
+    // Find the open period to roll (we need its id to lock). Lock it FIRST, then re-check the
+    // guards UNDER the lock so two concurrent rolls of the same employee can't both create a
+    // next-year period (READ COMMITTED; no unique backstop). Both txns serialize on this row.
+    const open = await tx.allowancePeriod.findFirst({ where: { employeeId, endDate: null }, orderBy: { startDate: "desc" } });
+    if (!open) {
+      // No open period: either nothing to roll, or a concurrent/prior roll already closed it.
+      const alreadyNext = await tx.allowancePeriod.findFirst({
+        where: { employeeId, startDate: { gte: atUtc(`${nextYear}-01-01`), lte: atUtc(`${nextYear}-12-31`) } },
+      });
+      return alreadyNext
+        ? { ok: true as const, created: false as const, reason: "ALREADY_ROLLED" as const, nextYear }
+        : { ok: true as const, created: false as const, reason: "NO_OPEN_PERIOD" as const, nextYear };
+    }
+
+    // Lock the period row so the guards + close serialize with any concurrent rollover/write.
+    await tx.$queryRaw`SELECT id FROM "AllowancePeriod" WHERE id = ${open.id} FOR UPDATE`;
+
+    // Re-read state UNDER the lock — a concurrent roll may have closed `open` or created the
+    // next-year period between the findFirst above and acquiring the lock.
+    const current = await tx.allowancePeriod.findUnique({ where: { id: open.id } });
+    if (!current || current.endDate !== null) {
+      return { ok: true as const, created: false as const, reason: "ALREADY_ROLLED" as const, nextYear };
+    }
+    const nextExisting = await tx.allowancePeriod.findFirst({
+      where: { employeeId, startDate: { gte: atUtc(`${nextYear}-01-01`), lte: atUtc(`${nextYear}-12-31`) } },
+    });
+    if (nextExisting) return { ok: true as const, created: false as const, reason: "ALREADY_ROLLED" as const, nextYear };
+
+    // Prior-year remaining, engine-derived from the (now locked) period inputs.
+    const takenApproved = (await tx.leaveRequest.aggregate({ where: { allowancePeriodId: current.id, status: "APPROVED" }, _sum: { allowanceDays: true } }))._sum.allowanceDays ?? 0;
+    const priorRemaining = computeRemaining({
+      opening: current.opening,
+      carryOver: current.carryOver,
+      adjustments: current.adjustments,
+      deductions: current.deductions,
+      takenApproved,
+    });
+
+    const { opening, carryOver } = computeRollover({
+      annualDays: policy.annualDays,
+      joiningISO: toISO(emp.joiningDate),
+      nextYear,
+      priorRemaining,
+      carryOverCapDays: policy.carryOverCapDays,
+    });
+
+    // Close the current period — ONLY set endDate; financial fields are immutable.
+    await tx.allowancePeriod.update({ where: { id: current.id }, data: { endDate: atUtc(`${fromYear}-12-31`) } });
+
+    // Create the next-year period, region snapshotted from the closing period.
+    const created = await tx.allowancePeriod.create({
+      data: { employeeId, regionId: current.regionId, startDate: atUtc(`${nextYear}-01-01`), opening, carryOver },
+    });
+
+    await recordAudit(tx, {
+      actorId,
+      action: "YEAR_ROLLOVER",
+      entity: "AllowancePeriod",
+      entityId: created.id,
+      before: { closedPeriodId: current.id, fromYear, priorRemaining },
+      after: { newPeriodId: created.id, nextYear, opening, carryOver, annualDays: policy.annualDays, carryOverCapDays: policy.carryOverCapDays },
+    });
+
+    return { ok: true as const, created: true as const, opening, carryOver, newPeriodId: created.id, nextYear };
   });
 }
 
