@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/rbac";
 import CalendarsSection from "./_sections/CalendarsSection";
 import ConfigSection from "./_sections/ConfigSection";
+import EmployeeDetailPanel from "./_sections/EmployeeDetailPanel";
 import EmployeesSection from "./_sections/EmployeesSection";
 import RestrictedDaysSection from "./_sections/RestrictedDaysSection";
 
@@ -29,7 +30,7 @@ function segStyle(active: boolean): React.CSSProperties {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mode?: string; region?: string; year?: string }>;
+  searchParams: Promise<{ mode?: string; region?: string; year?: string; adminEmployee?: string }>;
 }) {
   // HR-only. Defense in depth: the nav already hides this for non-HR, but the guard
   // re-checks server-side and redirects anyone else away. Server actions re-check too.
@@ -80,7 +81,8 @@ export default async function AdminPage({
         </div>
       ) : (
         <div data-testid="admin-employee">
-          <EmployeesSection />
+          <EmployeesSection selectedId={sp.adminEmployee} />
+          {sp.adminEmployee && <EmployeeDetailPanel employeeId={sp.adminEmployee} year={sp.year && /^\d{4}$/.test(sp.year) ? Number(sp.year) : undefined} />}
         </div>
       )}
     </div>

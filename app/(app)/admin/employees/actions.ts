@@ -9,6 +9,7 @@ import {
   deactivateEmployee,
   generateAllowanceProfile,
   type ImportSummary,
+  updateEmployee,
 } from "@/lib/employees";
 import { AuthError, requireActor } from "@/lib/rbac";
 
@@ -33,6 +34,26 @@ export async function createEmployeeAction(formData: FormData) {
     employmentType: String(formData.get("employmentType")) as EmploymentType,
   });
   revalidatePath("/admin/employees");
+}
+
+export type UpdateEmployeeState = { ok: boolean; message: string } | null;
+
+/** Edit an employee's record (Epic 19.3b / AD7). HR-only, audited via updateEmployee.
+ *  Sensitive-field confirmation is enforced in the client; authz is re-checked here. */
+export async function updateEmployeeAction(_prev: UpdateEmployeeState, formData: FormData): Promise<UpdateEmployeeState> {
+  const actor = await hr();
+  const employeeId = String(formData.get("employeeId"));
+  await updateEmployee(actor.employeeId, employeeId, {
+    firstName: String(formData.get("firstName")),
+    lastName: String(formData.get("lastName")),
+    regionId: String(formData.get("regionId")),
+    departmentId: formData.get("departmentId") ? String(formData.get("departmentId")) : null,
+    approverLevel: String(formData.get("approverLevel")) as ApproverLevel,
+    employmentType: String(formData.get("employmentType")) as EmploymentType,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/employees");
+  return { ok: true, message: "Changes saved." };
 }
 
 export type ProfileState = { ok: boolean; message: string } | null;
