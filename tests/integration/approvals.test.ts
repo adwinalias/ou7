@@ -2,7 +2,7 @@
 // queue scoping, RBAC-guarded decisions, approve→debit, decline+reason, and the
 // over-booking re-check at approval. Self-skips when the DB is unreachable.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { decideLeaveRequest, listPendingForApprover } from "@/lib/approvals";
+import { countPendingForApprover, decideLeaveRequest, listPendingForApprover } from "@/lib/approvals";
 import { getOpenPeriodBalance } from "@/lib/allowance";
 import { db } from "@/lib/db";
 import { AuthError } from "@/lib/rbac";
@@ -125,6 +125,21 @@ suite("Approval workflow (integration)", () => {
     expect(names).toContain("requester T");
     expect(names).toContain("other T");
     expect(names).toContain("approver T");
+  });
+
+  it("countPendingForApprover EXACTLY matches the queue length for the same actor (Epic 18.3)", async () => {
+    await pending(requesterId, { periodId: period5 });
+    await pending(otherId);
+    await pending(approverId); // approver's own — excluded from their queue and count
+
+    for (const a of [approverActor, hrActor, staffActor]) {
+      const list = await listPendingForApprover(a);
+      const count = await countPendingForApprover(a);
+      expect(count).toBe(list.length);
+    }
+    // Concretely: approver sees only their one assigned requester; staff (non-approver) sees 0.
+    expect(await countPendingForApprover(approverActor)).toBe(1);
+    expect(await countPendingForApprover(staffActor)).toBe(0);
   });
 
   it("approve → APPROVED and debits the allowance via the engine", async () => {
