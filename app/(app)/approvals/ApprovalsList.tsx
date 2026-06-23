@@ -35,7 +35,7 @@ function Row({ item }: { item: PendingItem }) {
 
   return (
     <section className="card" style={{ padding: "var(--space-5)" }} data-testid="approval-card">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "var(--space-4)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: "var(--space-4)" }}>
         <div>
           <div className="t-h3">{item.requesterName}</div>
           <div className="t-muted" style={{ fontSize: "var(--text-sm)" }}>

@@ -25,23 +25,25 @@ export default async function HRLogsPage() {
         {logs.length === 0 ? (
           <p className="t-muted" style={{ marginBottom: "var(--space-4)" }}>No logs yet.</p>
         ) : (
-          <table className="table" data-testid="hrlog-table" style={{ marginBottom: "var(--space-4)" }}>
-            <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Notes</th><th /></tr></thead>
-            <tbody>
-              {logs.map((l) => (
-                <tr key={l.id}>
-                  <td>{l.employeeName}</td>
-                  <td>{TYPE_LABEL[l.type]}</td>
-                  <td className="t-num">{l.startISO}</td>
-                  <td className="t-num">{l.endISO}</td>
-                  <td className="t-muted">{l.notes ?? "—"}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <form action={deleteHRLogAction}><input type="hidden" name="id" value={l.id} /><button className="btn btn-danger" style={{ padding: "2px 10px" }}>Delete</button></form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
+            <table className="table" data-testid="hrlog-table">
+              <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Notes</th><th /></tr></thead>
+              <tbody>
+                {logs.map((l) => (
+                  <tr key={l.id}>
+                    <td>{l.employeeName}</td>
+                    <td>{TYPE_LABEL[l.type]}</td>
+                    <td className="t-num">{l.startISO}</td>
+                    <td className="t-num">{l.endISO}</td>
+                    <td className="t-muted">{l.notes ?? "—"}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <form action={deleteHRLogAction}><input type="hidden" name="id" value={l.id} /><button className="btn btn-danger" style={{ padding: "2px 10px" }}>Delete</button></form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <HRLogForm employees={empOptions} />
       </section>

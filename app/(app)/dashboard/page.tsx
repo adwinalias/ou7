@@ -74,7 +74,7 @@ export default async function DashboardPage() {
         {/* 8.2 — next 7 days */}
         <section className="card" style={{ padding: "var(--space-5)" }}>
           <div className="t-label" style={{ marginBottom: "var(--space-4)" }}>My next 7 days</div>
-          <div data-testid="next-7" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
+          <div className="next7-grid" data-testid="next-7" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
             {days.map((cell) => (
               <div key={cell.iso} style={{ display: "flex", flexDirection: "column", gap: 2, textAlign: "center" }}>
                 <span className="t-muted" style={{ fontSize: "var(--text-xs)" }}>{weekdayInitial(cell.iso)}</span>

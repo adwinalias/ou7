@@ -40,22 +40,24 @@ export default async function ConfigPage() {
         {policies.length === 0 ? (
           <p className="t-muted" style={{ marginBottom: "var(--space-4)" }} data-testid="policy-empty">No policies configured yet.</p>
         ) : (
-          <table className="table" data-testid="policy-table" style={{ marginBottom: "var(--space-4)" }}>
-            <thead><tr><th>Region</th><th>Role</th><th>Annual days</th><th>Carry-over cap</th><th>Expiry</th><th /></tr></thead>
-            <tbody>
-              {policies.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.regionName}</td><td>{p.role}</td>
-                  <td className="t-num">{p.annualDays}</td>
-                  <td className="t-num">{p.carryOverCapDays ?? "—"}</td>
-                  <td className="t-num">{p.carryOverExpiry ?? "—"}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <form action={deletePolicyAction}><input type="hidden" name="id" value={p.id} /><button className="btn btn-danger" style={{ padding: "2px 10px" }}>Delete</button></form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
+            <table className="table" data-testid="policy-table">
+              <thead><tr><th>Region</th><th>Role</th><th>Annual days</th><th>Carry-over cap</th><th>Expiry</th><th /></tr></thead>
+              <tbody>
+                {policies.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.regionName}</td><td>{p.role}</td>
+                    <td className="t-num">{p.annualDays}</td>
+                    <td className="t-num">{p.carryOverCapDays ?? "—"}</td>
+                    <td className="t-num">{p.carryOverExpiry ?? "—"}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <form action={deletePolicyAction}><input type="hidden" name="id" value={p.id} /><button className="btn btn-danger" style={{ padding: "2px 10px" }}>Delete</button></form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <form action={upsertPolicyAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
           <label className="t-label" style={fieldCol}>Region
@@ -82,26 +84,28 @@ export default async function ConfigPage() {
       {/* Leave types */}
       <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Leave types</div>
-        <table className="table" data-testid="leavetype-table" style={{ marginBottom: "var(--space-4)" }}>
-          <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Status</th><th /></tr></thead>
-          <tbody>
-            {leaveTypes.map((lt) => (
-              <tr key={lt.id}>
-                <td><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><i aria-hidden style={{ width: 10, height: 10, background: lt.color }} />{lt.name}</span></td>
-                <td className="t-num">{lt.code}</td>
-                <td>{lt.deductsAllowance ? "Yes" : "No"}</td>
-                <td>{lt.active ? "Active" : "Retired"}</td>
-                <td style={{ textAlign: "right" }}>
-                  <form action={setLeaveTypeActiveAction}>
-                    <input type="hidden" name="id" value={lt.id} />
-                    <input type="hidden" name="active" value={lt.active ? "false" : "true"} />
-                    <button className="btn btn-secondary" style={{ padding: "2px 10px" }}>{lt.active ? "Retire" : "Reactivate"}</button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
+          <table className="table" data-testid="leavetype-table">
+            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Status</th><th /></tr></thead>
+            <tbody>
+              {leaveTypes.map((lt) => (
+                <tr key={lt.id}>
+                  <td><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><i aria-hidden style={{ width: 10, height: 10, background: lt.color }} />{lt.name}</span></td>
+                  <td className="t-num">{lt.code}</td>
+                  <td>{lt.deductsAllowance ? "Yes" : "No"}</td>
+                  <td>{lt.active ? "Active" : "Retired"}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <form action={setLeaveTypeActiveAction}>
+                      <input type="hidden" name="id" value={lt.id} />
+                      <input type="hidden" name="active" value={lt.active ? "false" : "true"} />
+                      <button className="btn btn-secondary" style={{ padding: "2px 10px" }}>{lt.active ? "Retire" : "Reactivate"}</button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <form action={createLeaveTypeAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
           <label className="t-label" style={fieldCol}>Name<input name="name" required className="input" data-testid="lt-name" /></label>
           <label className="t-label" style={fieldCol}>Code<input name="code" required className="input t-num" maxLength={4} data-testid="lt-code" /></label>
@@ -116,7 +120,7 @@ export default async function ConfigPage() {
       {/* Departments + Tags */}
       <section className="card" style={{ padding: "var(--space-5)" }}>
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Departments &amp; tags</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
+        <div className="reflow-1col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
           <div>
             <p className="t-muted" style={{ fontSize: "var(--text-sm)" }}>{departments.map((d) => d.name).join(", ") || "None"}</p>
             <form action={createDepartmentAction} style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
