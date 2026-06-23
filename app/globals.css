@@ -103,7 +103,6 @@
     color: var(--text);
     font-weight: var(--weight-semibold);
     border-top-color: var(--accent);
-    background: var(--accent-quiet);
   }
 
   /* More disclosure: a small popover above the bar. */
@@ -136,6 +135,5 @@
   .bottom-tab-more-item[data-active="true"] {
     font-weight: var(--weight-semibold);
     border-left-color: var(--accent);
-    background: var(--accent-quiet);
   }
 }
