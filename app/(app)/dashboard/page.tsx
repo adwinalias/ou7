@@ -8,6 +8,7 @@ import { getDashboard } from "@/lib/dashboard";
 import { getHolidayBalance } from "@/lib/holiday-balance";
 import { getWhosOff, type WhosOffData, type WhosOffEntryHR } from "@/lib/whosoff";
 import { requireUser } from "@/lib/rbac";
+import AllowanceBreakdown from "@/components/AllowanceBreakdown";
 import Donut from "./Donut";
 
 const WEEKDAY = ["S", "M", "T", "W", "T", "F", "S"];
@@ -145,9 +146,9 @@ export default async function DashboardPage() {
           {donut && balance ? (
             <>
               <Donut segments={donut.segments} total={donut.total} available={balance.available} />
-              <p className="t-muted" style={{ marginTop: "var(--space-4)", fontSize: "var(--text-sm)" }}>
-                Opening <span className="t-num">{balance.opening}</span> · Remaining <span className="t-num">{balance.remaining}</span>
-              </p>
+              <div style={{ marginTop: "var(--space-4)" }}>
+                <AllowanceBreakdown balance={balance} testid="dash-allowance-breakdown" />
+              </div>
             </>
           ) : (
             <p className="t-muted">No allowance period yet — contact HR.</p>

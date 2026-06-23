@@ -1,3 +1,4 @@
+import AllowanceBreakdown from "@/components/AllowanceBreakdown";
 import { getOpenPeriodBalance } from "@/lib/allowance";
 import { listAdjustments, previewReset } from "@/lib/allowance-admin";
 import { getHolidayBalance } from "@/lib/holiday-balance";
@@ -78,18 +79,10 @@ export default async function AllowanceAdminPage({ searchParams }: { searchParam
         </section>
       ) : (
         <>
-          {/* Balance */}
+          {/* Balance — shared labelled breakdown (Epic 18.4; H4/AD9) */}
           <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }} data-testid="allowance-balance">
             <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Balance ({year})</div>
-            <table className="table">
-              <tbody>
-                <tr><td>Opening</td><td style={num} data-testid="bal-opening">{balance.opening}</td></tr>
-                <tr><td>Taken (approved)</td><td style={num}>{balance.takenApproved}</td></tr>
-                <tr><td>Pending</td><td style={num}>{balance.pending}</td></tr>
-                <tr><td><strong>Remaining</strong></td><td style={num}><strong>{balance.remaining}</strong></td></tr>
-                <tr><td><strong>Available</strong></td><td style={num}><strong>{balance.available}</strong></td></tr>
-              </tbody>
-            </table>
+            <AllowanceBreakdown balance={balance} />
           </section>
 
           {/* Reset preview → confirm */}

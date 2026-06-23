@@ -17,7 +17,7 @@ test("HR adds an adjustment and resets the opening (Epic 9.2)", async ({ page })
   // Select the fixture employee and load it.
   await page.getByTestId("allowance-employee").selectOption({ label: "Allowy Manager" });
   await page.getByRole("button", { name: "View" }).click();
-  await expect(page.getByTestId("bal-opening")).toHaveText("20");
+  await expect(page.getByTestId("bd-opening")).toHaveText("20");
 
   // Add a +2 adjustment (audited ledger).
   await page.getByTestId("entry-kind").selectOption("ADJUSTMENT");
@@ -30,5 +30,5 @@ test("HR adds an adjustment and resets the opening (Epic 9.2)", async ({ page })
   await expect(page.getByTestId("reset-from")).toHaveText("20");
   await expect(page.getByTestId("reset-to")).toContainText("22");
   await page.getByTestId("reset-confirm").click();
-  await expect(page.getByTestId("bal-opening")).toHaveText("22");
+  await expect(page.getByTestId("bd-opening")).toHaveText("22");
 });
