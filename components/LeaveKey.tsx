@@ -59,10 +59,12 @@ export default function LeaveKey(props: Props) {
         />
         Pending
       </span>
-      {/* Weekend / holiday: faint hairlines, never grey. */}
+      {/* Weekend / non-working: faint hairlines, never grey. Labelled "non-working" (not
+          "holiday") so it doesn't clash with the "National Holiday" category swatch shown
+          alongside it on the dashboard (18.5); the wall chart still reads fine. */}
       <span style={entry} data-testid="leave-key-off">
         <i aria-hidden className="cell--off" style={{ ...swatch, border: "1px solid var(--border)" }} />
-        Weekend / holiday
+        Weekend / non-working
       </span>
     </div>
   );

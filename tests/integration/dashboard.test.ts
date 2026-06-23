@@ -2,7 +2,7 @@
 // allowance balance matches the engine, and the next-7-days strip reflects region
 // weekends + the employee's work pattern + their leave, without leaking notes.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getDashboard } from "@/lib/dashboard";
+import { getDashboard, getUpcomingHolidays } from "@/lib/dashboard";
 import { db } from "@/lib/db";
 
 let dbUp = false;
@@ -22,8 +22,11 @@ const SECRET = "DASH-SECRET-NOTE";
 
 let employeeId = "";
 let workPatternId = "";
+let uaeId = "";
+let otherRegionId = "";
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 const windowToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
+const HOLIDAY_PREFIX = "Dash IT Holiday";
 function addDaysISO(iso: string, n: number) {
   const d = new Date(`${iso}T00:00:00.000Z`);
   d.setUTCDate(d.getUTCDate() + n);
@@ -33,6 +36,26 @@ function addDaysISO(iso: string, n: number) {
 suite("Dashboard reads (integration)", () => {
   beforeAll(async () => {
     const uae = await db.region.upsert({ where: { name: "UAE" }, update: {}, create: { name: "UAE", weekendDays: [6, 0] } });
+    uaeId = uae.id;
+    const other = await db.region.upsert({ where: { name: "Dash IT Other Region" }, update: {}, create: { name: "Dash IT Other Region", weekendDays: [5, 6] } });
+    otherRegionId = other.id;
+
+    // Holidays: clear any test rows, then seed a past one (excluded), three future ones in
+    // the viewer's region (UAE) plus one in another region (must NOT show — region-aware).
+    await db.holiday.deleteMany({ where: { name: { startsWith: HOLIDAY_PREFIX } } });
+    const past = addDaysISO(windowToday, -10);
+    const f1 = addDaysISO(windowToday, 5);
+    const f2 = addDaysISO(windowToday, 20);
+    const f3 = addDaysISO(windowToday, 40);
+    await db.holiday.createMany({
+      data: [
+        { regionId: uae.id, year: Number(past.slice(0, 4)), date: day(past), name: `${HOLIDAY_PREFIX} Past` },
+        { regionId: uae.id, year: Number(f2.slice(0, 4)), date: day(f2), name: `${HOLIDAY_PREFIX} Two` },
+        { regionId: uae.id, year: Number(f1.slice(0, 4)), date: day(f1), name: `${HOLIDAY_PREFIX} One` },
+        { regionId: uae.id, year: Number(f3.slice(0, 4)), date: day(f3), name: `${HOLIDAY_PREFIX} Three` },
+        { regionId: other.id, year: Number(f1.slice(0, 4)), date: day(f1), name: `${HOLIDAY_PREFIX} OtherRegion` },
+      ],
+    });
 
     await db.leaveRequest.deleteMany({ where: { employee: { email: { startsWith: PREFIX } } } });
     await db.allowancePeriod.deleteMany({ where: { employee: { email: { startsWith: PREFIX } } } });
@@ -93,9 +116,11 @@ suite("Dashboard reads (integration)", () => {
   afterAll(async () => {
     await db.leaveRequest.deleteMany({ where: { employee: { email: { startsWith: PREFIX } } } });
     await db.allowancePeriod.deleteMany({ where: { employee: { email: { startsWith: PREFIX } } } });
+    await db.holiday.deleteMany({ where: { name: { startsWith: HOLIDAY_PREFIX } } });
     await db.employee.deleteMany({ where: { email: { startsWith: PREFIX } } });
     if (workPatternId) await db.workPattern.deleteMany({ where: { id: workPatternId } });
     await db.leaveType.deleteMany({ where: { code: { in: [DEDUCT, NONDEDUCT] } } });
+    if (otherRegionId) await db.region.deleteMany({ where: { id: otherRegionId } });
     await db.$disconnect();
   });
 
@@ -126,5 +151,27 @@ suite("Dashboard reads (integration)", () => {
 
   it("never leaks notes", async () => {
     expect(JSON.stringify(await getDashboard(employeeId))).not.toContain(SECRET);
+  });
+
+  it("upcoming holidays: viewer's region only, future-only, soonest first", async () => {
+    const up = await getUpcomingHolidays(employeeId);
+    expect(up.map((h) => h.name)).toEqual([
+      `${HOLIDAY_PREFIX} One`,
+      `${HOLIDAY_PREFIX} Two`,
+      `${HOLIDAY_PREFIX} Three`,
+    ]);
+    // No past holiday, and nothing from the other region.
+    expect(up.some((h) => h.name.endsWith("Past"))).toBe(false);
+    expect(up.some((h) => h.name.endsWith("OtherRegion"))).toBe(false);
+    // Strictly ascending by date.
+    const dates = up.map((h) => h.dateISO);
+    expect([...dates].sort()).toEqual(dates);
+  });
+
+  it("upcoming holidays: caps to the limit", async () => {
+    expect((await getUpcomingHolidays(employeeId, 2)).map((h) => h.name)).toEqual([
+      `${HOLIDAY_PREFIX} One`,
+      `${HOLIDAY_PREFIX} Two`,
+    ]);
   });
 });

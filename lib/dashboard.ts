@@ -13,6 +13,11 @@ export interface DashboardData {
   days: WallCell[]; // next 7 days from today (Dubai), reusing the wall-chart cell vocabulary
 }
 
+export interface UpcomingHoliday {
+  name: string;
+  dateISO: ISODate;
+}
+
 // WorkPattern booleans → weekday index (0=Sun … 6=Sat).
 const PATTERN_WEEKDAY: { key: "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat"; index: number }[] = [
   { key: "sun", index: 0 },
@@ -83,4 +88,26 @@ export async function getDashboard(employeeId: string): Promise<DashboardData> {
     regionName: employee.region.name,
     days: buildRow(dayList, segments, effectiveCal, todayISO),
   };
+}
+
+/**
+ * The viewer's region's upcoming public holidays (Epic 18.5). REGION-AWARE: scoped to the
+ * employee's own region, dated today-or-later in Asia/Dubai, soonest first, capped to `limit`.
+ * Holiday dates are stored at UTC midnight (lib/calendars.atUtc), so comparing against
+ * Dubai's today (an ISO date string at UTC midnight) is a clean date-only compare. Returns
+ * an empty array when the Holiday table is unseeded — the tile renders an intentional empty
+ * state. No notes/private data; nothing leaks.
+ */
+export async function getUpcomingHolidays(employeeId: string, limit = 5): Promise<UpcomingHoliday[]> {
+  const employee = await db.employee.findUniqueOrThrow({
+    where: { id: employeeId },
+    select: { regionId: true },
+  });
+  const rows = await db.holiday.findMany({
+    where: { regionId: employee.regionId, date: { gte: parseISO(dubaiToday()) } },
+    orderBy: { date: "asc" },
+    take: limit,
+    select: { name: true, date: true },
+  });
+  return rows.map((h) => ({ name: h.name, dateISO: toISO(h.date) }));
 }
