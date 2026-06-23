@@ -38,6 +38,9 @@ You are building **OU7**, an internal leave & absence tool for Interesting Times
 - Keep commits small and use **Conventional Commits** (`feat:`, `fix:`, `test:`, `chore:`). One story ≈ one PR.
 - Record significant decisions as a new ADR in `docs/adr/`.
 
+### Build execution (v2) — hands-off orchestrator
+The v2 build runs **hands-off**: this top-level session is the **orchestrator** and delegates to the subagents in `.claude/agents/` (implementer-core, implementer-app, test-runner, code-reviewer). Eddy is **not** in the per-story approval loop — the orchestrator, the `Stop`-hook gate (`.claude/hooks/gate.sh`), the brutal opus `code-reviewer`, and the GitHub `build-and-test` check are the approval authority. Work one story at a time from `docs/V2-PRD.md`, one PR each, on feature branches only (never push/merge `main` directly). **Full procedure + safety rails + merge policy: [`docs/BUILD-WORKFLOW.md`](docs/BUILD-WORKFLOW.md) (ADR-0012).** Pause for Eddy on unsettled product decisions, repeated gate failures, or anything needing a new ADR (e.g. Epic 24 multi-year storage → ADR-0013 first).
+
 ## Commands
 ```bash
 npm install
@@ -57,4 +60,6 @@ npm run build
 - **Netlify deploy-preview checks (`ou7in17`) are a temporary experiment, not a gate.** The app targets **Vercel** (ADR-0002); the Netlify previews may fail and should be ignored when deciding to merge.
 
 ## Current state (start here)
-Scaffolded and verified: tooling, CI, Prisma schema + seed, the `core/` engine (allowance, calendar, leave validation — tests pass), Auth.js Google SSO config, env validation, the app shell with working light/dark switch, and route **stubs** for dashboard/wall-chart/my-leave/request/approvals/admin. The route pages are placeholders — your job is to build them out per the epics, starting with finishing **Epic 1** (RBAC guard + session→Employee mapping) and the **Epic 5** request→preview→submit slice on top of the already-tested `core/leave`.
+**Read [`docs/PROJECT-STATE.md`](docs/PROJECT-STATE.md) first — it is the live snapshot** (what's on `main`, the Netlify test deploy + env vars, locked policy values, integration status, known issues, and new-machine setup).
+
+Short version (2026-06-09): OU7 is **feature-complete on `main`** — foundation/SSO/RBAC, the allowance engine (v2: month-based pro-rata + adjustments ledger + Reset; Remote holiday ledger), request→approve→cancel with engine-derived balances, wall chart, dashboard, My Leave, the full HR console, holidays/regions, audit log, branding, and the Netlify deploy config. **All PRs #1–#24 are merged; no open PRs.** It is **running on a Netlify test deploy** (`https://ou7in17.netlify.app`) with real Google sign-in. **Next:** a UX/performance **v2** pass (from a recorded walkthrough) and **go-live** (Vercel + near-region Postgres, then the WhosOff migration). The guardrails above still apply unchanged.

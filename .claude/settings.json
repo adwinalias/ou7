@@ -1,0 +1,69 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)",
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npm install*)",
+      "Bash(npx vitest*)",
+      "Bash(npx playwright*)",
+      "Bash(npx tsx*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git switch*)",
+      "Bash(git checkout*)",
+      "Bash(git branch*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git restore*)",
+      "Bash(git stash*)",
+      "Bash(git push -u origin feat/*)",
+      "Bash(git push origin feat/*)",
+      "Bash(git push -u origin fix/*)",
+      "Bash(git push origin fix/*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh pr merge --auto*)",
+      "Bash(gh pr merge --squash --auto*)",
+      "Bash(gh run view*)",
+      "Bash(gh run watch*)",
+      "Bash(gh repo edit adwinalias/ou7 --enable-auto-merge*)",
+      "Bash(gh api --method PUT repos/adwinalias/ou7/branches/main/protection*)",
+      "Bash(gh api -X PUT repos/adwinalias/ou7/branches/main/protection*)"
+    ],
+    "deny": [
+      "Bash(rm -rf*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push* origin main*)",
+      "Bash(git push origin main*)",
+      "Bash(git reset --hard*)",
+      "Bash(gh pr merge --admin*)",
+      "Bash(npm run db:migrate*)",
+      "Bash(npm run db:deploy*)",
+      "Bash(npm run db:seed*)",
+      "Bash(prisma migrate reset*)",
+      "Bash(psql*)",
+      "Bash(curl*)",
+      "Bash(wget*)",
+      "Read(.env)",
+      "Edit(.env)",
+      "Write(.env)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "bash .claude/hooks/gate.sh" }
+        ]
+      }
+    ]
+  }
+}

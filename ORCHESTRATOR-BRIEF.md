@@ -31,10 +31,10 @@ Paste this into a new chat to bring the orchestrator up to speed. (In this proje
 
 **The operating loop (how we work):** I paste an epic prompt into Claude Code → it plans (I approve/adjust, you advise) → it builds, runs tests, and opens a PR via `gh` → **you review the PR with me** → I merge. One story at a time, smallest useful slice first.
 
-**Build status:**
-- ✅ Epic 1 done on `main`: foundation, Google SSO, RBAC guard (`core/authz` + `lib/rbac`), session→Employee mapping (email fallback), role-aware nav, HR bootstrap seed.
-- ▶ Next: **Epic 5 (Request → Check-details → Submit)** on branch `feat/epic-5-request`, built on the tested `core/leave` + `core/allowance`.
-- Then: 5.4 approve/decline → wall chart (E6) → my-leave (E7) → dashboard (E8) → HR admin (E9) → holidays/regions (E10) → notifications (E11). Sequencing in `docs/PROJECT-PLAN.md`.
+**Build status (2026-06-09):** OU7 is **feature-complete on `main`** and **running on a Netlify test deploy** (`https://ou7in17.netlify.app`) with real Google sign-in. All PRs **#1–#24 merged; no open PRs.** Built: foundation/SSO/RBAC, leave types & config, the allowance engine (v2: month-based pro-rata, adjustments ledger, Reset; Remote holiday ledger), request→approve→cancel + reminders, add-leave-on-behalf, wall chart, dashboard, My Leave, the full HR console (employees / config / HR-logs / pending-queue / allowance-mgmt), holidays/regions, audit log, branding, and the Netlify deploy config.
+- ▶ **Next: a v2 UX/performance pass** (from Eddy's recorded walkthrough) and **go-live** — deploy on **Vercel** + a near-region Postgres, then migrate WhosOff data + parallel-run + cut over (Epic 16.4/5).
+- Still later: notifications (E11), Remote holiday consumption (plan in `OVERNIGHT-NOTES.md`), reports (E12), Notion export/iCal (E13).
+- **Full live snapshot: [`docs/PROJECT-STATE.md`](docs/PROJECT-STATE.md)** — read it first on a new machine.
 
 **PR review checklist:** `core/` stays pure & tested · RBAC enforced server-side · allowance maths via `core/allowance` (pro-rata / per-market carry-over / over-booking correct) · region calendars correct · both themes + AA · CI green (typecheck/lint/unit/integration/build) · ADR added if a decision changed · Conventional Commit messages · scope matches the epic (no creep, no overtime, no runtime AI).
 

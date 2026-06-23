@@ -17,6 +17,7 @@ next-env.d.ts
 .env
 .env*.local
 .env.production
+watch-groq-key.txt
 
 # testing
 /coverage
@@ -25,6 +26,9 @@ next-env.d.ts
 
 # prisma
 /prisma/*.db
+
+# claude code per-machine local settings (never commit)
+.claude/settings.local.json
 
 # misc
 .DS_Store
