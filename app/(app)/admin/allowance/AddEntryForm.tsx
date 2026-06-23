@@ -16,6 +16,12 @@ export default function AddEntryForm({ periodId }: { periodId: string }) {
           <option value="DEDUCTION">Deduction (+)</option>
         </select>
       </label>
+      <label className="t-label" style={fieldCol}>Bucket
+        <select name="bucket" className="input" defaultValue="VACATION" required aria-required="true" data-testid="entry-bucket">
+          <option value="VACATION">Vacation</option>
+          <option value="PUBLIC_HOLIDAY">Public holiday</option>
+        </select>
+      </label>
       <label className="t-label" style={fieldCol}>Days (delta)
         <input type="number" step="0.5" name="delta" required aria-required="true" className="input t-num" data-testid="entry-delta" />
       </label>

@@ -4,7 +4,7 @@ import "server-only"; // Epic 22.4: DB-backed HR allowance ledger — server-onl
 // ledger), recomputed under a period-row lock so concurrent writers can't drop a delta.
 // Reset/Add Balance recomputes OPENING only, via the engine, from the entitlement policy.
 // Balances stay engine-derived — only inputs are ever stored.
-import type { AdjustmentKind } from "@prisma/client";
+import type { AdjustmentKind, AllowanceBucket } from "@prisma/client";
 import { computeRemaining, computeRollover, proRataOpening, round } from "@/core/allowance";
 import { recordAudit } from "./audit";
 import { getEntitlementPolicy } from "./config";
@@ -20,14 +20,20 @@ export type LedgerResult = { ok: true; warning?: string } | { ok: false; error: 
  * period's input projections. Locks the period row FIRST so two concurrent entries can't
  * each recompute from a stale ledger and drop the other's delta. Audited. A resulting
  * negative Remaining is ALLOWED but returned as a warning.
+ *
+ * The entry's `bucket` (24.3 / ADR-0013) routes the delta: a VACATION ADJUSTMENT feeds the
+ * `adjustments` projection (annual remaining, exactly today's behaviour); a PUBLIC_HOLIDAY
+ * ADJUSTMENT feeds the `publicHolidays` projection (NOT annual remaining). DEDUCTIONs feed
+ * `deductions` regardless of bucket, as before. `bucket` defaults to VACATION.
  */
 export async function addLedgerEntry(
   actorId: string,
   periodId: string,
-  input: { kind: AdjustmentKind; delta: number; reason: string },
+  input: { kind: AdjustmentKind; bucket?: AllowanceBucket; delta: number; reason: string },
 ): Promise<LedgerResult> {
   if (!input.reason?.trim()) return { ok: false, error: "A reason is required." };
   if (!Number.isFinite(input.delta) || input.delta === 0) return { ok: false, error: "Enter a non-zero number of days." };
+  const bucket: AllowanceBucket = input.bucket ?? "VACATION";
 
   return db.$transaction(async (tx) => {
     // Lock the period row so the recompute below serializes with any concurrent entry.
@@ -36,22 +42,29 @@ export async function addLedgerEntry(
     if (!period) return { ok: false as const, error: "Allowance period not found." };
 
     await tx.allowanceAdjustment.create({
-      data: { employeeId: period.employeeId, periodId, kind: input.kind, delta: input.delta, reason: input.reason.trim(), actorId },
+      data: { employeeId: period.employeeId, periodId, kind: input.kind, bucket, delta: input.delta, reason: input.reason.trim(), actorId },
     });
 
-    // Recompute the projection from the full ledger (now including this row), under the lock.
-    const sums = await tx.allowanceAdjustment.groupBy({ by: ["kind"], where: { periodId }, _sum: { delta: true } });
-    const adjustments = round(sums.find((s) => s.kind === "ADJUSTMENT")?._sum.delta ?? 0);
-    const deductions = round(sums.find((s) => s.kind === "DEDUCTION")?._sum.delta ?? 0);
-    await tx.allowancePeriod.update({ where: { id: periodId }, data: { adjustments, deductions } });
+    // Recompute the projections from the full ledger (now including this row), under the lock,
+    // routed by bucket. `adjustments` (annual remaining) is VACATION-bucket ADJUSTMENTs only;
+    // `publicHolidays` is PUBLIC_HOLIDAY-bucket ADJUSTMENTs (no other base writes this column);
+    // `deductions` is all DEDUCTIONs, as before. computeRemaining still receives only the
+    // VACATION `adjustments` sum, so annual remaining is unchanged for VACATION entries.
+    const sums = await tx.allowanceAdjustment.groupBy({ by: ["kind", "bucket"], where: { periodId }, _sum: { delta: true } });
+    const sumOf = (kind: AdjustmentKind, b?: AllowanceBucket) =>
+      sums.filter((s) => s.kind === kind && (b === undefined || s.bucket === b)).reduce((acc, s) => acc + (s._sum.delta ?? 0), 0);
+    const adjustments = round(sumOf("ADJUSTMENT", "VACATION"));
+    const publicHolidays = round(sumOf("ADJUSTMENT", "PUBLIC_HOLIDAY"));
+    const deductions = round(sumOf("DEDUCTION"));
+    await tx.allowancePeriod.update({ where: { id: periodId }, data: { adjustments, publicHolidays, deductions } });
 
     await recordAudit(tx, {
       actorId,
       action: input.kind === "ADJUSTMENT" ? "ADJUSTMENT_ADD" : "DEDUCTION_ADD",
       entity: "AllowancePeriod",
       entityId: periodId,
-      before: { adjustments: period.adjustments, deductions: period.deductions },
-      after: { adjustments, deductions, delta: input.delta, reason: input.reason.trim() },
+      before: { adjustments: period.adjustments, publicHolidays: period.publicHolidays, deductions: period.deductions },
+      after: { adjustments, publicHolidays, deductions, bucket, delta: input.delta, reason: input.reason.trim() },
     });
 
     const takenApproved = (await tx.leaveRequest.aggregate({ where: { allowancePeriodId: periodId, status: "APPROVED" }, _sum: { allowanceDays: true } }))._sum.allowanceDays ?? 0;
@@ -203,6 +216,7 @@ export async function listAdjustments(periodId: string) {
   return rows.map((r) => ({
     id: r.id,
     kind: r.kind,
+    bucket: r.bucket,
     delta: r.delta,
     reason: r.reason,
     actorName: r.actor ? `${r.actor.firstName} ${r.actor.lastName}`.trim() : "—",

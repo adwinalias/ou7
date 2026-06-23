@@ -4,7 +4,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { addLedgerEntry, listAdjustments, previewReset, resetBalance } from "@/lib/allowance-admin";
 import { generateAllowanceProfile } from "@/lib/employees";
-import { getOpenPeriodBalance } from "@/lib/allowance";
+import { computeRemaining } from "@/core/allowance";
+import type { AllowancePeriod } from "@prisma/client";
 import { db } from "@/lib/db";
 
 let dbUp = false;
@@ -24,6 +25,10 @@ let empId = "";
 let periodId = "";
 let actorId = "";
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+// Engine-derived annual remaining for a fresh period with no approved/pending leave. Mirrors
+// what getOpenPeriodBalance computes; uses only the VACATION `adjustments` projection.
+const remainingOf = (p: AllowancePeriod) =>
+  computeRemaining({ opening: p.opening, carryOver: p.carryOver, adjustments: p.adjustments, deductions: p.deductions, takenApproved: 0 });
 
 suite("Allowance management v2 (integration)", () => {
   beforeAll(async () => {
@@ -57,6 +62,44 @@ suite("Allowance management v2 (integration)", () => {
     expect(period.adjustments).toBe(2); // 3 + (−1)
     expect((await listAdjustments(periodId)).length).toBe(2);
     expect(await db.auditEvent.findFirst({ where: { action: "ADJUSTMENT_ADD", entityId: periodId } })).toBeTruthy();
+  });
+
+  it("bucket routing (24.3 / ADR-0013): VACATION hits annual remaining; PUBLIC_HOLIDAY does not; default is VACATION; both ledgered + audited", async () => {
+    // Fresh isolated period so the assertions don't entangle with the suite's running totals.
+    const pid = (await db.allowancePeriod.create({ data: { employeeId: empId, regionId: uaeId, startDate: day("2025-01-01"), endDate: day("2025-12-31"), opening: 10 } })).id;
+    const baseline = remainingOf(await db.allowancePeriod.findUniqueOrThrow({ where: { id: pid } }));
+
+    // A VACATION-bucket adjustment increases annual remaining (engine-derived) by its delta.
+    expect((await addLedgerEntry(actorId, pid, { kind: "ADJUSTMENT", bucket: "VACATION", delta: 4, reason: "goodwill" })).ok).toBe(true);
+    let p = await db.allowancePeriod.findUniqueOrThrow({ where: { id: pid } });
+    expect(p.adjustments).toBe(4);
+    expect(p.publicHolidays).toBe(0);
+    expect(remainingOf(p)).toBe(baseline + 4);
+
+    // A PUBLIC_HOLIDAY-bucket adjustment credits the publicHolidays projection and does NOT
+    // change annual remaining.
+    expect((await addLedgerEntry(actorId, pid, { kind: "ADJUSTMENT", bucket: "PUBLIC_HOLIDAY", delta: 3, reason: "extra PH" })).ok).toBe(true);
+    p = await db.allowancePeriod.findUniqueOrThrow({ where: { id: pid } });
+    expect(p.adjustments).toBe(4); // unchanged by the PH entry
+    expect(p.publicHolidays).toBe(3);
+    expect(remainingOf(p)).toBe(baseline + 4); // annual remaining still only sees VACATION
+
+    // Default bucket is VACATION when omitted.
+    expect((await addLedgerEntry(actorId, pid, { kind: "ADJUSTMENT", delta: 1, reason: "no bucket" })).ok).toBe(true);
+    p = await db.allowancePeriod.findUniqueOrThrow({ where: { id: pid } });
+    expect(p.adjustments).toBe(5);
+    expect(p.publicHolidays).toBe(3);
+
+    // Both buckets appear in the ledger…
+    const ledger = await listAdjustments(pid);
+    expect(ledger.length).toBe(3);
+    expect(ledger.filter((l) => l.bucket === "PUBLIC_HOLIDAY").length).toBe(1);
+    expect(ledger.filter((l) => l.bucket === "VACATION").length).toBe(2);
+    // …and the stored ledger row carries the chosen bucket.
+    const phRow = await db.allowanceAdjustment.findFirst({ where: { periodId: pid, bucket: "PUBLIC_HOLIDAY" } });
+    expect(phRow?.reason).toBe("extra PH");
+    // …and every entry is audited.
+    expect(await db.auditEvent.findFirst({ where: { action: "ADJUSTMENT_ADD", entityId: pid } })).toBeTruthy();
   });
 
   it("deductions are recorded the same way", async () => {
