@@ -176,3 +176,58 @@ export function letterColorToken(hex: string): "ink" | "paper" {
   // and AA-correct (ink is the higher-contrast choice on those lighter blocks).
   return luminance > 0.22 ? "ink" : "paper";
 }
+
+// --- Wall-chart keyboard navigation (Epic 20.1, WAI-ARIA APG Grid pattern) -------------
+// Pure grid-coordinate math: where does the active cell move for a given key? Coordinates
+// are 0-based here (row 0 = first data row, col 0 = the rowheader name cell). The component
+// maps these onto stable ids and 1-based aria-row/colindex. Edges clamp (no wrap). Kept in
+// core/ so it is deterministic and unit-tested without rendering.
+export interface GridPos {
+  row: number;
+  col: number;
+}
+
+export type GridNavKey =
+  | "ArrowLeft"
+  | "ArrowRight"
+  | "ArrowUp"
+  | "ArrowDown"
+  | "Home"
+  | "End"
+  | "CtrlHome"
+  | "CtrlEnd";
+
+/**
+ * Next active cell for an APG grid keydown. `rows`/`cols` are the counts of *data* rows and
+ * columns (cols includes the name rowheader at index 0). All moves clamp at the edges.
+ * Home/End go to the start/end of the current row; CtrlHome/CtrlEnd to the grid corners.
+ * Returns the (possibly unchanged) position; never out of bounds.
+ */
+export function nextCell(active: GridPos, key: GridNavKey, rows: number, cols: number): GridPos {
+  if (rows <= 0 || cols <= 0) return active;
+  const maxR = rows - 1;
+  const maxC = cols - 1;
+  const clamp = (v: number, hi: number) => Math.max(0, Math.min(v, hi));
+  const r = clamp(active.row, maxR);
+  const c = clamp(active.col, maxC);
+  switch (key) {
+    case "ArrowLeft":
+      return { row: r, col: clamp(c - 1, maxC) };
+    case "ArrowRight":
+      return { row: r, col: clamp(c + 1, maxC) };
+    case "ArrowUp":
+      return { row: clamp(r - 1, maxR), col: c };
+    case "ArrowDown":
+      return { row: clamp(r + 1, maxR), col: c };
+    case "Home":
+      return { row: r, col: 0 };
+    case "End":
+      return { row: r, col: maxC };
+    case "CtrlHome":
+      return { row: 0, col: 0 };
+    case "CtrlEnd":
+      return { row: maxR, col: maxC };
+    default:
+      return { row: r, col: c };
+  }
+}
