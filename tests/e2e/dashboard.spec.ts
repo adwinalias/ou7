@@ -23,8 +23,15 @@ test("dashboard shows allowance donut, next-7 strip, and request CTA (Epic 8)", 
   // 8.2 — next 7 days strip.
   await expect(page.getByTestId("next-7")).toBeVisible();
 
-  // 8.3 — request-leave widget launches the request flow.
+  // 18.7 — the request action now lives in the persistent app-shell header (it replaced
+  // the old full-column dashboard tile) and opens the Request flow in a side-peek OVER
+  // the current screen, with no navigation away from the dashboard.
   await page.getByTestId("dash-request").click();
-  await expect(page).toHaveURL(/\/request$/);
-  await expect(page.getByRole("heading", { name: "Request leave" })).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard$/); // no navigation
+  const peek = page.getByRole("dialog", { name: "Request leave" });
+  await expect(peek).toBeVisible();
+  await expect(peek.getByTestId("leave-type")).toBeVisible();
+  // Escape closes the peek and returns focus to the trigger (Modal a11y mechanics).
+  await page.keyboard.press("Escape");
+  await expect(peek).not.toBeVisible();
 });

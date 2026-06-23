@@ -2,6 +2,7 @@ import { canAccessAdmin, isApprover } from "@/core/authz";
 import AppNav from "@/components/AppNav";
 import BottomTabBar from "@/components/BottomTabBar";
 import ThemeSwitch from "@/components/ThemeSwitch";
+import RequestPeek from "./request/RequestPeek";
 import { requireUser } from "@/lib/rbac";
 
 // Authenticated app shell. Every route under (app) is guarded here: requireUser()
@@ -51,7 +52,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span className="brand-mark" role="img" aria-label="OU7 — Interesting Times leave management" />
             <div className="t-muted" style={{ fontSize: 13 }}>Interesting Times</div>
           </div>
-          <ThemeSwitch />
+          {/* Persistent "Request leave" action (Epic 18.7): opens the Request flow in a
+              right-anchored side-peek over the current screen — no navigation. Visible on
+              every (app) screen; replaces the old full-column dashboard tile. */}
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <RequestPeek />
+            <ThemeSwitch />
+          </div>
         </header>
         <main id="main-content" className="app-main">{children}</main>
       </div>
