@@ -1,8 +1,8 @@
 # OU7
 
-Internal **leave & absence management** for Interesting Times DMCC — a self-hosted replacement for WhosOff. Sign in with Google Workspace; book leave, approve it, see the team wall chart, track allowances per market, and report. We own the data; Notion is an export target only; **no AI runs in the app** (all calculations are deterministic software).
+Internal **leave & absence management** for any org. Sign in with Google Workspace; book leave, approve it, see the team wall chart, track allowances per market, and report. We own the data; Notion is an export target only; **no AI runs in the app** (all calculations are deterministic software).
 
-> Name: **OU7** ("OUT"). A 17 tool. Timezone for all scheduling: **Asia/Dubai**.
+> Name: **OU7** ("OUT"). A 17 tool.
 
 ## Stack
 
