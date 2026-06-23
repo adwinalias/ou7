@@ -18,6 +18,19 @@ This folder is the **source of truth** for anyone — human or AI — building t
 | 8 | [adr/](adr/) | Architecture Decision Records (the "why" behind big choices) | Engineers |
 | — | [../design/tokens.css](../design/tokens.css) | Ready-to-use CSS variables (light + dark) | Front-end / AI builders |
 
+## v2 planning (UX, performance & readiness)
+
+v1 is feature-complete on `main`; these add-on docs scope the v2 quality pass. **Start with the PRD**, then the supporting docs. These do not change the v1 guardrails.
+
+| Document | What it covers |
+|---|---|
+| [V2-PRD.md](V2-PRD.md) | The v2 add-on PRD — epics 17–23, build order, DoD additions (**start here**) |
+| [V2-UX-AUDIT.md](V2-UX-AUDIT.md) | Whole-app UI/UX audit (findings H/M/L) + build order |
+| [V2-UX-IDEAS-FROM-THE-FIELD.md](V2-UX-IDEAS-FROM-THE-FIELD.md) | Feature ideas from comparable tools, with guardrail checks |
+| [V2-PERFORMANCE-RENDERING.md](V2-PERFORMANCE-RENDERING.md) | Next.js rendering & Core Web Vitals work |
+| [V2-APP-READINESS-FIXES.md](V2-APP-READINESS-FIXES.md) | Accessibility, error handling, testing, data & security |
+| [STRUCTURE-SECURITY-HOSTING.md](STRUCTURE-SECURITY-HOSTING.md) | How the app is wired (frontend / backend / database), a security review, and hosting options |
+
 ## Non-negotiable principles (the short version)
 
 1. **Standalone.** No Notion agents, no n8n, no external runtime dependency. Notion is an *export target only*.
@@ -37,3 +50,5 @@ This folder is the **source of truth** for anyone — human or AI — building t
 ## Status
 
 Planning complete. PRD + this documentation set are ready to hand to a build team (human or AI). Outstanding inputs from HR are tracked in PRD §14 (entitlement numbers, per-market carry-over rules, Notion target DB, Teams setup, branding assets).
+
+v1 is feature-complete on `main`. **v2 (UX, performance & readiness) is now scoped — see the v2 planning docs above, starting with `V2-PRD.md`.**
