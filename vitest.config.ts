@@ -14,6 +14,11 @@ export default defineConfig({
   },
   resolve: {
     // Map "@/..." (e.g. @/core/leave) onto the project root, mirroring tsconfig paths.
-    alias: [{ find: /^@\//, replacement: root }],
+    alias: [
+      { find: /^@\//, replacement: root },
+      // `server-only` throws outside an RSC build; alias it to a no-op so any test that
+      // (transitively) imports a server-only module collects without throwing.
+      { find: /^server-only$/, replacement: `${root}tests/stubs/server-only.ts` },
+    ],
   },
 });

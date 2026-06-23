@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed balance reads — server-only.
 // Shared balance reads. The arithmetic lives in core/allowance (pure); this assembles
 // the inputs from the DB so both lib/leave (preview/submit) and lib/approvals (the
 // approval-time over-booking re-check) compute balances the same way.

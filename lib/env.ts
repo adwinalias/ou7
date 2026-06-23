@@ -1,3 +1,5 @@
+import "server-only"; // Epic 22.4: validated env (incl. AUTH_SECRET, DB URL) must never be bundled into the client.
+import * as React from "react";
 import { z } from "zod";
 
 // Validate environment at boot so a misconfigured deploy fails fast and loudly with a clear,
@@ -20,6 +22,31 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+// Epic 22.4 — taint the most sensitive secrets so React refuses to serialize them into a
+// client payload (defence-in-depth behind `import "server-only"` above). React's taint API
+// (`experimental_taintUniqueValue`) is gated behind the `experimental.taint` build flag and
+// is NOT exported by this React/Next build, so we feature-detect it and skip when absent —
+// `import "server-only"` + the fact these values are never passed as props already keep them
+// off the client. The detection is type-only against React's runtime shape (no extra import).
+const reactRuntime = React as unknown as {
+  experimental_taintUniqueValue?: (message: string, lifetime: object, value: string) => void;
+};
+reactRuntime.experimental_taintUniqueValue?.(
+  "AUTH_SECRET must never be sent to the client.",
+  env,
+  env.AUTH_SECRET,
+);
+reactRuntime.experimental_taintUniqueValue?.(
+  "GOOGLE_CLIENT_SECRET must never be sent to the client.",
+  env,
+  env.GOOGLE_CLIENT_SECRET,
+);
+reactRuntime.experimental_taintUniqueValue?.(
+  "DATABASE_URL must never be sent to the client.",
+  env,
+  env.DATABASE_URL,
+);
 
 // Bridge the canonical AUTH_* vars to the names next-auth v4 reads from process.env, so the
 // rest of the app only depends on AUTH_URL/AUTH_SECRET.

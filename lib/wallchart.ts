@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed read; the privacy abstraction must run server-side only.
 // Wall-chart data assembly (Epic 6.1 + 6.2). Fetches active employees + their
 // APPROVED/PENDING leave overlapping a month, builds region-aware calendars, and delegates
 // per-day cell construction + grouping/sorting to the pure core/wallchart. Privacy (6.5):

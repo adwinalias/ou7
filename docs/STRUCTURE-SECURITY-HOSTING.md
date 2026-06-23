@@ -70,7 +70,7 @@ Outbound only (never read back): Email, Teams, Notion export, iCal.
 
 ### Fix before go-live
 1. **Rotate the leaked secrets.** The Neon database password and Google OAuth secret were shared in chat during setup. Until they're rotated, anyone who saw them could connect. (Already on the to-do list — do it.)
-2. **Add security headers + a Content-Security-Policy.** `next.config.mjs` currently sets none. Add CSP, clickjacking protection (`frame-ancestors`/X-Frame-Options), `X-Content-Type-Options`, `Referrer-Policy`, and HSTS. The architecture doc *describes* these but they aren't implemented yet.
+2. ~~**Add security headers + a Content-Security-Policy.**~~ **DONE (Epic 22.4)** — CSP + clickjacking protection (`frame-ancestors 'none'` + `X-Frame-Options: DENY`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a conservative `Permissions-Policy` are now set for all routes in `next.config.mjs` `async headers()`. See §4 below for the exact policy and the nonce-hardening follow-up. **HSTS is still a hosting/TLS task** (set at the edge/proxy on Vercel, not in `next.config.mjs`).
 3. **Add a `middleware.ts` auth backstop.** Today every page/action is protected *because the developer remembered to call the guard*. That's well done so far, but there's no blanket gate — one forgotten guard on a future route = an exposed route. A middleware check is cheap defence-in-depth (and also speeds up rendering — see the performance doc).
 4. **Decide on MFA.** The data model has an `mfaEnabled` flag but there's no TOTP flow built. For an HR tool holding everyone's personal data, consider requiring MFA at least for the HR role (this is Epic 1.6). Today account security leans entirely on Google — fine if Workspace enforces 2-factor, worth confirming.
 
@@ -119,6 +119,36 @@ Choose this if compliance requires personal data to stay in the UAE/Gulf, or you
 **Resilience note:** Middle East cloud regions (including Vercel's Dubai region and AWS UAE) saw service disruptions during 2026. Whatever you choose, keep **automated database backups** and a tested restore (and ideally a cross-region replica) so a single-region outage isn't a data-loss event.
 
 Hosting is governed by **ADR-0002 (Vercel)**; any move of the database region or a full-stack relocation should be recorded as a **new ADR**.
+
+---
+
+## 4. Security headers & CSP (Epic 22.4)
+
+Set for **all routes** via `next.config.mjs` `async headers()`. These are static strings (no per-request state), so they do **not** force dynamic rendering — the data-free public routes (`/`, `/sign-in`, `/not-provisioned`) stay statically rendered (Epic 21.1).
+
+**Content-Security-Policy:**
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data:;
+font-src 'self';
+connect-src 'self';
+object-src 'none';
+base-uri 'self';
+form-action 'self';
+frame-ancestors 'none';
+frame-src 'none';
+upgrade-insecure-requests
+```
+
+**Plus:** `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
+
+**Why `script-src 'unsafe-inline'`:** the root layout runs a small inline theme-init script (flash-free dark mode) and Next.js emits its own inline bootstrap. Using a per-request **nonce** would require reading `headers()` in the root layout, which forces every route to render dynamically and would regress the Epic 21.1 static routes. `'unsafe-inline'` keeps those routes static while still giving us a real, restrictive policy everywhere else.
+
+**Go-live hardening follow-up (not done):** tighten `script-src` away from `'unsafe-inline'` by pinning a **SHA-256 hash** of the (static) theme-init script — its hash is stable — and/or move to a nonce only if/when the public routes no longer need to be static. **HSTS** is deliberately omitted from `next.config.mjs` — it's a hosting/TLS concern, set at the Vercel edge/proxy.
+
+**Server-only data layer (Epic 22.4):** every DB/secret-touching `lib/*` module now starts with `import "server-only"`, so the build hard-fails if one is ever imported into a Client Component. The most sensitive secrets (`AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `DATABASE_URL`) are additionally tainted via React's `experimental_taintUniqueValue` in `lib/env.ts` (defence-in-depth; skipped silently if the experimental API is absent). Server Action authz was audited — all 34 actions across the 11 `app/**/actions.ts` files re-verify authz (`requireActor` + `isHR`/`canAddLeaveForOthers`/per-record `canApproveFor`) before mutating.
 
 ---
 

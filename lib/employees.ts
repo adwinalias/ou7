@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed HR CRUD — server-only (types are imported via `import type`, which is erased).
 // Employee management (Epic 9.1). HR CRUD + bulk import + generating an allowance profile.
 // The profile's OPENING is computed by the engine (core/allowance.proRataOpening) from the
 // configured entitlement policy + joining date — never invented. If no policy exists for the

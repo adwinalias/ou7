@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed approval I/O — server-only (types are imported via `import type`, which is erased).
 // Approval workflow I/O (Epic 5.4). Lists the queue and applies a decision, routing the
 // transition through the pure core/approvals state machine and debiting allowance only by
 // flipping status to APPROVED (core/allowance then counts the days as taken — never a

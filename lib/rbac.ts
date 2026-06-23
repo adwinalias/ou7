@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: the RBAC guard resolves identity from the session + DB — server-only.
 // Central RBAC guard (Epic 1.4). The ONE place that turns a session into an authorized
 // Actor. Authority (role / level / approver assignments / status) is resolved FRESH from
 // the DB here on every call, so HR role changes apply immediately and every action is

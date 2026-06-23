@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed dashboard reads — server-only.
 // Dashboard reads (Epic 8). Read-only composition of existing engine reads:
 // getOpenPeriodBalance for the allowance donut, and core/wallchart.buildRow (reused, not
 // duplicated) for the next-7-days strip. Notes are never selected (privacy preserved).

@@ -20,6 +20,12 @@ export default defineConfig({
     fileParallelism: false,
   },
   resolve: {
-    alias: [{ find: /^@\//, replacement: root }],
+    alias: [
+      { find: /^@\//, replacement: root },
+      // `server-only` throws outside an RSC build (Vitest doesn't set the react-server
+      // export condition); alias it to a no-op so the lib modules that import it for the
+      // build-time client-bundle guard can still be imported by integration tests.
+      { find: /^server-only$/, replacement: `${root}tests/stubs/server-only.ts` },
+    ],
   },
 });
