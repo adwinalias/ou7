@@ -1,7 +1,9 @@
 import Link from "next/link";
+import type { Route } from "next";
 import DashboardGrid, { type DashboardWidget } from "@/components/DashboardGrid";
 import { isApprover } from "@/core/authz";
 import { greetingForHour } from "@/core/dates";
+import { computeDashboardAlerts, type DashboardAlert } from "@/core/alerts";
 import { donutSegments } from "@/core/allowance";
 import { countPendingForApprover } from "@/lib/approvals";
 import { letterColorToken, type WallCell } from "@/core/wallchart";
@@ -87,6 +89,60 @@ function WhosOff({ data }: { data: WhosOffData }) {
   );
 }
 
+// Alerts widget body (Epic 18.6). Renders the deterministic nudges from core/alerts: each
+// is a keyboard-operable link to the relevant screen with a severity cue that is NEVER
+// colour-only — the cue is a coloured left bar (token) PLUS the alert's text. Empty state
+// when there's nothing to nudge. Both themes / tokens only.
+function AlertsWidget({ alerts }: { alerts: DashboardAlert[] }) {
+  return (
+    <>
+      <div className="t-label" style={{ marginBottom: "var(--space-4)" }}>Alerts</div>
+      {alerts.length === 0 ? (
+        <p className="t-muted" data-testid="alerts-empty">You&apos;re all caught up — no alerts.</p>
+      ) : (
+        <ul
+          data-testid="alerts-list"
+          style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}
+        >
+          {alerts.map((a) => {
+            // Severity drives the left-bar colour only; the message text always carries the
+            // meaning, so colour is never the sole signal (design system §2, WCAG).
+            const barColor = a.severity === "warn" ? "var(--lt-vacation)" : "var(--border-strong)";
+            return (
+              <li key={a.id} data-testid="alert-item">
+                <Link
+                  // core/alerts emits only known app routes (/my-leave, /approvals,
+                  // /request); cast keeps core decoupled from Next's typed-routes union.
+                  href={a.href as Route}
+                  data-testid={`alert-link-${a.id}`}
+                  className="alert-link"
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: "var(--space-2)",
+                    minHeight: 40,
+                    padding: "var(--space-2) var(--space-3)",
+                    borderLeft: `3px solid ${barColor}`,
+                    background: "var(--surface-2)",
+                    color: "var(--text)",
+                    textDecoration: "none",
+                  }}
+                >
+                  <span className="t-label" style={{ fontSize: "var(--text-xs)", flex: "0 0 auto" }}>
+                    {a.severity === "warn" ? "Action" : "Tip"}
+                  </span>
+                  <span style={{ flex: "1 1 auto" }}>{a.message}</span>
+                  <span aria-hidden="true" style={{ flex: "0 0 auto" }}>→</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+}
+
 function weekdayInitial(iso: string) {
   return WEEKDAY[new Date(`${iso}T00:00:00.000Z`).getUTCDay()];
 }
@@ -122,7 +178,7 @@ export default async function DashboardPage() {
   // entirely (AC2), so don't even query. countPendingForApprover shares its WHERE with
   // listPendingForApprover, so this number equals the /approvals queue exactly (AC1).
   const approver = isApprover(actor);
-  const [{ balance, days, firstName }, holidayDays, whosOff, upcomingHolidays, pendingCount] = await Promise.all([
+  const [{ balance, days, firstName, carryOverExpiryMMDD }, holidayDays, whosOff, upcomingHolidays, pendingCount] = await Promise.all([
     getDashboard(actor.employeeId),
     getHolidayBalance(actor.employeeId, year), // null for non-Remote
     getWhosOff(actor), // company-wide; four-category abstraction enforced server-side
@@ -133,6 +189,21 @@ export default async function DashboardPage() {
     ? donutSegments({ taken: balance.takenApproved, pending: balance.pending, available: balance.available })
     : null;
 
+  // Alerts (Epic 18.6) — deterministic, rule-based nudges. The pure core/alerts function
+  // decides which to surface; here we only gather inputs. todayISO is the Dubai "today"
+  // (no clock read inside core). carryOverExpiryMMDD is the viewer's region×role policy
+  // expiry (null → no carry-over alert). pendingApprovalsCount is the already-computed
+  // pendingCount (0 for non-approvers, so the "waiting on you" rule is approver-only).
+  const todayISODubai = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
+  const alerts = computeDashboardAlerts({
+    hasPeriod: !!balance,
+    carryOverDays: balance?.carryOver ?? 0,
+    carryOverExpiryMMDD,
+    todayISO: todayISODubai,
+    pendingApprovalsCount: pendingCount,
+    daysBooked: (balance?.takenApproved ?? 0) + (balance?.pending ?? 0),
+  });
+
   // Each tile's inner content is rendered on the server (RSC) and handed to the
   // DashboardGrid client component as props — server-rendered nodes as props to a
   // client component is allowed. The tile content/data is UNCHANGED from Epic 8;
@@ -140,6 +211,11 @@ export default async function DashboardPage() {
   // The array order is the DEFAULT layout for new users; DashboardGrid is
   // id-keyed so adding widgets later (Epic 18.2+) is just a new entry here.
   const widgets: DashboardWidget[] = [
+    {
+      id: "alerts",
+      title: "Alerts",
+      content: <AlertsWidget alerts={alerts} />,
+    },
     {
       id: "allowance",
       title: "Allowance this year",
