@@ -30,13 +30,13 @@ export default function AppNav(perms: NavPerms) {
           <Link
             key={it.href}
             href={it.href}
+            aria-current={active ? "page" : undefined}
             style={{
               padding: "10px 12px",
               textDecoration: "none",
               fontWeight: active ? 600 : 400,
               color: active ? "var(--text)" : "var(--text-muted)",
               borderLeft: `3px solid ${active ? "var(--accent)" : "transparent"}`,
-              background: active ? "var(--accent-quiet)" : "transparent",
             }}
           >
             {it.label}
