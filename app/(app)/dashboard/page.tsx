@@ -220,17 +220,10 @@ export default async function DashboardPage() {
       title: "Who's off",
       content: <WhosOff data={whosOff} />,
     },
-    {
-      id: "request",
-      title: "Request leave",
-      content: (
-        <>
-          <div className="t-label">Request leave</div>
-          <p className="t-muted" style={{ marginTop: 8, marginBottom: "var(--space-4)" }}>Book time off in a couple of clicks.</p>
-          <Link className="btn btn-primary" href="/request" data-testid="dash-request">Request leave</Link>
-        </>
-      ),
-    },
+    // Epic 18.7: the full-column "Request leave" tile was removed — the Request flow is
+    // now reachable from the persistent side-peek action in the app-shell header
+    // (RequestPeek), reclaiming the dashboard column. The /request route still works as a
+    // deep-link fallback.
   ];
 
   // Role-aware "Pending approvals (N)" tile (Epic 18.3) — present in the registry ONLY for

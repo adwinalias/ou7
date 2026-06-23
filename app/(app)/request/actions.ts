@@ -1,7 +1,24 @@
 "use server";
 
-import { previewLeave, submitLeave, type LeaveInput, type PreviewResult, type SubmitResult } from "@/lib/leave";
+import {
+  getRequestContext,
+  previewLeave,
+  submitLeave,
+  type LeaveInput,
+  type PreviewResult,
+  type RequestContext,
+  type SubmitResult,
+} from "@/lib/leave";
 import { requireActor } from "@/lib/rbac";
+
+// Lazily load the request context for the side-peek (Epic 18.7) so the persistent
+// header trigger doesn't add a query to every page — it's fetched only when the peek
+// opens. Authorizes server-side via requireActor() (any active, provisioned employee
+// may read their OWN request context), same as the preview/submit actions.
+export async function requestContextAction(): Promise<RequestContext> {
+  const actor = await requireActor();
+  return getRequestContext(actor.employeeId);
+}
 
 // Server actions for the request flow. Both authorize server-side via requireActor():
 // any active, provisioned employee may preview/book their OWN leave.

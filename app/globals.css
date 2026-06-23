@@ -202,3 +202,18 @@
 .theme-toggle:hover { background: var(--surface-hover); }
 .theme-toggle:active { background: var(--surface-2); }
 .theme-toggle svg { display: block; }
+
+/* Side-peek slide-over (Epic 18.7). The panel slides in from the right ONLY when the
+   user has no reduced-motion preference; the global reduce rule in design/tokens.css
+   also disables transitions/animations, and gating the keyframes behind
+   prefers-reduced-motion: no-preference means reduced-motion users get the panel with
+   no movement at all. Tokens only; sharp corners. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes ou7-slide-in-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  .modal-side {
+    animation: ou7-slide-in-right 0.18s ease-out;
+  }
+}
