@@ -64,6 +64,10 @@
   /* 17.2 — two-column layouts collapse to one column ≤640px (DESIGN-SYSTEM §8). */
   .reflow-1col { grid-template-columns: 1fr !important; }
 
+  /* 18.1 — the customizable dashboard widget grid reflows to one column ≤640px,
+     consistent with 17.2. (Above 640px it auto-fits equal-width module tracks.) */
+  .dash-grid { grid-template-columns: 1fr !important; }
+
   /* 17.2 — Dashboard "next 7 days": a 7-across grid crushes day cells at 360px.
      Reflow to a 4-wide grid (two rows) so each cell keeps its tap size. */
   .next7-grid { grid-template-columns: repeat(4, 1fr) !important; }

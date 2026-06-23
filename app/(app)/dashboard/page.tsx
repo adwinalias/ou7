@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DashboardGrid, { type DashboardWidget } from "@/components/DashboardGrid";
 import { donutSegments } from "@/core/allowance";
 import { letterColorToken, type WallCell } from "@/core/wallchart";
 import { getDashboard } from "@/lib/dashboard";
@@ -47,12 +48,18 @@ export default async function DashboardPage() {
     ? donutSegments({ taken: balance.takenApproved, pending: balance.pending, available: balance.available })
     : null;
 
-  return (
-    <div>
-      <h1 className="t-h1" style={{ marginBottom: "var(--space-5)" }}>My Dashboard</h1>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: "var(--space-4)" }}>
-        {/* 8.1 — allowances donut */}
-        <section className="card" style={{ padding: "var(--space-5)" }}>
+  // Each tile's inner content is rendered on the server (RSC) and handed to the
+  // DashboardGrid client component as props — server-rendered nodes as props to a
+  // client component is allowed. The tile content/data is UNCHANGED from Epic 8;
+  // only the surrounding .card wrapper + grid now live in DashboardGrid.
+  // The array order is the DEFAULT layout for new users; DashboardGrid is
+  // id-keyed so adding widgets later (Epic 18.2+) is just a new entry here.
+  const widgets: DashboardWidget[] = [
+    {
+      id: "allowance",
+      title: "Allowance this year",
+      content: (
+        <>
           <div className="t-label" style={{ marginBottom: "var(--space-4)" }}>Allowance this year</div>
           {donut && balance ? (
             <>
@@ -69,10 +76,14 @@ export default async function DashboardPage() {
               Holiday (Remote): <span className="t-num">{holidayDays}</span> day(s)
             </p>
           )}
-        </section>
-
-        {/* 8.2 — next 7 days */}
-        <section className="card" style={{ padding: "var(--space-5)" }}>
+        </>
+      ),
+    },
+    {
+      id: "next7",
+      title: "My next 7 days",
+      content: (
+        <>
           <div className="t-label" style={{ marginBottom: "var(--space-4)" }}>My next 7 days</div>
           <div className="next7-grid" data-testid="next-7" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
             {days.map((cell) => (
@@ -86,15 +97,26 @@ export default async function DashboardPage() {
           <p className="t-muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-sm)" }}>
             Hatched = non-working (weekend/holiday or your work pattern).
           </p>
-        </section>
-
-        {/* 8.3 — request-leave widget */}
-        <section className="card" style={{ padding: "var(--space-5)" }}>
+        </>
+      ),
+    },
+    {
+      id: "request",
+      title: "Request leave",
+      content: (
+        <>
           <div className="t-label">Request leave</div>
           <p className="t-muted" style={{ marginTop: 8, marginBottom: "var(--space-4)" }}>Book time off in a couple of clicks.</p>
           <Link className="btn btn-primary" href="/request" data-testid="dash-request">Request leave</Link>
-        </section>
-      </div>
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <h1 className="t-h1" style={{ marginBottom: "var(--space-5)" }}>My Dashboard</h1>
+      <DashboardGrid widgets={widgets} />
     </div>
   );
 }
