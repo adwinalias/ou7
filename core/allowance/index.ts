@@ -54,6 +54,31 @@ export function applyCarryOver(previousRemaining: number, rule: CarryOverRule): 
   return round(Math.max(0, Math.min(previousRemaining, rule.capDays)));
 }
 
+/**
+ * Year rollover (Epic 24.1 / ADR-0013): derive next year's opening + carry-over from the
+ * prior year WITHOUT mutating prior-year history. Pure combinator that COMPOSES the locked
+ * rules — `proRataOpening` for `${nextYear}-01-01`..`${nextYear}-12-31` (full annual for staff
+ * who joined on/before the year start) and `applyCarryOver(priorRemaining, {capDays})` (cap per
+ * market; 0 when prior remaining is 0/negative; exactly the cap when over it). Does not
+ * duplicate or change their math.
+ */
+export function computeRollover(input: {
+  annualDays: number;
+  joiningISO: ISODate;
+  nextYear: number;
+  priorRemaining: number;
+  carryOverCapDays: number | null;
+}): { opening: number; carryOver: number } {
+  const opening = proRataOpening(
+    input.annualDays,
+    input.joiningISO,
+    `${input.nextYear}-01-01`,
+    `${input.nextYear}-12-31`,
+  );
+  const carryOver = applyCarryOver(input.priorRemaining, { capDays: input.carryOverCapDays });
+  return { opening, carryOver };
+}
+
 /** Hard block: a request can only be booked if it fits within available (no negatives, no borrowing). */
 export function canBook(available: number, requestedDays: number): boolean {
   return requestedDays <= available + 1e-9;

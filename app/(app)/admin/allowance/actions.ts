@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { AdjustmentKind } from "@prisma/client";
 import { isHR } from "@/core/authz";
-import { addLedgerEntry, resetBalance } from "@/lib/allowance-admin";
+import { addLedgerEntry, resetBalance, rolloverYear } from "@/lib/allowance-admin";
 import { setHolidayBalance } from "@/lib/holiday-balance";
 import { AuthError, requireActor } from "@/lib/rbac";
 
@@ -30,6 +30,13 @@ export async function addEntryAction(_prev: EntryState, formData: FormData): Pro
 export async function resetAction(formData: FormData) {
   const actor = await hr();
   await resetBalance(actor.employeeId, String(formData.get("employeeId")), Number(formData.get("year")));
+  revalidatePath("/admin/allowance");
+}
+
+// Year rollover (Epic 24.1 / ADR-0013). HR-only; the visible Admin trigger is Epic 24.2.
+export async function rolloverYearAction(formData: FormData) {
+  const actor = await hr();
+  await rolloverYear(actor.employeeId, String(formData.get("employeeId")), Number(formData.get("fromYear")));
   revalidatePath("/admin/allowance");
 }
 
