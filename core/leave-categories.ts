@@ -40,6 +40,25 @@ export const LEAVE_CATEGORIES: LeaveCategory[] = [
 ];
 
 /**
+ * A short, distinct cell label for a category — the letter(s) shown INSIDE a wall-chart
+ * cell for non-HR viewers (the specific type code, e.g. V/SN/SW/B/M, must never leak).
+ * Kept short so it fits a ~30px cell; colour (via the legend) is the primary distinguisher.
+ * All four are distinct. PURE.
+ */
+export function categoryShortCode(c: LeaveCategory): string {
+  switch (c) {
+    case "Out":
+      return "OUT";
+    case "Sick (non-working)":
+      return "SCK";
+    case "Sick (WFH)":
+      return "WFH";
+    case "National Holiday":
+      return "HOL";
+  }
+}
+
+/**
  * The CSS variable (NOT a hex) that paints a category's swatch/cell fill. Keeps colour a
  * token so themes re-map in one place. "Out" uses the representative out-of-office hue
  * (vacation blue) since it abstracts every non-sick, non-holiday type.

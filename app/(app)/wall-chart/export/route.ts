@@ -1,7 +1,11 @@
 // CSV export of the wall chart (Epic 6.4). Reflects the same month + grouping/filters as
 // the page (read from the query string). Auth-guarded via withAuth → 401/403 otherwise.
+// RBAC (Epic 19.7 / W9): the CSV carries REAL leave types, so it is gated to HR/admin —
+// a non-admin can't fetch real-type data by hitting this URL. (The HR actor also makes
+// getWallChart return the un-abstracted real types in the CSV.)
 import { buildWallChartCsv, getWallChart, type WallChartOptions } from "@/lib/wallchart";
-import { withAuth } from "@/lib/rbac";
+import { AuthError, withAuth } from "@/lib/rbac";
+import { canAccessAdmin } from "@/core/authz";
 import type { GroupBy, SortBy } from "@/core/wallchart";
 
 function dubaiNow() {
@@ -9,7 +13,8 @@ function dubaiNow() {
   return { y: Number(iso.slice(0, 4)), m: Number(iso.slice(5, 7)) };
 }
 
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req, { actor }) => {
+  if (!canAccessAdmin(actor)) throw new AuthError(403, "Insufficient permissions.");
   const sp = new URL(req.url).searchParams;
   const now = dubaiNow();
   const y = Number(sp.get("y"));
@@ -25,7 +30,7 @@ export const GET = withAuth(async (req) => {
     sort: sp.get("sort") === "department" ? ("department" as SortBy) : ("name" as SortBy),
   };
 
-  const data = await getWallChart(year, month, opts);
+  const data = await getWallChart(year, month, actor, opts);
   const csv = buildWallChartCsv(data);
 
   return new Response(csv, {

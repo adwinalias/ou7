@@ -1,5 +1,6 @@
 import { getWallChart, type WallChartOptions } from "@/lib/wallchart";
 import { requireUser } from "@/lib/rbac";
+import { canAccessAdmin, isHR } from "@/core/authz";
 import type { GroupBy, SortBy } from "@/core/wallchart";
 import LeaveKey from "@/components/LeaveKey";
 import PrintButton from "./PrintButton";
@@ -41,36 +42,53 @@ export default async function WallChartPage({
 }: {
   searchParams: Promise<{ y?: string; m?: string; group?: string; type?: string; name?: string; sort?: string }>;
 }) {
-  await requireUser(); // team view: any active employee may see it
+  const actor = await requireUser(); // team view: any active employee may see it
+  const hr = isHR(actor);
+  const admin = canAccessAdmin(actor);
   const sp = await searchParams;
   const { year, month } = clampMonth(Number(sp.y), Number(sp.m));
 
   const opts: WallChartOptions = {
     groupBy: (["none", "department", "region", "tag"] as const).includes(sp.group as GroupBy) ? (sp.group as GroupBy) : "none",
-    type: sp.type ?? "",
+    type: sp.type ?? "", // honoured for HR only — getWallChart ignores it for non-HR
     name: sp.name ?? "",
     sort: sp.sort === "department" ? "department" : "name",
   };
-  const data = await getWallChart(year, month, opts);
+  const data = await getWallChart(year, month, actor, opts);
   const o = data.options;
   const years = Array.from({ length: 5 }, (_, i) => year - 2 + i);
 
   return (
     <div>
-      <h1 className="t-h1" style={{ marginBottom: "var(--space-2)" }}>Team Calendar</h1>
-      <p className="t-muted" style={{ marginBottom: "var(--space-4)" }}>
-        Who&apos;s off, at a glance. Approved leave is a solid block; pending is grey with a coloured bar.
-      </p>
+      {/* Caption row (W8): title + the shared legend together; the legend shows the four
+          public categories for non-HR and the real types for HR. The old separate
+          explanatory sentence is dropped — the legend carries the meaning. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: "var(--space-4)",
+          flexWrap: "wrap",
+          marginBottom: "var(--space-4)",
+        }}
+      >
+        <h1 className="t-h1">Team Calendar</h1>
+        {hr ? <LeaveKey mode="types" types={data.legend} /> : <LeaveKey mode="categories" />}
+      </div>
 
       {/* Navigation (6.3) — Prev/Next preserve the current grouping/filters. */}
       <div className="no-print" style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-3)", flexWrap: "wrap" }}>
         <a className="btn btn-secondary" href={href(data.prev.y, data.prev.m, o)} data-testid="wc-prev">← Prev</a>
         <strong className="t-num" data-testid="wc-month" style={{ minWidth: 160, textAlign: "center" }}>{data.monthLabel}</strong>
         <a className="btn btn-secondary" href={href(data.next.y, data.next.m, o)} data-testid="wc-next">Next →</a>
-        <div style={{ marginLeft: "auto", display: "flex", gap: "var(--space-2)" }}>
-          <a className="btn btn-secondary" href={`/wall-chart/export?${href(year, month, o).split("?")[1]}`} data-testid="wc-export">Export CSV</a>
-          <PrintButton />
-        </div>
+        {/* CSV Export + Print are gated to admin only (W9): the controls are hidden for
+            non-admins and the export route is role-gated server-side so URL access fails. */}
+        {admin && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: "var(--space-2)" }}>
+            <a className="btn btn-secondary" href={`/wall-chart/export?${href(year, month, o).split("?")[1]}`} data-testid="wc-export">Export CSV</a>
+            <PrintButton />
+          </div>
+        )}
       </div>
 
       {/* Controls (6.2 + 6.3): one GET form carries month/year, grouping, filters, sort. */}
@@ -101,14 +119,9 @@ export default async function WallChartPage({
             ))}
           </select>
         </Field>
-        <Field label="Leave type" htmlFor="type">
-          <select id="type" name="type" className="input" defaultValue={o.type} data-testid="wc-type">
-            <option value="">All types</option>
-            {data.types.map((t) => (
-              <option key={t.code} value={t.code}>{t.name}</option>
-            ))}
-          </select>
-        </Field>
+        {/* The "Filter by leave type" control is removed (W6 / Epic 19.7): the personal
+            leave type is abstracted to a category for non-HR, so a per-type filter would
+            leak the very identities we hide. */}
         <Field label="Sort by" htmlFor="sort">
           <select id="sort" name="sort" className="input" defaultValue={o.sort}>
             {SORTS.map((s) => (
@@ -116,19 +129,14 @@ export default async function WallChartPage({
             ))}
           </select>
         </Field>
-        <Field label="Name" htmlFor="name">
-          <input id="name" name="name" className="input" defaultValue={o.name} placeholder="Filter…" data-testid="wc-name" />
+        {/* "Name filter" renamed to "Search" (W7); the `name` query param is unchanged. */}
+        <Field label="Search" htmlFor="name">
+          <input id="name" name="name" className="input" defaultValue={o.name} placeholder="Search…" data-testid="wc-name" />
         </Field>
         <button type="submit" className="btn btn-primary">Apply</button>
       </form>
 
       <WallGrid data={data} />
-
-      {/* Legend — shared key in `types` mode (Epic 19.1). The Team Calendar abstraction
-          + RBAC is Epic 19.7; this story keeps the same real types it shows today. */}
-      <div style={{ marginTop: "var(--space-4)" }}>
-        <LeaveKey mode="types" types={data.legend} />
-      </div>
     </div>
   );
 }
