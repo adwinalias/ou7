@@ -17,13 +17,13 @@ export default function AddEntryForm({ periodId }: { periodId: string }) {
         </select>
       </label>
       <label className="t-label" style={fieldCol}>Days (delta)
-        <input type="number" step="0.5" name="delta" required className="input t-num" data-testid="entry-delta" />
+        <input type="number" step="0.5" name="delta" required aria-required="true" className="input t-num" data-testid="entry-delta" />
       </label>
       <label className="t-label" style={{ ...fieldCol, flex: "1 1 220px" }}>Reason
-        <input name="reason" required className="input" placeholder="e.g. goodwill grant" data-testid="entry-reason" />
+        <input name="reason" required aria-required="true" className="input" placeholder="e.g. goodwill grant" data-testid="entry-reason" />
       </label>
       <button type="submit" className="btn btn-primary" disabled={pending} data-testid="entry-submit">{pending ? "…" : "Add to ledger"}</button>
-      {state && <span style={{ fontSize: "var(--text-xs)", color: state.ok ? "var(--success)" : "var(--danger)" }} data-testid="entry-result">{state.message}</span>}
+      {state && <span role={state.ok ? "status" : "alert"} style={{ fontSize: "var(--text-xs)", color: state.ok ? "var(--success)" : "var(--danger)" }} data-testid="entry-result">{state.message}</span>}
     </form>
   );
 }

@@ -62,7 +62,7 @@ export default async function ConfigSection() {
         )}
         <form action={upsertPolicyAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
           <label className="t-label" style={fieldCol}>Region
-            <select name="regionId" className="input" required data-testid="policy-region">
+            <select name="regionId" className="input" required aria-required="true" data-testid="policy-region">
               {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           </label>
@@ -70,7 +70,7 @@ export default async function ConfigSection() {
             <select name="role" className="input" data-testid="policy-role">{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select>
           </label>
           <label className="t-label" style={fieldCol}>Annual days
-            <input type="number" step="0.5" name="annualDays" required className="input t-num" data-testid="policy-annual" />
+            <input type="number" step="0.5" name="annualDays" required aria-required="true" className="input t-num" data-testid="policy-annual" />
           </label>
           <label className="t-label" style={fieldCol}>Carry-over cap
             <input type="number" step="0.5" name="carryOverCapDays" className="input t-num" placeholder="none" />
@@ -108,8 +108,8 @@ export default async function ConfigSection() {
           </table>
         </div>
         <form action={createLeaveTypeAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
-          <label className="t-label" style={fieldCol}>Name<input name="name" required className="input" data-testid="lt-name" /></label>
-          <label className="t-label" style={fieldCol}>Code<input name="code" required className="input t-num" maxLength={4} data-testid="lt-code" /></label>
+          <label className="t-label" style={fieldCol}>Name<input name="name" required aria-required="true" className="input" data-testid="lt-name" /></label>
+          <label className="t-label" style={fieldCol}>Code<input name="code" required aria-required="true" className="input t-num" maxLength={4} data-testid="lt-code" /></label>
           <label className="t-label" style={fieldCol}>Colour<input type="color" name="color" defaultValue="#2F6FEB" className="input" /></label>
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="deductsAllowance" defaultChecked /> Deducts</label>
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="paid" defaultChecked /> Paid</label>
@@ -125,14 +125,14 @@ export default async function ConfigSection() {
           <div>
             <p className="t-muted" style={{ fontSize: "var(--text-sm)" }}>{departments.map((d) => d.name).join(", ") || "None"}</p>
             <form action={createDepartmentAction} style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-              <input name="name" required className="input" placeholder="New department" data-testid="dept-name" />
+              <input name="name" required aria-required="true" aria-label="New department name" className="input" placeholder="New department" data-testid="dept-name" />
               <button className="btn btn-primary" data-testid="add-dept">Add</button>
             </form>
           </div>
           <div>
             <p className="t-muted" style={{ fontSize: "var(--text-sm)" }}>{tags.map((t) => t.name).join(", ") || "None"}</p>
             <form action={createTagAction} style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-              <input name="name" required className="input" placeholder="New tag" data-testid="tag-name" />
+              <input name="name" required aria-required="true" aria-label="New tag name" className="input" placeholder="New tag" data-testid="tag-name" />
               <button className="btn btn-primary" data-testid="add-tag">Add</button>
             </form>
           </div>

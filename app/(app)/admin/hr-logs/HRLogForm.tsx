@@ -10,7 +10,7 @@ export default function HRLogForm({ employees }: { employees: { id: string; name
   return (
     <form action={action} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
       <label className="t-label" style={fieldCol}>Employee
-        <select name="employeeId" className="input" required data-testid="log-employee">
+        <select name="employeeId" className="input" required aria-required="true" data-testid="log-employee">
           {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
       </label>
@@ -21,11 +21,11 @@ export default function HRLogForm({ employees }: { employees: { id: string; name
           <option value="OTHER">Other</option>
         </select>
       </label>
-      <label className="t-label" style={fieldCol}>From<input type="date" name="start" required className="input t-num" data-testid="log-start" /></label>
-      <label className="t-label" style={fieldCol}>To<input type="date" name="end" required className="input t-num" data-testid="log-end" /></label>
+      <label className="t-label" style={fieldCol}>From<input type="date" name="start" required aria-required="true" className="input t-num" data-testid="log-start" /></label>
+      <label className="t-label" style={fieldCol}>To<input type="date" name="end" required aria-required="true" className="input t-num" data-testid="log-end" /></label>
       <label className="t-label" style={fieldCol}>Notes (private)<input name="notes" className="input" data-testid="log-notes" /></label>
       <button type="submit" className="btn btn-primary" disabled={pending} data-testid="log-submit">{pending ? "…" : "Add log"}</button>
-      {state && <span style={{ fontSize: "var(--text-xs)", color: state.ok ? "var(--success)" : "var(--danger)" }}>{state.message}</span>}
+      {state && <span role={state.ok ? "status" : "alert"} style={{ fontSize: "var(--text-xs)", color: state.ok ? "var(--success)" : "var(--danger)" }}>{state.message}</span>}
     </form>
   );
 }

@@ -92,10 +92,10 @@ export default function EmployeeDetail({
           <input className="input" value={employee.email} readOnly disabled data-testid="ed-email" />
         </label>
         <label className="t-label" style={fieldCol}>First name
-          <input name="firstName" required className="input" defaultValue={employee.firstName} data-testid="ed-first" />
+          <input name="firstName" required aria-required="true" className="input" defaultValue={employee.firstName} data-testid="ed-first" />
         </label>
         <label className="t-label" style={fieldCol}>Last name
-          <input name="lastName" required className="input" defaultValue={employee.lastName} data-testid="ed-last" />
+          <input name="lastName" required aria-required="true" className="input" defaultValue={employee.lastName} data-testid="ed-last" />
         </label>
         <label className="t-label" style={fieldCol}>Region
           <select name="regionId" className="input" value={regionId} onChange={(e) => setRegionId(e.target.value)} data-testid="ed-region">
