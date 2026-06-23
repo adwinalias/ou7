@@ -26,3 +26,33 @@ export function leaveCategory(code: string): LeaveCategory {
       return "Out";
   }
 }
+
+/**
+ * The four public categories shown on shared/company-wide surfaces, in display order.
+ * SINGLE SOURCE OF TRUTH for the shared key (19.1), the dashboard tiles (18.5) and the
+ * Team Calendar (19.7) — change it here and every consuming surface updates.
+ */
+export const LEAVE_CATEGORIES: LeaveCategory[] = [
+  "Out",
+  "Sick (non-working)",
+  "Sick (WFH)",
+  "National Holiday",
+];
+
+/**
+ * The CSS variable (NOT a hex) that paints a category's swatch/cell fill. Keeps colour a
+ * token so themes re-map in one place. "Out" uses the representative out-of-office hue
+ * (vacation blue) since it abstracts every non-sick, non-holiday type.
+ */
+export function categoryColorVar(c: LeaveCategory): string {
+  switch (c) {
+    case "Sick (non-working)":
+      return "var(--lt-sick-not)";
+    case "Sick (WFH)":
+      return "var(--lt-sick-working)";
+    case "National Holiday":
+      return "var(--lt-national-holiday)";
+    case "Out":
+      return "var(--lt-vacation)";
+  }
+}
