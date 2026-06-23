@@ -2,7 +2,13 @@
 // the 6.1 suite via its own prefix. Self-skips without a DB.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getWallChart } from "@/lib/wallchart";
+import type { Actor } from "@/core/types";
 import { db } from "@/lib/db";
+
+// HR actor — sees real types + may use the leave-type filter (Epic 19.7). Grouping/sorting/
+// name-filter are role-independent; we use HR here so the type filter + real-code legend
+// assertions stay meaningful.
+const HR: Actor = { employeeId: "hr-test", role: "HR", approverLevel: "NONE", status: "ACTIVE", approverForIds: [] };
 
 let dbUp = false;
 try {
@@ -85,7 +91,7 @@ suite("Wall chart grouping/filter/sort (integration)", () => {
   });
 
   it("groups by department", async () => {
-    const data = await getWallChart(2026, 6, { groupBy: "department" });
+    const data = await getWallChart(2026, 6, HR, { groupBy: "department" });
     const eng = data.groups.find((g) => g.label === DEPT_ENG)!;
     const ops = data.groups.find((g) => g.label === DEPT_OPS)!;
     expect(eng.rows.some((r) => r.employeeId === aId)).toBe(true);
@@ -93,25 +99,25 @@ suite("Wall chart grouping/filter/sort (integration)", () => {
   });
 
   it("groups by tag (untagged employee not under the tag)", async () => {
-    const data = await getWallChart(2026, 6, { groupBy: "tag" });
+    const data = await getWallChart(2026, 6, HR, { groupBy: "tag" });
     const lead = data.groups.find((g) => g.label === TAG)!;
     expect(lead.rows.some((r) => r.employeeId === aId)).toBe(true);
     expect(lead.rows.some((r) => r.employeeId === bId)).toBe(false);
   });
 
   it("filters by employee name", async () => {
-    const data = await getWallChart(2026, 6, { name: "Aaron Grouptest" });
+    const data = await getWallChart(2026, 6, HR, { name: "Aaron Grouptest" });
     expect(data.rows).toHaveLength(1);
     expect(data.rows[0]!.employeeId).toBe(aId);
   });
 
   it("filters by leave type (legend reflects only that type)", async () => {
-    const data = await getWallChart(2026, 6, { type: TYPE });
+    const data = await getWallChart(2026, 6, HR, { type: TYPE });
     expect(data.legend.map((l) => l.code)).toEqual([TYPE]);
   });
 
   it("sorts by name (Aaron before Bella)", async () => {
-    const names = (await getWallChart(2026, 6, { sort: "name" })).rows.map((r) => r.name);
+    const names = (await getWallChart(2026, 6, HR, { sort: "name" })).rows.map((r) => r.name);
     expect(names.indexOf("Aaron Grouptest")).toBeLessThan(names.indexOf("Bella Grouptest"));
   });
 });

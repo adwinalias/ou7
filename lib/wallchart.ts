@@ -14,8 +14,25 @@ import {
   type WallCell,
 } from "@/core/wallchart";
 import { toCsv } from "@/core/csv";
-import type { ISODate, RegionCalendar } from "@/core/types";
+import {
+  LEAVE_CATEGORIES,
+  categoryShortCode,
+  leaveCategory,
+  type LeaveCategory,
+} from "@/core/leave-categories";
+import { isHR } from "@/core/authz";
+import type { Actor, ISODate, RegionCalendar } from "@/core/types";
 import { db } from "./db";
+
+// The canonical representative leave-type code whose DB colour paints each category's
+// cells/legend swatch for non-HR viewers. Reading the colour from the leaveType rows keeps
+// it data-driven (no hard-coded hex) AND a real hex that core/letterColorToken can read.
+const CATEGORY_CANONICAL_CODE: Record<LeaveCategory, string> = {
+  Out: "V",
+  "Sick (non-working)": "SN",
+  "Sick (WFH)": "SW",
+  "National Holiday": "H",
+};
 
 export interface WallRow {
   employeeId: string;
@@ -79,10 +96,22 @@ function shiftMonth(year: number, month: number, delta: number): { y: number; m:
   return { y: Math.floor(zero / 12), m: (zero % 12) + 1 };
 }
 
-export async function getWallChart(year: number, month: number, opts: WallChartOptions = {}): Promise<WallChartData> {
+export async function getWallChart(
+  year: number,
+  month: number,
+  actor: Actor,
+  opts: WallChartOptions = {},
+): Promise<WallChartData> {
+  // RBAC + privacy (Epic 19.7, decision #5; ties to 22.4 taint). For NON-HR viewers the
+  // specific personal leave type (code, name AND colour) must NEVER reach the client — we
+  // abstract every cell/legend entry to one of four public categories, SERVER-SIDE. HR
+  // receives the real type. The "leave type" filter is removed for non-HR (types: []).
+  const hr = isHR(actor);
   const options: Required<WallChartOptions> = {
     groupBy: opts.groupBy ?? "none",
-    type: opts.type ?? "",
+    // A non-HR viewer has no real-type filter (the control is removed), and honouring a
+    // raw `type` code from the query would both narrow on AND confirm a specific type.
+    type: hr ? (opts.type ?? "") : "",
     name: opts.name ?? "",
     sort: opts.sort ?? "name",
   };
@@ -140,12 +169,47 @@ export async function getWallChart(year: number, month: number, opts: WallChartO
     },
   });
 
+  // For non-HR: the real hex that paints each category, read from the canonical leave-type
+  // rows (V/SN/SW/H). A real hex → core/letterColorToken still works; data-driven → no
+  // hard-coded hex. Falls back to the vacation hue for any category whose canonical type
+  // isn't seeded, so a cell never carries an empty/undefined colour.
+  const categoryColor = new Map<LeaveCategory, string>();
+  if (!hr) {
+    const canonicalCodes = Object.values(CATEGORY_CANONICAL_CODE);
+    const canonicalTypes = await db.leaveType.findMany({
+      where: { code: { in: canonicalCodes } },
+      select: { code: true, color: true },
+    });
+    const colorByCode = new Map(canonicalTypes.map((t) => [t.code.toUpperCase(), t.color]));
+    const outFallback = colorByCode.get(CATEGORY_CANONICAL_CODE.Out) ?? "#2F6FEB";
+    for (const c of LEAVE_CATEGORIES) {
+      categoryColor.set(c, colorByCode.get(CATEGORY_CANONICAL_CODE[c].toUpperCase()) ?? outFallback);
+    }
+  }
+
+  // Abstract a leave row's identity for non-HR viewers (code → category short code,
+  // colour → that category's canonical colour); HR keeps the real type untouched.
+  const abstractCode = (code: string): string => (hr ? code : categoryShortCode(leaveCategory(code)));
+  const abstractColor = (code: string, color: string): string =>
+    hr ? color : (categoryColor.get(leaveCategory(code)) ?? color);
+
   const byEmployee = new Map<string, typeof leave>();
   const legendMap = new Map<string, { code: string; name: string; color: string }>();
   for (const l of leave) {
     (byEmployee.get(l.employeeId) ?? byEmployee.set(l.employeeId, []).get(l.employeeId)!).push(l);
-    legendMap.set(l.leaveType.code, { code: l.leaveType.code, name: l.leaveType.name, color: l.leaveType.color });
+    if (hr) {
+      legendMap.set(l.leaveType.code, { code: l.leaveType.code, name: l.leaveType.name, color: l.leaveType.color });
+    }
   }
+
+  // Non-HR legend = the four public categories (no real type names/codes/colours).
+  const legend = hr
+    ? [...legendMap.values()].sort((a, b) => a.code.localeCompare(b.code))
+    : LEAVE_CATEGORIES.map((c) => ({
+        code: categoryShortCode(c),
+        name: c,
+        color: categoryColor.get(c)!,
+      }));
 
   const todayISO = dubaiToday();
   const nameFilter = options.name.trim().toLowerCase();
@@ -157,8 +221,10 @@ export async function getWallChart(year: number, month: number, opts: WallChartO
         startISO: l.startDate.toISOString().slice(0, 10),
         endISO: l.endDate.toISOString().slice(0, 10),
         status: l.status as "APPROVED" | "PENDING",
-        code: l.leaveType.code,
-        color: l.leaveType.color,
+        // Abstracted for non-HR (so cells carry only the category code+colour); the raw
+        // type never reaches buildRow → never reaches the client payload.
+        code: abstractCode(l.leaveType.code),
+        color: abstractColor(l.leaveType.code, l.leaveType.color),
         mode: l.durationMode,
         half: l.halfDayPeriod,
       }));
@@ -180,13 +246,17 @@ export async function getWallChart(year: number, month: number, opts: WallChartO
     return { iso, day: d.getUTCDate(), weekday: d.getUTCDay() };
   });
 
-  const types = (
-    await db.leaveType.findMany({
-      where: { active: true, visibleOnWallChart: true },
-      select: { code: true, name: true },
-      orderBy: { name: "asc" },
-    })
-  ).map((t) => ({ code: t.code, name: t.name }));
+  // The leave-type filter source. HR only — for non-HR the filter is removed (W6) and an
+  // empty list also means no real type names/codes can reach the non-HR payload here.
+  const types = hr
+    ? (
+        await db.leaveType.findMany({
+          where: { active: true, visibleOnWallChart: true },
+          select: { code: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      ).map((t) => ({ code: t.code, name: t.name }))
+    : [];
 
   const monthLabel = new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-GB", {
     month: "long",
@@ -201,7 +271,7 @@ export async function getWallChart(year: number, month: number, opts: WallChartO
     days,
     groups,
     rows,
-    legend: [...legendMap.values()].sort((a, b) => a.code.localeCompare(b.code)),
+    legend,
     types,
     options,
     prev: shiftMonth(year, month, -1),

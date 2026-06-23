@@ -31,21 +31,25 @@ test("wall chart renders leave, navigates months, and hides notes", async ({ pag
   await expect(page.getByTestId("wc-month")).toHaveText("September 2026");
 });
 
-test("wall chart groups and filters (Epic 6.2)", async ({ page }) => {
+test("wall chart groups and searches (Epic 6.2 / 19.7)", async ({ page }) => {
   await signIn(page, HR_EMAIL);
 
   // Group by department → a group header row appears (seeded users have no department).
   await page.goto("/wall-chart?y=2026&m=9&group=department");
   await expect(page.getByText("No department").first()).toBeVisible();
 
-  // Filter by name narrows the chart to matching employees only.
+  // The "Name filter" is now labelled "Search" (W7); the leave-type filter is gone (W6).
+  await expect(page.getByLabel("Search")).toBeVisible();
+  await expect(page.getByTestId("wc-type")).toHaveCount(0);
+
+  // Search narrows the chart to matching employees only (the `name` param still drives it).
   await page.goto("/wall-chart?y=2026&m=9&name=Wanda");
   await expect(page.getByText("Wanda Waller")).toBeVisible();
   await expect(page.locator("body")).not.toContainText("Adwin Alias");
 });
 
-test("wall chart exports CSV and offers a print view (Epic 6.4)", async ({ page }) => {
-  await signIn(page, HR_EMAIL);
+test("wall chart exports CSV and offers a print view (Epic 6.4 / 19.7 W9 — admin only)", async ({ page }) => {
+  await signIn(page, HR_EMAIL); // HR == admin → Export + Print are visible and the route allows it
 
   // CSV reflects the requested month + filters and is downloadable.
   const res = await page.request.get("/wall-chart/export?y=2026&m=9&name=Wanda");

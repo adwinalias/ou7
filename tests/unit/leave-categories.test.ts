@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LEAVE_CATEGORIES, categoryColorVar, leaveCategory } from "../../core/leave-categories";
+import { LEAVE_CATEGORIES, categoryColorVar, categoryShortCode, leaveCategory } from "../../core/leave-categories";
 
 describe("leaveCategory", () => {
   it("maps SN → Sick (non-working)", () => {
@@ -39,6 +39,33 @@ describe("LEAVE_CATEGORIES", () => {
       "Sick (WFH)",
       "National Holiday",
     ]);
+  });
+});
+
+describe("categoryShortCode", () => {
+  it("maps each category to a short cell label", () => {
+    expect(categoryShortCode("Out")).toBe("OUT");
+    expect(categoryShortCode("Sick (non-working)")).toBe("SCK");
+    expect(categoryShortCode("Sick (WFH)")).toBe("WFH");
+    expect(categoryShortCode("National Holiday")).toBe("HOL");
+  });
+
+  it("returns a distinct short code for every category (no collisions)", () => {
+    const codes = LEAVE_CATEGORIES.map(categoryShortCode);
+    expect(new Set(codes).size).toBe(LEAVE_CATEGORIES.length);
+  });
+
+  it("is short enough to fit a small cell (≤ 3 chars)", () => {
+    for (const c of LEAVE_CATEGORIES) {
+      expect(categoryShortCode(c).length).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("never returns a specific personal leave-type code (no V/SN/SW/B/M/P/W/O/H identity)", () => {
+    const realTypeCodes = ["V", "SN", "SW", "B", "M", "P", "W", "O", "H"];
+    for (const c of LEAVE_CATEGORIES) {
+      expect(realTypeCodes).not.toContain(categoryShortCode(c));
+    }
   });
 });
 
