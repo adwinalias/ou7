@@ -172,8 +172,8 @@ export default async function MyLeavePage({
                   <th>From</th>
                   <th>To</th>
                   <th>Duration</th>
-                  <th style={num}>Free</th>
-                  <th style={num}>Working</th>
+                  <th style={num} title="Weekend / holiday days inside the range — these don't use allowance.">Non-working</th>
+                  <th style={num} title="Working days inside the range — these use allowance.">Working days</th>
                   <th style={num}>Allowance</th>
                   <th>Type</th>
                   <th>Status</th>

@@ -37,3 +37,14 @@ export function* eachDate(startISO: ISODate, endISO: ISODate): Generator<Date> {
 export function rangesOverlap(aStart: ISODate, aEnd: ISODate, bStart: ISODate, bEnd: ISODate): boolean {
   return parseISO(aStart) <= parseISO(bEnd) && parseISO(bStart) <= parseISO(aEnd);
 }
+
+/**
+ * Time-of-day greeting from a 0–23 hour (pure, deterministic — no clock read here).
+ * Callers compute the hour in Asia/Dubai at the edge and pass it in. (Epic 19.6, L3.)
+ *   05:00–11:59 → morning · 12:00–16:59 → afternoon · otherwise → evening.
+ */
+export function greetingForHour(hour: number): "morning" | "afternoon" | "evening" {
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  return "evening";
+}

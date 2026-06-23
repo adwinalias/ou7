@@ -27,8 +27,8 @@ export default function Donut({
   const summary = segments.map((s) => `${s.label} ${s.value}`).join(", ");
 
   return (
-    <div style={{ display: "flex", gap: "var(--space-5)", alignItems: "center", flexWrap: "wrap" }}>
-      <svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label={`Allowance: ${summary} of ${total} ${unit}.`}>
+    <div style={{ display: "flex", gap: "var(--space-5)", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+      <svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label={`Allowance: ${summary} of ${total} ${unit}.`} style={{ display: "block", flex: "none" }}>
         {/* track */}
         <circle cx="70" cy="70" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="16" />
         {total > 0 &&
@@ -51,10 +51,13 @@ export default function Donut({
             offset += len;
             return el;
           })}
-        <text x="70" y="66" textAnchor="middle" className="t-num" style={{ fontSize: 22, fill: "var(--text)" }}>
+        {/* Centre label centred on the geometric centre (70,70): the number sits just above
+            it and the caption just below, both horizontally + vertically anchored so they
+            stay inside the ring at any size (Epic 19.6, L1). */}
+        <text x="70" y="68" textAnchor="middle" dominantBaseline="middle" className="t-num" style={{ fontSize: 22, fill: "var(--text)" }}>
           {available}
         </text>
-        <text x="70" y="86" textAnchor="middle" style={{ fontSize: 11, fill: "var(--text-muted)" }}>
+        <text x="70" y="88" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 11, fill: "var(--text-muted)" }}>
           available
         </text>
       </svg>
