@@ -96,7 +96,7 @@ suite("Wall chart assembly (integration)", () => {
   it("CSV export reflects the chart and never includes notes (6.4/6.5)", async () => {
     const csv = buildWallChartCsv(await getWallChart(2026, 6));
     expect(csv.split("\r\n")[0]).toMatch(/^Employee,Department,Region,1,/);
-    expect(csv).toContain("Wall Chart");
+    expect(csv).toContain("Wall Chart"); // the seeded employee's name (Wall Chart) appears in a body row
     expect(csv).toContain(VISIBLE); // the approved code appears in a day column
     expect(csv).not.toContain(SECRET);
   });

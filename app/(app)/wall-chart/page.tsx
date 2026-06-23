@@ -56,7 +56,7 @@ export default async function WallChartPage({
 
   return (
     <div>
-      <h1 className="t-h1" style={{ marginBottom: "var(--space-2)" }}>Team wall chart</h1>
+      <h1 className="t-h1" style={{ marginBottom: "var(--space-2)" }}>Team Calendar</h1>
       <p className="t-muted" style={{ marginBottom: "var(--space-4)" }}>
         Who&apos;s off, at a glance. Approved leave is a solid block; pending is grey with a coloured bar.
       </p>

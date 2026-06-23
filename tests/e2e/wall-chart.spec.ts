@@ -14,7 +14,7 @@ test("wall chart renders leave, navigates months, and hides notes", async ({ pag
   await signIn(page, HR_EMAIL);
 
   await page.goto("/wall-chart?y=2026&m=9");
-  await expect(page.getByRole("heading", { name: "Team wall chart" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Team Calendar" })).toBeVisible();
   await expect(page.getByTestId("wc-month")).toHaveText("September 2026");
 
   // The seeded approved Vacation shows as a leave cell with its letter code.

@@ -9,8 +9,8 @@ type Item = { href: Route; label: string; show?: (p: NavPerms) => boolean };
 type NavPerms = { canSeeApprovals: boolean; canSeeAdmin: boolean };
 
 const items: Item[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/wall-chart", label: "Wall chart" },
+  { href: "/dashboard", label: "My Dashboard" },
+  { href: "/wall-chart", label: "Team Calendar" },
   { href: "/my-leave", label: "My leave" },
   { href: "/request", label: "Request" },
   { href: "/approvals", label: "Approvals", show: (p) => p.canSeeApprovals },

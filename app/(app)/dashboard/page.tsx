@@ -49,7 +49,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 className="t-h1" style={{ marginBottom: "var(--space-5)" }}>Dashboard</h1>
+      <h1 className="t-h1" style={{ marginBottom: "var(--space-5)" }}>My Dashboard</h1>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: "var(--space-4)" }}>
         {/* 8.1 — allowances donut */}
         <section className="card" style={{ padding: "var(--space-5)" }}>

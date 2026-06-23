@@ -12,7 +12,7 @@ async function signIn(page: Page, email: string) {
 test("dashboard shows allowance donut, next-7 strip, and request CTA (Epic 8)", async ({ page }) => {
   await signIn(page, HR_EMAIL);
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My Dashboard" })).toBeVisible();
 
   // 8.1 — allowance donut with all three arcs LABELLED (not colour-only).
   const allowance = page.locator("section").filter({ hasText: "Allowance this year" });

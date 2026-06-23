@@ -12,11 +12,26 @@
   main { padding: 0 !important; }
 }
 
-/* Brand logo — light theme shows the light-bg lockup, dark theme the dark-bg one. */
-.brand-logo img { height: 44px; width: auto; display: block; }
-.brand-logo .logo-dark { display: none; }
-[data-theme="dark"] .brand-logo .logo-light { display: none; }
-[data-theme="dark"] .brand-logo .logo-dark { display: block; }
+/* Brand logo (Epic 17.5, L2) — a SINGLE accessible node (.brand-mark, role="img") in the
+   top header, which renders at every breakpoint (so the wordmark shows on desktop AND
+   mobile; the sidebar is hidden ≤640px). The lockup is a CSS background-image swapped by
+   data-theme (the app toggles theme via the data-theme attribute, not prefers-color-scheme).
+   The PNGs are square (1036×1036); explicit 88×88 (~2× the old 44px) keeps it crisp and
+   avoids CLS. flex-shrink:0 stops the org text squeezing it at 360px. */
+.brand-logo .brand-mark {
+  display: block;
+  flex-shrink: 0;
+  width: 88px;
+  height: 88px;
+  max-width: 100%;
+  background-image: url("/brand/ou7-light-bg.png");
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: contain;
+}
+[data-theme="dark"] .brand-logo .brand-mark {
+  background-image: url("/brand/ou7-dark-bg.png");
+}
 
 /* Responsive reflow (Epic 17.2) — keep horizontal scroll contained to a
    wrapper so a wide table never widens the whole page. The element this is
