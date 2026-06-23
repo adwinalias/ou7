@@ -17,3 +17,94 @@
 .brand-logo .logo-dark { display: none; }
 [data-theme="dark"] .brand-logo .logo-light { display: none; }
 [data-theme="dark"] .brand-logo .logo-dark { display: block; }
+
+/* Bottom tab bar (Epic 17.1) — phone-only nav. Desktop keeps the sidebar.
+   Hidden above 640px (and in print via .no-print); the sidebar hides below it. */
+.bottom-tabs { display: none; }
+
+@media (max-width: 640px) {
+  /* AC1: no persistent left sidebar on phones; the grid collapses to one column. */
+  .app-shell { grid-template-columns: 1fr; }
+  .app-sidebar { display: none; }
+
+  /* AC7: keep page content clear of the fixed bar (incl. iOS safe-area inset). */
+  .app-main {
+    padding-bottom: calc(var(--space-8) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* AC2/AC3: fixed bottom tab bar, only here. */
+  .bottom-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    display: flex;
+    align-items: stretch;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .bottom-tab {
+    flex: 1 1 0;
+    min-width: 40px; /* AC5: ≥40px hit target width */
+    min-height: 48px; /* AC5: ≥40px hit target height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    text-decoration: none;
+    font-size: var(--text-xs);
+    line-height: 1.2;
+    padding: var(--space-2) var(--space-1);
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    /* AC4: active tab carries a green indicator bar (top edge). */
+    border-top: 3px solid transparent;
+    cursor: pointer;
+    list-style: none; /* strip the default <summary> disclosure marker */
+  }
+  .bottom-tab::-webkit-details-marker { display: none; }
+
+  .bottom-tab[data-active="true"] {
+    color: var(--text);
+    font-weight: var(--weight-semibold);
+    border-top-color: var(--accent);
+    background: var(--accent-quiet);
+  }
+
+  /* More disclosure: a small popover above the bar. */
+  .bottom-tab-more { flex: 1 1 0; position: relative; display: flex; }
+  .bottom-tab-more > .bottom-tab { width: 100%; }
+
+  .bottom-tab-more-menu {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  .bottom-tab-more-item {
+    min-height: 48px; /* AC5 */
+    display: flex;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    text-decoration: none;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    border-left: 3px solid transparent;
+  }
+  .bottom-tab-more-item:last-child { border-bottom: 0; }
+  .bottom-tab-more-item[data-active="true"] {
+    font-weight: var(--weight-semibold);
+    border-left-color: var(--accent);
+    background: var(--accent-quiet);
+  }
+}
