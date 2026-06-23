@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: auth config + secrets must never reach the client bundle.
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";

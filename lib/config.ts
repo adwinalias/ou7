@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed HR config — server-only.
 // Configuration hub (Epic 9.5). HR-editable "data not code": the entitlement/carry-over
 // POLICY (per region × role — shipped EMPTY, numbers entered by HR), plus leave types,
 // departments and tags. Every write is audited (Epic 16.1).

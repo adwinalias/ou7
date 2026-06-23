@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed leave orchestration — server-only (types are imported via `import type`, which is erased).
 // Leave request orchestration (Epic 5.1–5.3). All I/O lives here; the actual rules are
 // the already-tested pure functions in core/leave and core/allowance. The flow is:
 //   app/request → previewLeave() (validate) → submitLeave() (persist PENDING).

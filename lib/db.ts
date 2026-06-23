@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: hard-fail the build if this DB client is ever imported into a Client Component.
 import { PrismaClient } from "@prisma/client";
 
 // `query`-level event emission (Epic 22.3): emitting as an EVENT (not a log) is SILENT —

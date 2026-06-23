@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed personal leave history — server-only.
 // My-Leave history reads (Epic 7.1). The employee is always resolved from the session by
 // the caller (requireUser) and passed here — never a client-supplied id. Returns the
 // employee's OWN leave only. Since it's their own data, notes/details are included.

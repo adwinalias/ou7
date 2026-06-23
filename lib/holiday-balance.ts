@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed holiday-balance reads/writes — server-only.
 // Remote-only Holiday allowance (v2b / ADR-0010): a separate, HR-set, per-year, non-carry
 // balance. The stored `days` is the input; remaining is engine-derived
 // (core/allowance.holidayRemaining). HR writes are audited.

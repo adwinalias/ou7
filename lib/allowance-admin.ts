@@ -1,3 +1,4 @@
+import "server-only"; // Epic 22.4: DB-backed HR allowance ledger — server-only.
 // Allowance management (Epic 9.2 / ADR-0009). HR adjusts allowance via an audited LEDGER;
 // the AllowancePeriod.adjustments/deductions columns are a DERIVED projection (sum of the
 // ledger), recomputed under a period-row lock so concurrent writers can't drop a delta.
