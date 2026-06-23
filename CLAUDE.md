@@ -34,7 +34,7 @@ You are building **OU7**, an internal leave & absence tool for Interesting Times
 - Work **one epic/story at a time** from `docs/EPICS.md`, smallest useful vertical slice first. Don't scaffold ten half-features.
 - For anything non-trivial, **plan first** (use plan mode), confirm the approach, then implement.
 - **Write tests with every change**: Vitest unit tests for `core/` (exhaustive on the allowance engine), integration tests for API + DB, Playwright for hot paths.
-- A change is **done** only when: `npm run typecheck && npm run lint && npm test && npm run build` all pass, acceptance criteria are met, it works in both themes, and docs/ADRs are updated if behaviour changed. (Full DoD in `docs/PROJECT-PLAN.md`.)
+- A change is **done** only when: `npm run typecheck && npm run lint && npm test && npm run build` all pass, acceptance criteria are met, it works in both themes, and docs/ADRs are updated if behaviour changed. (Full DoD in `docs/PROJECT-PLAN.md`.) `npm run lint` enforces the `eslint-plugin-jsx-a11y` **recommended** a11y ruleset as errors, so a11y violations fail the CI gate — fix them, don't blanket-disable.
 - Keep commits small and use **Conventional Commits** (`feat:`, `fix:`, `test:`, `chore:`). One story ≈ one PR.
 - Record significant decisions as a new ADR in `docs/adr/`.
 
