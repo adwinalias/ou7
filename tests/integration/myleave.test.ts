@@ -3,7 +3,7 @@
 // allowance panel matches the engine. Self-skips without a DB.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getAllPeriodBalances } from "@/lib/allowance";
-import { getLeaveHistory } from "@/lib/myleave";
+import { getEmployeeLeaveRecordsForYear, getLeaveHistory } from "@/lib/myleave";
 import { db } from "@/lib/db";
 
 let dbUp = false;
@@ -57,8 +57,9 @@ suite("My-Leave reads (integration)", () => {
     await db.leaveRequest.create({ data: { employeeId: aId, leaveTypeId: mls.id, startDate: day("2026-04-06"), endDate: day("2026-04-06"), durationMode: "DAY", workingDays: 1, allowanceDays: 0, status: "DECLINED", createdById: aId } });
     await db.leaveRequest.create({ data: { employeeId: aId, leaveTypeId: mlv.id, startDate: day("2026-05-04"), endDate: day("2026-05-04"), durationMode: "DAY", workingDays: 2, allowanceDays: 2, status: "PENDING", allowancePeriodId: p2026, createdById: aId } });
 
-    // B: one leave (must never appear in A's history).
+    // B: one 2026 leave (must never appear in A's history) + one 2025 leave (for the per-year drill-in).
     await db.leaveRequest.create({ data: { employeeId: bId, leaveTypeId: mlv.id, startDate: day("2026-03-02"), endDate: day("2026-03-02"), durationMode: "DAY", workingDays: 1, allowanceDays: 1, status: "APPROVED", createdById: bId } });
+    await db.leaveRequest.create({ data: { employeeId: bId, leaveTypeId: mlv.id, startDate: day("2025-06-02"), endDate: day("2025-06-03"), durationMode: "DAY", workingDays: 2, allowanceDays: 2, status: "APPROVED", createdById: bId } });
 
     // C: 21 rows for pagination.
     for (let i = 0; i < 21; i++) {
@@ -115,5 +116,21 @@ suite("My-Leave reads (integration)", () => {
     expect(y2026).toMatchObject({ opening: 20, takenApproved: 3, pending: 2, remaining: 17, available: 15, endISO: null });
     const y2025 = periods.find((p) => p.year === 2025)!;
     expect(y2025).toMatchObject({ opening: 15, remaining: 15, available: 15 });
+  });
+
+  it("drills a year's balance into that year's leave records (24.2)", async () => {
+    // B has one 2026 record and one 2025 record — each year returns only its own.
+    const recs2026 = await getEmployeeLeaveRecordsForYear(bId, 2026);
+    expect(recs2026).toHaveLength(1);
+    expect(recs2026[0]).toMatchObject({ fromISO: "2026-03-02", toISO: "2026-03-02", allowanceDays: 1, typeCode: MLV, status: "APPROVED" });
+
+    const recs2025 = await getEmployeeLeaveRecordsForYear(bId, 2025);
+    expect(recs2025).toHaveLength(1);
+    expect(recs2025[0]).toMatchObject({ fromISO: "2025-06-02", toISO: "2025-06-03", allowanceDays: 2, typeCode: MLV, status: "APPROVED" });
+
+    // Scoped to the employee — A's records never leak into B's drill-in.
+    const aRecs2025 = await getEmployeeLeaveRecordsForYear(aId, 2025);
+    expect(aRecs2025).toHaveLength(0); // A has no 2025 leave
+    expect((await getEmployeeLeaveRecordsForYear(bId, 2027))).toHaveLength(0); // year with no records
   });
 });
