@@ -43,7 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="t-muted" style={{ fontSize: 13 }}>Interesting Times DMCC</div>
           <ThemeSwitch />
         </header>
-        <main className="app-main" style={{ padding: "var(--space-6) var(--space-5)" }}>{children}</main>
+        <main className="app-main">{children}</main>
       </div>
       <BottomTabBar canSeeApprovals={isApprover(actor)} canSeeAdmin={canAccessAdmin(actor)} />
     </div>

@@ -24,6 +24,19 @@
    width and scrolls within. Desktop is unaffected (content fits, no scroll). */
 .table-scroll { overflow-x: auto; max-width: 100%; }
 
+/* Centred app container (Epic 17.3, DESIGN-SYSTEM §8) — cap the main content
+   to ~1280px and centre it on the inline axis so wide viewports don't go
+   full-bleed. Vertical page padding stays --space-6; horizontal page padding
+   is --space-6 here (>640px) and drops to --space-5 on phones (see the
+   max-width:640px block below). Padding lives on .app-main (replacing the old
+   inline style on <main>) so the responsive rules win without !important. */
+.app-main {
+  max-width: 1280px;
+  margin-inline: auto;
+  width: 100%;
+  padding: var(--space-6);
+}
+
 /* Bottom tab bar (Epic 17.1) — phone-only nav. Desktop keeps the sidebar.
    Hidden above 640px (and in print via .no-print); the sidebar hides below it. */
 .bottom-tabs { display: none; }
@@ -40,8 +53,13 @@
      Reflow to a 4-wide grid (two rows) so each cell keeps its tap size. */
   .next7-grid { grid-template-columns: repeat(4, 1fr) !important; }
 
-  /* AC7: keep page content clear of the fixed bar (incl. iOS safe-area inset). */
+  /* 17.3 — horizontal page padding drops to --space-5 on phones (DESIGN-SYSTEM
+     §8); vertical top padding stays --space-6. AC7: keep content clear of the
+     fixed bar (incl. iOS safe-area inset) via padding-bottom. */
   .app-main {
+    padding-top: var(--space-6);
+    padding-left: var(--space-5);
+    padding-right: var(--space-5);
     padding-bottom: calc(var(--space-8) + env(safe-area-inset-bottom, 0px)) !important;
   }
 
