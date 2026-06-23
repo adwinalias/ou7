@@ -158,7 +158,7 @@ export default async function MyLeavePage({
               ))}
             </select>
           </Field>
-          <button type="submit" className="btn btn-primary">Filter</button>
+          <button type="submit" className="btn btn-primary">Apply</button>
         </form>
 
         {history.total === 0 ? (
