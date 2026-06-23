@@ -32,26 +32,28 @@ export default async function EmployeesPage() {
 
       <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Staff ({employees.length})</div>
-        <table className="table" data-testid="employee-table">
-          <thead><tr><th>Name</th><th>Email</th><th>Region</th><th>Role</th><th>Status</th><th>Allowance</th><th /></tr></thead>
-          <tbody>
-            {employees.map((e) => (
-              <tr key={e.id}>
-                <td>{e.name}</td>
-                <td className="t-muted">{e.email}</td>
-                <td>{e.regionName}</td>
-                <td>{e.role}</td>
-                <td>{e.status === "ACTIVE" ? "Active" : "Inactive"}</td>
-                <td>{e.hasOpenPeriod ? <span className="t-muted">Profile set</span> : <GenerateProfileButton employeeId={e.id} year={year} />}</td>
-                <td style={{ textAlign: "right" }}>
-                  {e.status === "ACTIVE" && (
-                    <form action={deactivateAction}><input type="hidden" name="employeeId" value={e.id} /><button className="btn btn-danger" style={{ padding: "2px 10px" }}>Deactivate</button></form>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="table" data-testid="employee-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Region</th><th>Role</th><th>Status</th><th>Allowance</th><th /></tr></thead>
+            <tbody>
+              {employees.map((e) => (
+                <tr key={e.id}>
+                  <td>{e.name}</td>
+                  <td className="t-muted">{e.email}</td>
+                  <td>{e.regionName}</td>
+                  <td>{e.role}</td>
+                  <td>{e.status === "ACTIVE" ? "Active" : "Inactive"}</td>
+                  <td>{e.hasOpenPeriod ? <span className="t-muted">Profile set</span> : <GenerateProfileButton employeeId={e.id} year={year} />}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {e.status === "ACTIVE" && (
+                      <form action={deactivateAction}><input type="hidden" name="employeeId" value={e.id} /><button className="btn btn-danger" style={{ padding: "2px 10px" }}>Deactivate</button></form>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>

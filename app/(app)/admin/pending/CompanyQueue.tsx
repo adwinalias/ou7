@@ -72,9 +72,11 @@ function Row({ item }: { item: CompanyPendingItem }) {
 export default function CompanyQueue({ items }: { items: CompanyPendingItem[] }) {
   if (items.length === 0) return <p className="t-editorial" style={{ fontSize: "var(--text-h2)" }}>No pending requests.</p>;
   return (
-    <table className="table" data-testid="company-queue">
-      <thead><tr><th>Requester</th><th>Dept · Region</th><th>Type</th><th>Dates</th><th>Pending</th><th>Decision</th></tr></thead>
-      <tbody>{items.map((i) => <Row key={i.id} item={i} />)}</tbody>
-    </table>
+    <div className="table-scroll">
+      <table className="table" data-testid="company-queue">
+        <thead><tr><th>Requester</th><th>Dept · Region</th><th>Type</th><th>Dates</th><th>Pending</th><th>Decision</th></tr></thead>
+        <tbody>{items.map((i) => <Row key={i.id} item={i} />)}</tbody>
+      </table>
+    </div>
   );
 }

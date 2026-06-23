@@ -18,6 +18,12 @@
 [data-theme="dark"] .brand-logo .logo-light { display: none; }
 [data-theme="dark"] .brand-logo .logo-dark { display: block; }
 
+/* Responsive reflow (Epic 17.2) — keep horizontal scroll contained to a
+   wrapper so a wide table never widens the whole page. The element this is
+   applied to is the scroll boundary; the table inside it keeps its natural
+   width and scrolls within. Desktop is unaffected (content fits, no scroll). */
+.table-scroll { overflow-x: auto; max-width: 100%; }
+
 /* Bottom tab bar (Epic 17.1) — phone-only nav. Desktop keeps the sidebar.
    Hidden above 640px (and in print via .no-print); the sidebar hides below it. */
 .bottom-tabs { display: none; }
@@ -26,6 +32,13 @@
   /* AC1: no persistent left sidebar on phones; the grid collapses to one column. */
   .app-shell { grid-template-columns: 1fr; }
   .app-sidebar { display: none; }
+
+  /* 17.2 — two-column layouts collapse to one column ≤640px (DESIGN-SYSTEM §8). */
+  .reflow-1col { grid-template-columns: 1fr !important; }
+
+  /* 17.2 — Dashboard "next 7 days": a 7-across grid crushes day cells at 360px.
+     Reflow to a 4-wide grid (two rows) so each cell keeps its tap size. */
+  .next7-grid { grid-template-columns: repeat(4, 1fr) !important; }
 
   /* AC7: keep page content clear of the fixed bar (incl. iOS safe-area inset). */
   .app-main {

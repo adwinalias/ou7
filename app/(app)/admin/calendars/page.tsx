@@ -62,23 +62,25 @@ export default async function CalendarsPage({ searchParams }: { searchParams: Pr
         {holidays.length === 0 ? (
           <p className="t-muted" style={{ marginBottom: "var(--space-4)" }}>No holidays entered for {year}.</p>
         ) : (
-          <table className="table" data-testid="holiday-table" style={{ marginBottom: "var(--space-4)" }}>
-            <thead><tr><th>Date</th><th>Name</th><th /></tr></thead>
-            <tbody>
-              {holidays.map((h) => (
-                <tr key={h.id}>
-                  <td className="t-num">{h.dateISO}</td>
-                  <td>{h.name}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <form action={deleteHolidayAction}>
-                      <input type="hidden" name="id" value={h.id} />
-                      <button type="submit" className="btn btn-danger" style={{ padding: "2px 10px" }}>Delete</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
+            <table className="table" data-testid="holiday-table">
+              <thead><tr><th>Date</th><th>Name</th><th /></tr></thead>
+              <tbody>
+                {holidays.map((h) => (
+                  <tr key={h.id}>
+                    <td className="t-num">{h.dateISO}</td>
+                    <td>{h.name}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <form action={deleteHolidayAction}>
+                        <input type="hidden" name="id" value={h.id} />
+                        <button type="submit" className="btn btn-danger" style={{ padding: "2px 10px" }}>Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         <form action={createHolidayAction} style={{ display: "flex", gap: "var(--space-3)", alignItems: "end", flexWrap: "wrap" }}>

@@ -28,30 +28,32 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         <p className="t-editorial" style={{ fontSize: "var(--text-h2)" }}>No activity recorded yet.</p>
       ) : (
         <>
-          <table className="table" data-testid="audit-table">
-            <thead>
-              <tr>
-                <th>When (Dubai)</th>
-                <th>Actor</th>
-                <th>Action</th>
-                <th>Entity</th>
-                <th>Before → After</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.id}>
-                  <td style={num}>{dubai(r.createdAt)}</td>
-                  <td>{r.actorName}</td>
-                  <td><span className="t-label">{r.action}</span></td>
-                  <td className="t-muted">{r.entity}{r.entityId ? ` · ${r.entityId.slice(0, 8)}` : ""}</td>
-                  <td className="t-muted" style={{ fontSize: "var(--text-sm)", maxWidth: 360, overflowWrap: "anywhere" }}>
-                    {compact(r.before)} → {compact(r.after)}
-                  </td>
+          <div className="table-scroll">
+            <table className="table" data-testid="audit-table">
+              <thead>
+                <tr>
+                  <th>When (Dubai)</th>
+                  <th>Actor</th>
+                  <th>Action</th>
+                  <th>Entity</th>
+                  <th>Before → After</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.rows.map((r) => (
+                  <tr key={r.id}>
+                    <td style={num}>{dubai(r.createdAt)}</td>
+                    <td>{r.actorName}</td>
+                    <td><span className="t-label">{r.action}</span></td>
+                    <td className="t-muted">{r.entity}{r.entityId ? ` · ${r.entityId.slice(0, 8)}` : ""}</td>
+                    <td className="t-muted" style={{ fontSize: "var(--text-sm)", maxWidth: 360, overflowWrap: "anywhere" }}>
+                      {compact(r.before)} → {compact(r.after)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
             {data.page > 1

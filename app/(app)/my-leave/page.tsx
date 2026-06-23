@@ -67,28 +67,30 @@ export default async function MyLeavePage({
         {periods.length === 0 ? (
           <p className="t-muted">No allowance period yet — contact HR.</p>
         ) : (
-          <table className="table" data-testid="allowance-panel">
-            <thead>
-              <tr>
-                <th>Year</th>
-                <th style={num}>Opening</th>
-                <th style={num}>Remaining</th>
-                <th style={num}>Pending</th>
-                <th style={num}>Available</th>
-              </tr>
-            </thead>
-            <tbody>
-              {periods.map((p) => (
-                <tr key={p.periodId}>
-                  <td className="t-num">{p.year}{p.endISO ? "" : " (current)"}</td>
-                  <td style={num}>{p.opening}</td>
-                  <td style={num}>{p.remaining}</td>
-                  <td style={num}>{p.pending}</td>
-                  <td style={num}>{p.available}</td>
+          <div className="table-scroll">
+            <table className="table" data-testid="allowance-panel">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th style={num}>Opening</th>
+                  <th style={num}>Remaining</th>
+                  <th style={num}>Pending</th>
+                  <th style={num}>Available</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {periods.map((p) => (
+                  <tr key={p.periodId}>
+                    <td className="t-num">{p.year}{p.endISO ? "" : " (current)"}</td>
+                    <td style={num}>{p.opening}</td>
+                    <td style={num}>{p.remaining}</td>
+                    <td style={num}>{p.pending}</td>
+                    <td style={num}>{p.available}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {holidayDays !== null && (
           <p className="t-muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-sm)" }} data-testid="holiday-balance">
@@ -127,6 +129,7 @@ export default async function MyLeavePage({
           <p className="t-editorial" style={{ fontSize: "var(--text-h2)" }}>No leave booked yet.</p>
         ) : (
           <>
+            <div className="table-scroll">
             <table className="table" data-testid="history-table">
               <thead>
                 <tr>
@@ -186,6 +189,7 @@ export default async function MyLeavePage({
                 </tr>
               </tfoot>
             </table>
+            </div>
 
             {/* Pagination */}
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>

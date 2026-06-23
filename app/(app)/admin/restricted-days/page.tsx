@@ -22,25 +22,27 @@ export default async function RestrictedDaysPage() {
         {rows.length === 0 ? (
           <p className="t-muted" style={{ marginBottom: "var(--space-4)" }}>No restricted periods.</p>
         ) : (
-          <table className="table" data-testid="restricted-table" style={{ marginBottom: "var(--space-4)" }}>
-            <thead><tr><th>Scope</th><th>From</th><th>To</th><th>Reason</th><th /></tr></thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.scopeLabel}</td>
-                  <td className="t-num">{r.startISO}</td>
-                  <td className="t-num">{r.endISO}</td>
-                  <td className="t-muted">{r.reason ?? "—"}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <form action={deleteRestrictedAction}>
-                      <input type="hidden" name="id" value={r.id} />
-                      <button type="submit" className="btn btn-danger" style={{ padding: "2px 10px" }}>Delete</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
+            <table className="table" data-testid="restricted-table">
+              <thead><tr><th>Scope</th><th>From</th><th>To</th><th>Reason</th><th /></tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.scopeLabel}</td>
+                    <td className="t-num">{r.startISO}</td>
+                    <td className="t-num">{r.endISO}</td>
+                    <td className="t-muted">{r.reason ?? "—"}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <form action={deleteRestrictedAction}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <button type="submit" className="btn btn-danger" style={{ padding: "2px 10px" }}>Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         <form action={createRestrictedAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
