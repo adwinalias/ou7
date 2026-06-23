@@ -156,3 +156,24 @@
     border-left-color: var(--accent);
   }
 }
+
+/* Theme toggle (Epic 19.2) — single icon button (sun/moon) in the app header.
+   Tokens only; sharp corners; ≥40px hit target; green focus ring from the
+   global :focus-visible rule in design/tokens.css. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.theme-toggle:hover { background: var(--surface-hover); }
+.theme-toggle:active { background: var(--surface-2); }
+.theme-toggle svg { display: block; }
