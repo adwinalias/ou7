@@ -37,12 +37,10 @@ A change only ships if **all three** agree:
 
 ## Safety rails (so hands-off can't break things)
 
-Configured in `.claude/settings.json`:
-- **Branches only.** Pushing to `main`, force-push, and `git reset --hard` are **denied**. Work lands via PRs.
-- **No direct merge.** `gh pr merge` is **denied** — merges happen only via the green-CI policy below.
-- **No destructive shell** (`rm -rf`), **no DB mutations** (`db:migrate`/`db:deploy`/`db:seed`/`prisma migrate reset`/`psql` denied), **no raw network** (`curl`/`wget` denied).
-- **Secrets protected.** Reading/writing `.env` is denied.
-- **Edits auto-approved** (`acceptEdits`) so the loop runs without prompting on every file write, while the dangerous things above still can't happen.
+Two layers, in `.claude/settings.json` + `.claude/hooks/guard.cjs`:
+- **The `guard.cjs` PreToolUse hook is the hard rail** (it runs even in skip-permissions mode and exits 2 to block): no `rm -rf`, no push/force-push to `main`, no `git reset --hard`, no `gh pr merge --admin` (the override that skips checks), no DB mutations (`db:migrate`/`db:deploy`/`db:seed`/`prisma migrate reset`/`psql`), no raw network (`curl`/`wget`), and `.env` is unwritable. Feature-branch pushes and `gh pr merge --auto` are allowed.
+- **The settings `allow`/`deny` list** is the second layer (active when prompts are on): same denials, plus an allow-list of the routine read/build/git/gh commands so plain `claude` rarely prompts.
+- **Branches only / no admin merge.** Everything lands via PRs; `main` can't be pushed or force-merged. Auto-merge runs only on green CI.
 
 > Recommended belt-and-braces: turn on **GitHub branch protection** for `main` with the `build-and-test` check **required**. Then even an automated merge can never land a red build.
 
@@ -76,15 +74,15 @@ This requires every change to go through a PR (no direct pushes to `main`), requ
 ### Milestone audits (your actual oversight — plain English, no code)
 The orchestrator **pauses at each phase boundary** (A → B → C → D in `docs/V2-PRD.md` §3) and writes a plain-English milestone summary (what shipped, what's left, anything needing a decision). At that point an **independent reviewer** — Claude in a fresh Cowork session, or a scheduled audit task — reviews the merged diffs *and* clicks through the live test deploy, then reports to Eddy: "looks right / here's what to check / pause." Eddy's only job is **read the report and say go or pause**. The one review Eddy can do himself: open the test deploy and click through the changed screens (behavior, not code).
 
-## How Eddy runs it (on the Mac, where the repo + the gate live)
+## How Eddy runs it (on the Mac, where the repo + the gate live) — truly no prompts
 
-1. `cd` into the OU7 repo and run `claude`.
+1. `cd` into the OU7 repo and run **`claude --dangerously-skip-permissions`**. This is what makes it actually hands-off — without it, Claude Code prompts on every shell command (e.g. `find`/`grep`), which defeats the point. Safety is preserved by the **PreToolUse guard hook** below, not by prompts.
 2. Tell it once: *"You are the orchestrator. Run Step 0 (bootstrap) first, then build OU7 v2 from docs/V2-PRD.md one story at a time, per docs/BUILD-WORKFLOW.md. Don't ask me to approve individual steps; open a PR per story and let auto-merge land them on green."*
-3. Walk away. Check the PRs (or your email) when you want.
+3. Walk away. I'll catch you at the first milestone with a plain-English report.
 
 Notes:
 - A **Claude Max plan** is recommended — a multi-agent loop uses roughly **3–7× the tokens** of a single session.
-- For a *fully unattended* run you can launch with `claude --dangerously-skip-permissions`, but only in this repo on your own machine — it removes the prompt safety net, leaving the hooks + denials + CI as the only guards. The `acceptEdits` + allow/deny setup above is the safer default.
+- The trade-off is explicit: skip-permissions removes the per-command prompt, so the **`guard.cjs` PreToolUse hook is the safety rail** (it hard-blocks the destructive commands even in this mode). If you'd rather keep prompts on, run plain `claude` — edits auto-approve and most read commands are allow-listed, but you'll still get the occasional prompt.
 
 ## When the orchestrator MUST stop and ask Eddy
 
