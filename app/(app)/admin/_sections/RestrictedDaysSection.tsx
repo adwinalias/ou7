@@ -66,10 +66,10 @@ export default async function RestrictedDaysSection() {
             </select>
           </label>
           <label className="t-label" style={{ display: "flex", flexDirection: "column", gap: 2 }}>From
-            <input type="date" name="start" required className="input t-num" data-testid="r-start" />
+            <input type="date" name="start" required aria-required="true" className="input t-num" data-testid="r-start" />
           </label>
           <label className="t-label" style={{ display: "flex", flexDirection: "column", gap: 2 }}>To
-            <input type="date" name="end" required className="input t-num" data-testid="r-end" />
+            <input type="date" name="end" required aria-required="true" className="input t-num" data-testid="r-end" />
           </label>
           <label className="t-label" style={{ display: "flex", flexDirection: "column", gap: 2 }}>Reason
             <input type="text" name="reason" className="input" placeholder="e.g. Year-end freeze" data-testid="r-reason" />

@@ -77,6 +77,8 @@ function Row({ item }: { item: PendingItem }) {
           className="input"
           style={{ width: "100%", minHeight: 56, resize: "vertical" }}
           data-testid="decision-comment"
+          aria-invalid={error ? true : undefined}
+          aria-errormessage={error ? `comment-error-${item.id}` : undefined}
           value={comment}
           onChange={(e) => {
             setComment(e.target.value);
@@ -87,6 +89,7 @@ function Row({ item }: { item: PendingItem }) {
 
       {error && (
         <div
+          id={`comment-error-${item.id}`}
           role="alert"
           style={{
             marginTop: "var(--space-3)",

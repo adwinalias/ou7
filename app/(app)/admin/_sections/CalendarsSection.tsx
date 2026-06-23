@@ -96,10 +96,10 @@ export default async function CalendarsSection({
         <form action={createHolidayAction} style={{ display: "flex", gap: "var(--space-3)", alignItems: "end", flexWrap: "wrap" }}>
           <input type="hidden" name="regionId" value={region.id} />
           <label className="t-label" style={{ display: "flex", flexDirection: "column", gap: 2 }}>Date
-            <input type="date" name="date" required className="input t-num" defaultValue={`${year}-01-01`} data-testid="holiday-date" />
+            <input type="date" name="date" required aria-required="true" className="input t-num" defaultValue={`${year}-01-01`} data-testid="holiday-date" />
           </label>
           <label className="t-label" style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 200px" }}>Name
-            <input type="text" name="name" required className="input" placeholder="e.g. National Day" data-testid="holiday-name" />
+            <input type="text" name="name" required aria-required="true" className="input" placeholder="e.g. National Day" data-testid="holiday-name" />
           </label>
           <button type="submit" className="btn btn-primary" data-testid="add-holiday">Add holiday</button>
         </form>

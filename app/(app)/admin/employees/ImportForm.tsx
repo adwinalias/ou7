@@ -14,6 +14,7 @@ export default function ImportForm() {
       <textarea
         name="csv"
         className="input"
+        aria-label="Employee CSV (email, first name, last name, region, joining date — one per line)"
         style={{ width: "100%", minHeight: 100, resize: "vertical", fontFamily: "var(--font-mono)" }}
         placeholder="ada@interestingtimes.me,Ada,Lovelace,UAE,2026-03-01"
         data-testid="import-csv"

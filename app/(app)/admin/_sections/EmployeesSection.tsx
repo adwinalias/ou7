@@ -68,16 +68,16 @@ export default async function EmployeesSection({ selectedId }: { selectedId?: st
       <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Add employee</div>
         <form action={createEmployeeAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
-          <label className="t-label" style={fieldCol}>Email<input name="email" type="email" required className="input" data-testid="emp-email" /></label>
-          <label className="t-label" style={fieldCol}>First name<input name="firstName" required className="input" data-testid="emp-first" /></label>
-          <label className="t-label" style={fieldCol}>Last name<input name="lastName" required className="input" data-testid="emp-last" /></label>
+          <label className="t-label" style={fieldCol}>Email<input name="email" type="email" required aria-required="true" className="input" data-testid="emp-email" /></label>
+          <label className="t-label" style={fieldCol}>First name<input name="firstName" required aria-required="true" className="input" data-testid="emp-first" /></label>
+          <label className="t-label" style={fieldCol}>Last name<input name="lastName" required aria-required="true" className="input" data-testid="emp-last" /></label>
           <label className="t-label" style={fieldCol}>Region
-            <select name="regionId" className="input" required data-testid="emp-region">{regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
+            <select name="regionId" className="input" required aria-required="true" data-testid="emp-region">{regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
           </label>
           <label className="t-label" style={fieldCol}>Department
             <select name="departmentId" className="input"><option value="">—</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
           </label>
-          <label className="t-label" style={fieldCol}>Joining date<input name="joiningISO" type="date" required className="input t-num" data-testid="emp-joining" /></label>
+          <label className="t-label" style={fieldCol}>Joining date<input name="joiningISO" type="date" required aria-required="true" className="input t-num" data-testid="emp-joining" /></label>
           <label className="t-label" style={fieldCol}>Role
             <select name="role" className="input" defaultValue="STAFF">{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select>
           </label>

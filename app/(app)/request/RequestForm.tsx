@@ -13,10 +13,11 @@ const MODES: { value: Mode; label: string }[] = [
 ];
 
 // Flat inline alert per DESIGN-SYSTEM §5: surface + hairline + 3px coloured left edge.
-function Alert({ tone, children }: { tone: "danger" | "success"; children: React.ReactNode }) {
+function Alert({ tone, id, children }: { tone: "danger" | "success"; id?: string; children: React.ReactNode }) {
   const color = tone === "danger" ? "var(--danger)" : "var(--success)";
   return (
     <div
+      id={id}
       role={tone === "danger" ? "alert" : "status"}
       style={{
         background: "var(--surface)",
@@ -80,6 +81,10 @@ export default function RequestForm({
   const [pending, startTransition] = useTransition();
 
   const selectedType = useMemo(() => leaveTypes.find((t) => t.id === leaveTypeId), [leaveTypes, leaveTypeId]);
+
+  // The preview surfaces validation errors for the field set as a whole; flag the
+  // controls as invalid and point them at the announced error region (AC2/AC3).
+  const hasPreviewErrors = !!preview && preview.errors.length > 0;
 
   // Any edit clears the stale preview/errors; the debounced effect recomputes.
   function changed<T>(setter: (v: T) => void) {
@@ -197,6 +202,8 @@ export default function RequestForm({
             value={leaveTypeId}
             onChange={(e) => changed(setLeaveTypeId)(e.target.value)}
             aria-required="true"
+            aria-invalid={hasPreviewErrors ? true : undefined}
+            aria-errormessage={hasPreviewErrors ? "preview-errors" : undefined}
           >
             <option value="">Select a leave type…</option>
             {leaveTypes.map((t) => (
@@ -237,6 +244,9 @@ export default function RequestForm({
               data-testid="start-date"
               value={startDate}
               onChange={(e) => changed(setStartDate)(e.target.value)}
+              aria-required="true"
+              aria-invalid={hasPreviewErrors ? true : undefined}
+              aria-errormessage={hasPreviewErrors ? "preview-errors" : undefined}
             />
           </div>
 
@@ -251,6 +261,9 @@ export default function RequestForm({
                 data-testid="end-date"
                 value={endDate}
                 onChange={(e) => changed(setEndDate)(e.target.value)}
+                aria-required="true"
+                aria-invalid={hasPreviewErrors ? true : undefined}
+                aria-errormessage={hasPreviewErrors ? "preview-errors" : undefined}
               />
             </div>
           )}
@@ -299,6 +312,7 @@ export default function RequestForm({
               placeholder="https://…"
               value={attachmentUrl}
               onChange={(e) => setAttachmentUrl(e.target.value)}
+              aria-required="true"
               aria-describedby="attachment-hint"
             />
             <p id="attachment-hint" className="t-muted" style={{ fontSize: "var(--text-sm)", marginTop: "var(--space-1)" }}>{attachmentHint}</p>
@@ -320,7 +334,7 @@ export default function RequestForm({
           ) : (
             <>
               {preview.errors.length > 0 ? (
-                <Alert tone="danger">
+                <Alert tone="danger" id="preview-errors">
                   <ul style={{ margin: 0, paddingLeft: "var(--space-4)" }}>
                     {preview.errors.map((e) => (
                       <li key={e}>{e}</li>
