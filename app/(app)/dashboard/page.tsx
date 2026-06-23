@@ -4,7 +4,8 @@ import { isApprover } from "@/core/authz";
 import { donutSegments } from "@/core/allowance";
 import { countPendingForApprover } from "@/lib/approvals";
 import { letterColorToken, type WallCell } from "@/core/wallchart";
-import { getDashboard } from "@/lib/dashboard";
+import { getDashboard, getUpcomingHolidays } from "@/lib/dashboard";
+import LeaveKey from "@/components/LeaveKey";
 import { getHolidayBalance } from "@/lib/holiday-balance";
 import { getWhosOff, type WhosOffData, type WhosOffEntryHR } from "@/lib/whosoff";
 import { requireUser } from "@/lib/rbac";
@@ -120,10 +121,11 @@ export default async function DashboardPage() {
   // entirely (AC2), so don't even query. countPendingForApprover shares its WHERE with
   // listPendingForApprover, so this number equals the /approvals queue exactly (AC1).
   const approver = isApprover(actor);
-  const [{ balance, days }, holidayDays, whosOff, pendingCount] = await Promise.all([
+  const [{ balance, days }, holidayDays, whosOff, upcomingHolidays, pendingCount] = await Promise.all([
     getDashboard(actor.employeeId),
     getHolidayBalance(actor.employeeId, year), // null for non-Remote
     getWhosOff(actor), // company-wide; four-category abstraction enforced server-side
+    getUpcomingHolidays(actor.employeeId), // region-aware for the viewer; next 5
     approver ? countPendingForApprover(actor) : Promise.resolve(0),
   ]);
   const donut = balance
@@ -176,9 +178,40 @@ export default async function DashboardPage() {
               </div>
             ))}
           </div>
-          <p className="t-muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-sm)" }}>
-            Hatched = non-working (weekend/holiday or your work pattern).
-          </p>
+          {/* DB2/M2: the shared drawn-swatch key replaces the old "Hatched = non-working" text.
+              mode="categories" draws the four category swatches (incl. National Holiday) plus
+              the Pending and Weekend / non-working swatches the key already owns. */}
+          <div style={{ marginTop: "var(--space-4)" }}>
+            <LeaveKey mode="categories" testid="next7-key" />
+          </div>
+        </>
+      ),
+    },
+    {
+      id: "upcoming-holidays",
+      title: "Upcoming holidays",
+      content: (
+        <>
+          <div className="t-label" style={{ marginBottom: "var(--space-4)" }}>Upcoming holidays</div>
+          {upcomingHolidays.length === 0 ? (
+            <p className="t-muted" data-testid="upcoming-holidays-empty">No upcoming holidays.</p>
+          ) : (
+            <ul
+              data-testid="upcoming-holidays-list"
+              style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}
+            >
+              {upcomingHolidays.map((h) => (
+                <li
+                  key={h.dateISO}
+                  data-testid="upcoming-holiday"
+                  style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: "var(--space-2)", paddingBlock: "var(--space-1)" }}
+                >
+                  <span style={{ fontWeight: 600 }}>{h.name}</span>
+                  <span className="t-num" style={{ fontSize: "var(--text-sm)", marginLeft: "auto" }}>{shortDate(h.dateISO)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       ),
     },
