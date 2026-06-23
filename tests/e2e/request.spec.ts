@@ -12,18 +12,17 @@ async function signIn(page: Page, email: string) {
   });
 }
 
-test("request → check details → submit books a pending leave (happy path)", async ({ page }) => {
+test("request → live impact → submit books a pending leave (happy path)", async ({ page }) => {
   await signIn(page, E2E_EMAIL);
 
   await page.goto("/request");
   await expect(page.getByRole("heading", { name: "Request leave" })).toBeVisible();
 
-  // 1 — details
+  // 1 — details. No leave type is pre-selected; pick one explicitly.
   await page.getByTestId("leave-type").selectOption({ label: "Vacation" });
   await page.getByTestId("start-date").fill(WEEKDAY);
-  await page.getByTestId("check-details").click();
 
-  // 2 — check details
+  // 2 — live impact panel auto-updates (debounced) — no "Check details" click.
   const preview = page.getByTestId("preview");
   await expect(preview).toBeVisible();
   await expect(page.getByTestId("working-days")).toHaveText("1");
