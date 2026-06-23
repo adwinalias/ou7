@@ -1,5 +1,6 @@
 import { canAccessAdmin, isApprover } from "@/core/authz";
 import AppNav from "@/components/AppNav";
+import BottomTabBar from "@/components/BottomTabBar";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import { requireUser } from "@/lib/rbac";
 
@@ -10,9 +11,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const actor = await requireUser();
 
   return (
-    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "220px 1fr" }}>
+    <div className="app-shell" style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "220px 1fr" }}>
       <aside
-        className="no-print"
+        className="no-print app-sidebar"
         style={{
           borderRight: "1px solid var(--border)",
           background: "var(--surface)",
@@ -42,8 +43,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="t-muted" style={{ fontSize: 13 }}>Interesting Times DMCC</div>
           <ThemeSwitch />
         </header>
-        <main style={{ padding: "var(--space-6) var(--space-5)" }}>{children}</main>
+        <main className="app-main" style={{ padding: "var(--space-6) var(--space-5)" }}>{children}</main>
       </div>
+      <BottomTabBar canSeeApprovals={isApprover(actor)} canSeeAdmin={canAccessAdmin(actor)} />
     </div>
   );
 }
