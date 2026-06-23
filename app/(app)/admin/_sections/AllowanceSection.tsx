@@ -85,12 +85,13 @@ export default async function AllowanceSection({ employeeId, year }: { employeeI
             ) : (
               <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
                 <table className="table" data-testid="ledger-table">
-                  <thead><tr><th>Date</th><th>Kind</th><th style={num}>Delta</th><th>Reason</th><th>By</th></tr></thead>
+                  <thead><tr><th>Date</th><th>Kind</th><th>Bucket</th><th style={num}>Delta</th><th>Reason</th><th>By</th></tr></thead>
                   <tbody>
                     {ledger.map((l) => (
                       <tr key={l.id}>
                         <td className="t-num">{l.createdAtISO}</td>
                         <td>{l.kind}</td>
+                        <td>{l.bucket === "PUBLIC_HOLIDAY" ? "Public holiday" : "Vacation"}</td>
                         <td style={num}>{l.delta}</td>
                         <td className="t-muted">{l.reason}</td>
                         <td className="t-muted">{l.actorName}</td>

@@ -263,6 +263,15 @@ enum AdjustmentKind {
   DEDUCTION // reduces effective allowance, e.g. unpaid leave (positive magnitude)
 }
 
+// Which balance bucket a ledger entry credits/debits (Epic 24.3 / ADR-0013). VACATION
+// behaves exactly as before (feeds the `adjustments` projection → annual remaining);
+// PUBLIC_HOLIDAY credits the `publicHolidays` projection, NOT annual remaining. Defaults to
+// VACATION so existing rows keep their meaning (backward-safe additive migration).
+enum AllowanceBucket {
+  VACATION
+  PUBLIC_HOLIDAY
+}
+
 // Remote-only "Holiday" allowance (v2b / ADR-0010): a SEPARATE, HR-set, per-year,
 // NON-CARRY balance distinct from annual leave. Default 5, editable per employee. The
 // stored `days` is the input; remaining is engine-derived (core/allowance.holidayRemaining).
@@ -288,6 +297,7 @@ model AllowanceAdjustment {
   period     AllowancePeriod @relation(fields: [periodId], references: [id])
   periodId   String
   kind       AdjustmentKind
+  bucket     AllowanceBucket @default(VACATION) // which balance bucket this entry routes to
   delta      Float
   reason     String
   actor      Employee?      @relation("AdjustmentActor", fields: [actorId], references: [id])

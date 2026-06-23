@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { AdjustmentKind } from "@prisma/client";
+import type { AdjustmentKind, AllowanceBucket } from "@prisma/client";
 import { isHR } from "@/core/authz";
 import { addLedgerEntry, resetBalance, rolloverYear } from "@/lib/allowance-admin";
 import { setHolidayBalance } from "@/lib/holiday-balance";
@@ -19,6 +19,7 @@ export async function addEntryAction(_prev: EntryState, formData: FormData): Pro
   const actor = await hr();
   const res = await addLedgerEntry(actor.employeeId, String(formData.get("periodId")), {
     kind: String(formData.get("kind")) as AdjustmentKind,
+    bucket: String(formData.get("bucket")) as AllowanceBucket,
     delta: Number(formData.get("delta")),
     reason: String(formData.get("reason") ?? ""),
   });
