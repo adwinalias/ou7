@@ -36,11 +36,12 @@ export interface CompanyPendingItem extends PendingItem {
 
 /** Every PENDING request org-wide, with time-in-pending — for the HR company queue
  *  (Epic 9.6). Optional name / department filters. HR acts via the existing decide path. */
-export async function listCompanyPending(opts: { name?: string; departmentId?: string } = {}): Promise<CompanyPendingItem[]> {
+export async function listCompanyPending(opts: { name?: string; departmentId?: string; employeeId?: string } = {}): Promise<CompanyPendingItem[]> {
   const name = opts.name?.trim().toLowerCase() ?? "";
   const rows = await db.leaveRequest.findMany({
     where: {
       status: "PENDING",
+      ...(opts.employeeId ? { employeeId: opts.employeeId } : {}),
       ...(opts.departmentId ? { employee: { departmentId: opts.departmentId } } : {}),
     },
     include: { employee: { select: { firstName: true, lastName: true, department: { select: { name: true } }, region: { select: { name: true } } } }, leaveType: true },

@@ -13,9 +13,9 @@ function dubaiYear() {
 }
 
 // Employee-level settings: the staff list with activate/deactivate, add-employee and
-// bulk-import. The per-employee detail view (inline edit, allowance, on-behalf) arrives
-// in a later slice; for now the list is the surface.
-export default async function EmployeesSection() {
+// bulk-import. Selecting a person sets ?mode=employee&adminEmployee=<id> (in-page, same
+// /admin page) which renders their record inline below the list (Epic 19.3b, AD6).
+export default async function EmployeesSection({ selectedId }: { selectedId?: string } = {}) {
   const [employees, regions, departments] = await Promise.all([
     listEmployees(),
     db.region.findMany({ orderBy: { name: "asc" } }),
@@ -34,20 +34,25 @@ export default async function EmployeesSection() {
       <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Staff ({employees.length})</div>
         <p className="t-muted" style={{ fontSize: "var(--text-sm)", marginBottom: "var(--space-3)" }} data-testid="employee-detail-hint">
-          Select an employee to manage their record (coming in the employee detail view).
+          Select an employee to manage their record — fields, allowance, pending queue and add-leave-on-behalf open below.
         </p>
         <div className="table-scroll">
           <table className="table" data-testid="employee-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Region</th><th>Role</th><th>Status</th><th>Allowance</th><th /></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Region</th><th>Role</th><th>Status</th><th>Allowance</th><th /><th /></tr></thead>
             <tbody>
               {employees.map((e) => (
-                <tr key={e.id}>
+                <tr key={e.id} aria-current={e.id === selectedId ? "true" : undefined} style={e.id === selectedId ? { background: "var(--surface-2, var(--surface))", outline: "2px solid var(--accent)", outlineOffset: -2 } : undefined}>
                   <td>{e.name}</td>
                   <td className="t-muted">{e.email}</td>
                   <td>{e.regionName}</td>
                   <td>{e.role}</td>
                   <td>{e.status === "ACTIVE" ? "Active" : "Inactive"}</td>
                   <td>{e.hasOpenPeriod ? <span className="t-muted">Profile set</span> : <GenerateProfileButton employeeId={e.id} year={year} />}</td>
+                  <td>
+                    <a className="btn btn-secondary" style={{ padding: "2px 10px" }} href={`/admin?mode=employee&adminEmployee=${e.id}`} data-testid={`employee-select-${e.id}`} aria-current={e.id === selectedId ? "true" : undefined}>
+                      {e.id === selectedId ? "Selected" : "Manage"}
+                    </a>
+                  </td>
                   <td style={{ textAlign: "right" }}>
                     {e.status === "ACTIVE" && (
                       <form action={deactivateAction}><input type="hidden" name="employeeId" value={e.id} /><button className="btn btn-danger" style={{ padding: "2px 10px" }}>Deactivate</button></form>
