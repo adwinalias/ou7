@@ -27,7 +27,10 @@ export default function Donut({
   const summary = segments.map((s) => `${s.label} ${s.value}`).join(", ");
 
   return (
-    <div style={{ display: "flex", gap: "var(--space-5)", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+    // CLS guard (Epic 21.5): the SVG carries explicit 140×140 px dimensions (not just a
+    // viewBox) and the row reserves at least that height, so the tile never jumps as the
+    // donut + legend paint, regardless of how the legend wraps at narrow widths.
+    <div style={{ display: "flex", gap: "var(--space-5)", alignItems: "center", justifyContent: "center", flexWrap: "wrap", minHeight: 140 }}>
       <svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label={`Allowance: ${summary} of ${total} ${unit}.`} style={{ display: "block", flex: "none" }}>
         {/* track */}
         <circle cx="70" cy="70" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="16" />

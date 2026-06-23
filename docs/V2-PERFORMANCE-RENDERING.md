@@ -20,4 +20,14 @@ Front-end performance and Next.js rendering work for v2 (Next.js 15 + React 19, 
 
 **P2 — Guard Cumulative Layout Shift.** Set explicit `width`/`height` (or `aspect-ratio`) on the allowance donut, avatar, and logo, and size each widget skeleton to match its loaded content so tiles don't jump. (Also fixes audit L1.)
 
-**P2 — Bundle discipline as features grow.** Use `@next/bundle-analyzer` to catch large dependencies; prefer native/light options over libraries for simple formatting and charts.
+**P2 — Bundle discipline as features grow (done — Epic 21.5).** `@next/bundle-analyzer` is in the toolchain as a **dev-only** dependency, **gated behind the `ANALYZE` env** so the normal build is unaffected (it's dynamically imported in `next.config.mjs` only when `ANALYZE=true`). To inspect bundles and catch large dependencies:
+
+```bash
+ANALYZE=true npm run build   # opens the treemap report(s)
+```
+
+Prefer native/light options over libraries for simple formatting and charts. The app uses **native `Intl`/`Date`** for all date/number formatting and a **pure-SVG donut** for charting — no `moment`/`dayjs`/`date-fns`/`lodash` (verified absent; none must be added). New heavy deps should be justified against an analyzer run.
+
+**CLS guards (done — Epic 21.5).** Explicit dimensions are set on every loaded element that could otherwise shift: the allowance **donut** SVG carries `width`/`height` (140×140 px, not just a `viewBox`) and its row reserves that height; the brand **logo** (`.brand-mark`) is a fixed 88×88 px; the theme-switch icons are 20×20 px; and each widget **skeleton** is sized to its content (`WidgetSkeleton`). There are no `<img>`/`next/image`/avatar elements on the dashboard. Result: no visible layout shift on dashboard load.
+
+**CWV measurement (done — Epic 21.4).** `components/WebVitals.tsx` mounts `useReportWebVitals` once in the root layout to surface LCP/INP/CLS/FCP/TTFB in the browser console during development. It **never transmits metrics off-device** (dev-only `console.debug`, prod no-op) — standalone, no external runtime deps. Targets and the pre-go-live Unlighthouse run are recorded in the DoD (`PROJECT-PLAN.md` §6).
