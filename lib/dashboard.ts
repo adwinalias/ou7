@@ -12,6 +12,10 @@ export interface DashboardData {
   regionName: string;
   firstName: string; // viewer's first name, for the dashboard greeting (Epic 19.6, L3)
   days: WallCell[]; // next 7 days from today (Dubai), reusing the wall-chart cell vocabulary
+  // The viewer's region×role carry-over expiry as "MM-DD", or null when HR hasn't set a
+  // policy/expiry — feeds the Alerts widget's carry-over nudge (Epic 18.6). Pure rules in
+  // core/alerts decide whether to surface it; here we just supply the data.
+  carryOverExpiryMMDD: string | null;
 }
 
 export interface UpcomingHoliday {
@@ -39,9 +43,18 @@ export async function getDashboard(employeeId: string): Promise<DashboardData> {
     where: { id: employeeId },
     select: {
       firstName: true,
+      regionId: true,
+      role: true,
       region: { select: { name: true, weekendDays: true } },
       workPattern: { select: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: true } },
     },
+  });
+
+  // The viewer's region×role entitlement policy (Epic 9.5). May be absent (HR hasn't
+  // configured one) → null expiry → core/alerts emits no carry-over nudge.
+  const policy = await db.entitlementPolicy.findUnique({
+    where: { regionId_role: { regionId: employee.regionId, role: employee.role } },
+    select: { carryOverExpiry: true },
   });
 
   const todayISO = dubaiToday();
@@ -90,6 +103,7 @@ export async function getDashboard(employeeId: string): Promise<DashboardData> {
     regionName: employee.region.name,
     firstName: employee.firstName,
     days: buildRow(dayList, segments, effectiveCal, todayISO),
+    carryOverExpiryMMDD: policy?.carryOverExpiry ?? null,
   };
 }
 
