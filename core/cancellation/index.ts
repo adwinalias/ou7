@@ -7,6 +7,7 @@
 //  - A staff member may self-cancel their OWN PENDING request while today (Dubai) is BEFORE
 //    the start date (never on/after the start day).
 //  - Cancelling an APPROVED request, or any on/after-start-day cancellation, requires HR.
+import { addDays, parseISO, toISO } from "../dates";
 import type { ISODate, LeaveStatus } from "../types";
 
 export interface CancelInput {
@@ -15,6 +16,8 @@ export interface CancelInput {
   isHR: boolean;
   todayISO: ISODate; // Asia/Dubai today
   startISO: ISODate; // request start date
+  /** Calendar days before start that an owner must cancel by. Default 0 = existing ADR-0011 behaviour. */
+  cancellationWindowDays?: number;
 }
 
 export interface CancelDecision {
@@ -38,8 +41,15 @@ export function canCancel(input: CancelInput): CancelDecision {
   if (input.status !== "PENDING") {
     return { allowed: false, reason: "Approved leave can only be cancelled by HR." };
   }
-  if (input.todayISO >= input.startISO) {
-    return { allowed: false, reason: "You can't cancel on or after the start day — contact HR." };
+  const windowDays = input.cancellationWindowDays ?? 0;
+  const cutoffISO = windowDays > 0
+    ? toISO(addDays(parseISO(input.startISO), -windowDays))
+    : input.startISO;
+  if (input.todayISO >= cutoffISO) {
+    const reason = windowDays > 0
+      ? `You must cancel at least ${windowDays} day(s) before the start — contact HR.`
+      : "You can't cancel on or after the start day — contact HR.";
+    return { allowed: false, reason };
   }
   return { allowed: true };
 }

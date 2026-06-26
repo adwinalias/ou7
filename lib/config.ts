@@ -93,12 +93,14 @@ export interface LeaveTypeInput {
   noteRequired: boolean;
   requiresApproval?: boolean; // default true
   noticePeriodDays?: number; // default 0; negative = allow backdating
+  cancellationWindowDays?: number; // default 0; calendar days before start owner must cancel by
 }
 
 /** Partial of the per-type policy fields HR may edit (extensible for later stories). */
 export interface LeaveTypePolicyPatch {
   requiresApproval?: boolean;
   noticePeriodDays?: number;
+  cancellationWindowDays?: number;
 }
 
 export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
@@ -112,6 +114,7 @@ export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
       noteRequired: input.noteRequired,
       requiresApproval: input.requiresApproval ?? true,
       noticePeriodDays: input.noticePeriodDays ?? 0,
+      cancellationWindowDays: Math.max(0, input.cancellationWindowDays ?? 0),
     },
   });
   await recordAudit(db, { actorId, action: "LEAVE_TYPE_CREATE", entity: "LeaveType", entityId: lt.id, after: { name: lt.name, code: lt.code, requiresApproval: lt.requiresApproval } });
@@ -128,18 +131,22 @@ export async function setLeaveTypeActive(actorId: string, id: string, active: bo
 /** Update the per-type policy fields (requiresApproval, and future story additions). */
 export async function updateLeaveTypePolicy(actorId: string, id: string, patch: LeaveTypePolicyPatch) {
   const before = await db.leaveType.findUniqueOrThrow({ where: { id } });
-  const updated = await db.leaveType.update({ where: { id }, data: patch });
+  // clamp cancellationWindowDays to ≥0 (negative window is meaningless)
+  const safePatch: LeaveTypePolicyPatch = patch.cancellationWindowDays !== undefined
+    ? { ...patch, cancellationWindowDays: Math.max(0, patch.cancellationWindowDays) }
+    : patch;
+  const updated = await db.leaveType.update({ where: { id }, data: safePatch });
   await recordAudit(db, {
     actorId,
     action: "LEAVE_TYPE_UPDATE",
     entity: "LeaveType",
     entityId: id,
-    before: { requiresApproval: before.requiresApproval, noticePeriodDays: before.noticePeriodDays },
-    after: patch,
+    before: { requiresApproval: before.requiresApproval, noticePeriodDays: before.noticePeriodDays, cancellationWindowDays: before.cancellationWindowDays },
+    after: safePatch,
   });
   return updated.id;
 }
 
 export async function listLeaveTypes() {
-  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true } });
+  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true } });
 }

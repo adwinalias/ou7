@@ -58,6 +58,7 @@ export async function createTagAction(formData: FormData) {
 export async function createLeaveTypeAction(formData: FormData) {
   const actor = await hr();
   const rawNotice = parseInt(String(formData.get("noticePeriodDays") ?? "0"), 10);
+  const rawWindow = parseInt(String(formData.get("cancellationWindowDays") ?? "0"), 10);
   await createLeaveType(actor.employeeId, {
     name: String(formData.get("name")),
     code: String(formData.get("code")),
@@ -67,6 +68,7 @@ export async function createLeaveTypeAction(formData: FormData) {
     noteRequired: formData.get("noteRequired") === "on",
     requiresApproval: formData.get("requiresApproval") === "on",
     noticePeriodDays: isNaN(rawNotice) ? 0 : rawNotice,
+    cancellationWindowDays: isNaN(rawWindow) ? 0 : Math.max(0, rawWindow),
   });
   revalidatePath("/admin/config");
 }
@@ -82,9 +84,13 @@ export async function updateLeaveTypePolicyAction(formData: FormData) {
   const rawNotice = formData.has("noticePeriodDays")
     ? parseInt(String(formData.get("noticePeriodDays")), 10)
     : undefined;
+  const rawWindow = formData.has("cancellationWindowDays")
+    ? parseInt(String(formData.get("cancellationWindowDays")), 10)
+    : undefined;
   await updateLeaveTypePolicy(actor.employeeId, String(formData.get("id")), {
     requiresApproval: formData.get("requiresApproval") === "on",
     ...(rawNotice !== undefined ? { noticePeriodDays: isNaN(rawNotice) ? 0 : rawNotice } : {}),
+    ...(rawWindow !== undefined ? { cancellationWindowDays: isNaN(rawWindow) ? 0 : Math.max(0, rawWindow) } : {}),
   });
   revalidatePath("/admin/config");
 }

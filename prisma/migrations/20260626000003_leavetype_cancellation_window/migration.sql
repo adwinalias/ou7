@@ -1,0 +1,1 @@
+ALTER TABLE "LeaveType" ADD COLUMN "cancellationWindowDays" INTEGER NOT NULL DEFAULT 0;
