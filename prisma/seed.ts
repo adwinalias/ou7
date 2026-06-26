@@ -4,6 +4,7 @@
  * exact carry-over caps are HR inputs (PRD §14); the values here are placeholders.
  */
 import { PrismaClient } from "@prisma/client";
+import { seedBundledHolidays } from "../lib/holiday-seed";
 
 const db = new PrismaClient();
 
@@ -100,9 +101,14 @@ async function main() {
     });
   }
 
+  // Story 32.1: seed bundled public holidays (UAE/KSA/Beirut, 2026+2027). Idempotent.
+  // Pass the seed script's own PrismaClient to avoid the server-only guard in lib/db.ts.
+  const holidaysInserted = await seedBundledHolidays(db);
+
   console.log(
     `Seeded ${regions.length} regions, ${departments.length} departments, ` +
-      `${leaveTypes.length} leave types, and HR bootstrap user ${hr.email} (with allowance period).`,
+      `${leaveTypes.length} leave types, and HR bootstrap user ${hr.email} (with allowance period). ` +
+      `Bundled holidays: ${holidaysInserted} new rows inserted.`,
   );
 }
 
