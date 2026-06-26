@@ -76,6 +76,76 @@ export function assessCoverage(input: CoverageInput): CoverageResult {
   return { breachedDays, warnings };
 }
 
+// ── Clash check (ADR-0014, story 29.2) ───────────────────────────────────────
+
+/** A restricted counterpart's overlapping PENDING/APPROVED leave range. */
+export interface ClashCounterpart {
+  name: string;
+  startISO: ISODate;
+  endISO: ISODate;
+}
+
+export interface ClashInput {
+  startISO: ISODate;
+  endISO: ISODate;
+  mode: DurationMode;
+  cal: RegionCalendar;
+  counterparts: ClashCounterpart[];
+}
+
+export interface ClashResult {
+  hasClash: boolean;
+  clashedNames: string[];
+  /** Union of shared working days across all clashing counterparts, sorted. */
+  sharedDays: ISODate[];
+  message: string | null;
+}
+
+/**
+ * Hard-gate clash check (ADR-0014 §1). Returns hasClash=true when ANY counterpart
+ * shares ≥1 working day with the request. Message names the people only, never their
+ * leave type (visibility rule). Empty counterparts → no clash.
+ *
+ * ponytail: reuses rangesOverlap (fast rejection) + isWorkingDay (region calendar).
+ */
+export function assessClash(input: ClashInput): ClashResult {
+  if (input.counterparts.length === 0) return { hasClash: false, clashedNames: [], sharedDays: [], message: null };
+
+  // For HALF mode the request occupies exactly startISO; for DAY the same; MULTI is start→end.
+  const reqEnd = input.mode === "MULTI" ? input.endISO : input.startISO;
+
+  const clashedNames: string[] = [];
+  const sharedDaySet = new Set<ISODate>();
+
+  for (const cp of input.counterparts) {
+    // Skip counterparts with no calendar overlap at all.
+    if (!rangesOverlap(input.startISO, reqEnd, cp.startISO, cp.endISO)) continue;
+
+    // Find shared working days within both ranges.
+    // Overlap window = max(starts) → min(ends).
+    const winStart = input.startISO > cp.startISO ? input.startISO : cp.startISO;
+    const winEnd   = reqEnd < cp.endISO ? reqEnd : cp.endISO;
+
+    let hasSharedWorkingDay = false;
+    for (const d of eachDate(winStart, winEnd)) {
+      if (isWorkingDay(d, input.cal)) {
+        sharedDaySet.add(toISO(d));
+        hasSharedWorkingDay = true;
+      }
+    }
+
+    if (hasSharedWorkingDay) clashedNames.push(cp.name);
+  }
+
+  if (clashedNames.length === 0) return { hasClash: false, clashedNames: [], sharedDays: [], message: null };
+
+  const sharedDays = [...sharedDaySet].sort();
+  const names = clashedNames.join(", ");
+  const message = `You can't be off at the same time as ${names} (${sharedDays.length} shared working day(s)).`;
+
+  return { hasClash: true, clashedNames, sharedDays, message };
+}
+
 export interface LeaveValidationInput {
   startISO: ISODate;
   endISO: ISODate;
@@ -107,6 +177,11 @@ export interface LeaveValidationInput {
    * startISO/endISO/mode/cal are inherited from the request; only supply dept-specific fields.
    */
   coverage?: Pick<CoverageInput, "minStaffing" | "maxLeavePerDay" | "headcount" | "absentByDay">;
+  /**
+   * Story 29.2: optional clash check inputs (ADR-0014). Advisory warning at preview — never sets ok:false.
+   * startISO/endISO/mode/cal are inherited from the request; only supply counterparts.
+   */
+  clash?: Pick<ClashInput, "counterparts">;
 }
 
 /**
@@ -209,6 +284,12 @@ export function validateLeaveRequest(input: LeaveValidationInput): LeaveValidati
   if (input.coverage) {
     const cv = assessCoverage({ ...input.coverage, startISO: input.startISO, endISO: input.endISO, mode: input.mode, cal: input.cal });
     warnings.push(...cv.warnings);
+  }
+
+  // Clash check (ADR-0014, story 29.2) — advisory warning at preview; never sets ok:false here.
+  if (input.clash) {
+    const cl = assessClash({ ...input.clash, startISO: input.startISO, endISO: input.endISO, mode: input.mode, cal: input.cal });
+    if (cl.message) warnings.push(cl.message);
   }
 
   return { ok: errors.length === 0, errors, warnings, workingDays, freeDays, allowanceDays };

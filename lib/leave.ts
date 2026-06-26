@@ -18,6 +18,7 @@ import { getRestrictedRangesFor } from "./calendars";
 import { buildCoverageInput } from "./coverage";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
+import { buildClashCounterparts } from "./restrictions";
 import { AuthError } from "./rbac";
 
 // ─── Input contract (shared with the client form + server actions) ───────────────
@@ -216,12 +217,12 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
   }
   const available = balance?.available ?? 0;
 
-  // Coverage check (ADR-0014, story 28.1) — advisory; never blocks. Build in parallel
-  // with the other async fetches above (calendar + balance already resolved).
-  const [allRanges, restricted, coverageInput] = await Promise.all([
+  // Coverage + clash (ADR-0014, stories 28.1 + 29.2) — advisory; never blocks. Parallel fetches.
+  const [allRanges, restricted, coverageInput, clashCounterparts] = await Promise.all([
     existingRanges(employeeId),
     getRestrictedRangesFor(employeeId, input.startDate, endISO),
     buildCoverageInput(employeeId, input.startDate, endISO, input.mode, calendar, { leaveTypeAffectsStaffing: type.affectsStaffingLevels }),
+    buildClashCounterparts(employeeId, input.startDate, endISO),
   ]);
 
   const result = validateLeaveRequest({
@@ -247,6 +248,8 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     coverage: coverageInput
       ? { minStaffing: coverageInput.minStaffing, maxLeavePerDay: coverageInput.maxLeavePerDay, headcount: coverageInput.headcount, absentByDay: coverageInput.absentByDay }
       : undefined,
+    // Story 29.2: clash warning at preview — advisory, never blocks submit.
+    clash: clashCounterparts.length > 0 ? { counterparts: clashCounterparts } : undefined,
   });
 
   const availableBefore = type.deductsAllowance ? available : null;

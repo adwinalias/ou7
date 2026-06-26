@@ -1,6 +1,8 @@
 // Staff-restriction model (story 29.1 / ADR-0014).
 // A StaffRestriction records two employees who should not be off at the same time.
-// Enforcement (29.2) is a separate story — this module is model + CRUD only.
+// Enforcement (29.2) — buildClashCounterparts — is added here.
+import type { ClashCounterpart } from "@/core/leave";
+import type { ISODate } from "@/core/types";
 import { recordAudit } from "./audit";
 import { db } from "./db";
 
@@ -76,6 +78,76 @@ export async function createStaffRestriction(
   });
 
   return row.id;
+}
+
+/**
+ * Story 29.2 — build the ClashCounterpart[] for a leave request.
+ *
+ * Finds all StaffRestriction rows involving the requester, applies the bidirectional rule
+ * (a non-bidirectional restriction only constrains employeeA → not employeeB), then fetches
+ * the counterparts' PENDING/APPROVED leave overlapping [startISO,endISO] in ONE query (no N+1).
+ *
+ * Returns name + date range only — never the leave type (visibility rule: ADR-0014).
+ */
+export async function buildClashCounterparts(
+  requesterEmployeeId: string,
+  startISO: ISODate,
+  endISO: ISODate,
+): Promise<ClashCounterpart[]> {
+  // One query: all restrictions involving the requester.
+  const restrictions = await db.staffRestriction.findMany({
+    where: {
+      OR: [{ employeeAId: requesterEmployeeId }, { employeeBId: requesterEmployeeId }],
+    },
+    select: {
+      employeeAId: true,
+      employeeBId: true,
+      bidirectional: true,
+      employeeA: { select: { id: true, firstName: true, lastName: true } },
+      employeeB: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+
+  // Determine which counterpart IDs actually constrain the requester.
+  // Non-bidirectional = only constrains employeeA (requester must be A to be constrained).
+  const counterpartIds: string[] = [];
+  for (const r of restrictions) {
+    if (r.employeeAId === requesterEmployeeId) {
+      // Requester is A → always constrained (bidirectional or not).
+      counterpartIds.push(r.employeeBId);
+    } else {
+      // Requester is B → constrained only when bidirectional.
+      if (r.bidirectional) counterpartIds.push(r.employeeAId);
+    }
+  }
+
+  if (counterpartIds.length === 0) return [];
+
+  // Build a name map from the restriction rows we already have (no extra query).
+  const nameMap = new Map<string, string>();
+  for (const r of restrictions) {
+    nameMap.set(r.employeeA.id, displayName(r.employeeA));
+    nameMap.set(r.employeeB.id, displayName(r.employeeB));
+  }
+
+  // ONE query: overlapping PENDING/APPROVED leave for all counterparts.
+  const overlapping = await db.leaveRequest.findMany({
+    where: {
+      employeeId: { in: counterpartIds },
+      status: { in: ["PENDING", "APPROVED"] },
+      startDate: { lte: new Date(`${endISO}T00:00:00.000Z`) },
+      endDate: { gte: new Date(`${startISO}T00:00:00.000Z`) },
+    },
+    select: { employeeId: true, startDate: true, endDate: true },
+  });
+
+  // Map each overlapping row → ClashCounterpart (name only, no leave type).
+  // Multiple overlapping rows for one counterpart = multiple entries; assessClash dedupes names.
+  return overlapping.map((r) => ({
+    name: nameMap.get(r.employeeId) ?? r.employeeId,
+    startISO: r.startDate.toISOString().slice(0, 10) as ISODate,
+    endISO: r.endDate.toISOString().slice(0, 10) as ISODate,
+  }));
 }
 
 export async function deleteStaffRestriction(actorId: string, id: string): Promise<void> {
