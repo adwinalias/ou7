@@ -86,6 +86,7 @@ const TYPE_SELECT = {
   noticePeriodDays: true,
   minLengthDays: true,
   maxConsecutiveDays: true,
+  allowConsecutive: true,
 } as const;
 
 // ponytail: mirrors dubaiToday() in lib/cancellation.ts — one-liner, no shared dep needed
@@ -123,15 +124,17 @@ async function loadBalance(employeeId: string): Promise<RequestContext["balance"
   return b ? { periodId: b.periodId, opening: b.opening, remaining: b.remaining, pending: b.pending, available: b.available } : null;
 }
 
-/** The employee's existing PENDING/APPROVED ranges, for overlap detection. */
-async function existingRanges(employeeId: string): Promise<DateRange[]> {
+/** The employee's existing PENDING/APPROVED ranges, for overlap detection.
+ *  Returns raw rows so callers can also build a same-type subset (story 26.5). */
+async function existingRanges(employeeId: string): Promise<Array<DateRange & { leaveTypeId: string }>> {
   const rows = await db.leaveRequest.findMany({
     where: { employeeId, status: { in: ["PENDING", "APPROVED"] } },
-    select: { startDate: true, endDate: true },
+    select: { startDate: true, endDate: true, leaveTypeId: true },
   });
   return rows.map((r) => ({
     startISO: r.startDate.toISOString().slice(0, 10),
     endISO: r.endDate.toISOString().slice(0, 10),
+    leaveTypeId: r.leaveTypeId,
   }));
 }
 
@@ -196,6 +199,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
   }
   const available = balance?.available ?? 0;
 
+  const allRanges = await existingRanges(employeeId);
   const result = validateLeaveRequest({
     startISO: input.startDate,
     endISO,
@@ -203,7 +207,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     cal: calendar,
     deductsAllowance: type.deductsAllowance,
     available,
-    existing: await existingRanges(employeeId),
+    existing: allRanges,
     restricted: await getRestrictedRangesFor(employeeId, input.startDate, endISO),
     noteRequired: type.noteRequired,
     note: input.notes,
@@ -214,6 +218,8 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     noticePeriodDays: type.noticePeriodDays,
     minLengthDays: type.minLengthDays ?? undefined,
     maxConsecutiveDays: type.maxConsecutiveDays ?? undefined,
+    allowConsecutive: type.allowConsecutive,
+    sameTypeRanges: allRanges.filter((r) => r.leaveTypeId === type.id),
   });
 
   const availableBefore = type.deductsAllowance ? available : null;

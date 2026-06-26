@@ -1,8 +1,8 @@
 // Leave request validation — composes the calendar + allowance engine + policy rules.
 // Pure: returns errors; performs no I/O. The API layer fetches data and calls this.
 import { canBook } from "../allowance";
-import { countDays } from "../calendar";
-import { addDays, parseISO, rangesOverlap, toISO } from "../dates";
+import { countDays, isWorkingDay } from "../calendar";
+import { addDays, eachDate, parseISO, rangesOverlap, toISO } from "../dates";
 import type { DateRange, DurationMode, ISODate, RegionCalendar, RestrictedRange } from "../types";
 
 export interface LeaveValidationInput {
@@ -27,6 +27,30 @@ export interface LeaveValidationInput {
   minLengthDays?: number;
   /** Maximum consecutive working days per request. */
   maxConsecutiveDays?: number;
+  /** Story 26.5: when false, consecutive same-type bookings with no working day between are blocked. */
+  allowConsecutive?: boolean;
+  /** Story 26.5: existing PENDING/APPROVED ranges of the same leave type for this employee. */
+  sameTypeRanges?: DateRange[];
+}
+
+/**
+ * Returns true when two non-overlapping ranges have zero working days strictly between them.
+ * "Strictly between" = days after the earlier end and before the later start.
+ * ponytail: inline gap iteration; no extra abstraction needed for one call site.
+ */
+function isAdjacentRange(aStart: ISODate, aEnd: ISODate, bStart: ISODate, bEnd: ISODate, cal: RegionCalendar): boolean {
+  // Determine which range comes first.
+  const [earlyEnd, lateStart] = aEnd < bStart ? [aEnd, bStart] : [bEnd, aStart];
+  // Gap = day after earlyEnd … day before lateStart.
+  const gapStart = toISO(addDays(parseISO(earlyEnd), 1));
+  const gapEnd   = toISO(addDays(parseISO(lateStart), -1));
+  // Ranges abut directly (no calendar days between them).
+  if (gapStart > gapEnd) return true;
+  // Gap exists; adjacent only if every gap day is a non-working day.
+  for (const d of eachDate(gapStart, gapEnd)) {
+    if (isWorkingDay(d, cal)) return false;
+  }
+  return true;
 }
 
 export interface LeaveValidationResult {
@@ -56,6 +80,16 @@ export function validateLeaveRequest(input: LeaveValidationInput): LeaveValidati
 
   if (input.existing.some((r) => rangesOverlap(input.startISO, input.endISO, r.startISO, r.endISO))) {
     errors.push("Leave already requested for these/this date(s).");
+  }
+
+  // Story 26.5: block consecutive same-type bookings when allowConsecutive is false.
+  if (
+    input.allowConsecutive === false &&
+    input.sameTypeRanges?.some((r) =>
+      isAdjacentRange(input.startISO, input.endISO, r.startISO, r.endISO, input.cal),
+    )
+  ) {
+    errors.push("This leave type can't be booked back-to-back with adjacent leave of the same type.");
   }
 
   // Restricted / blackout days (Epic 10.2): block when the requested range hits one.

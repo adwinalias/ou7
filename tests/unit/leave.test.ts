@@ -365,3 +365,144 @@ describe("min length & max consecutive days (story 26.4)", () => {
     expect(r.errors.join()).toContain("allows at most 5 consecutive working day(s)");
   });
 });
+
+// ── Allow-consecutive toggle (story 26.5) ─────────────────────────────────
+// Calendar: Sat(6)+Sun(0) weekend, no holidays unless stated.
+// New request: Tue 2026-08-18. Existing type ranges are varied per test.
+// All ranges are non-overlapping so the overlap error never fires.
+describe("allow-consecutive toggle (story 26.5)", () => {
+  const cb = { ...base, available: 20, allowConsecutive: false as const };
+  const ADJACENT_MSG = "can't be booked back-to-back";
+
+  // ── direct abutment ──────────────────────────────────────────────────────
+  // New: Wed 2026-08-19. Existing ends Tue 2026-08-18 → ranges directly abut.
+  it("directly abutting same-type range → blocked", () => {
+    const r = validateLeaveRequest({
+      ...cb,
+      startISO: "2026-08-19",
+      endISO: "2026-08-19",
+      sameTypeRanges: [{ startISO: "2026-08-17", endISO: "2026-08-18" }],
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain(ADJACENT_MSG);
+  });
+
+  // New starts on Mon 2026-08-17. Existing starts on Tue 2026-08-18 → abuts from before.
+  it("new range directly abuts existing from the left → blocked", () => {
+    const r = validateLeaveRequest({
+      ...cb,
+      startISO: "2026-08-17",
+      endISO: "2026-08-17",
+      sameTypeRanges: [{ startISO: "2026-08-18", endISO: "2026-08-20" }],
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain(ADJACENT_MSG);
+  });
+
+  // ── weekend-only gap ─────────────────────────────────────────────────────
+  // Existing ends Thu 2026-08-13; new starts Mon 2026-08-17.
+  // Gap = Fri 14 (working!) … wait, UAE weekendDays:[6,0] = Sat+Sun, so Fri IS working.
+  // Use existing ends Wed 2026-08-12, new starts Mon 2026-08-17.
+  // Gap = Thu 13 (working). Need a gap of only Sat+Sun.
+  // Existing ends Fri 2026-08-14; new starts Mon 2026-08-17. Gap = Sat 15 + Sun 16 → blocked.
+  it("weekend-only gap between ranges → blocked (no working day in gap)", () => {
+    const r = validateLeaveRequest({
+      ...cb,
+      startISO: "2026-08-17", // Monday
+      endISO: "2026-08-17",
+      sameTypeRanges: [{ startISO: "2026-08-11", endISO: "2026-08-14" }], // ends Friday
+    });
+    // Gap = Sat 2026-08-15 + Sun 2026-08-16 → no working days → adjacent.
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain(ADJACENT_MSG);
+  });
+
+  // ── holiday-only gap ─────────────────────────────────────────────────────
+  // Existing ends Mon 2026-08-17; new starts Wed 2026-08-19.
+  // Gap = Tue 2026-08-18 → mark it a holiday → no working days → blocked.
+  it("holiday-only gap between ranges → blocked (no working day in gap)", () => {
+    const calWithHoliday: RegionCalendar = { weekendDays: [6, 0], holidays: new Set(["2026-08-18"]) };
+    const r = validateLeaveRequest({
+      ...cb,
+      cal: calWithHoliday,
+      startISO: "2026-08-19", // Wed
+      endISO: "2026-08-19",
+      sameTypeRanges: [{ startISO: "2026-08-14", endISO: "2026-08-17" }], // ends Mon
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain(ADJACENT_MSG);
+  });
+
+  // ── working-day gap → allowed ────────────────────────────────────────────
+  // Existing ends Mon 2026-08-17; new starts Wed 2026-08-19.
+  // Gap = Tue 2026-08-18 (working day) → allowed.
+  it("gap contains ≥1 working day → allowed", () => {
+    const r = validateLeaveRequest({
+      ...cb,
+      startISO: "2026-08-19",
+      endISO: "2026-08-19",
+      sameTypeRanges: [{ startISO: "2026-08-14", endISO: "2026-08-17" }],
+    });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes(ADJACENT_MSG))).toBe(false);
+  });
+
+  // ── adjacency on BOTH sides ──────────────────────────────────────────────
+  // New: Tue 2026-08-18 (single day). Existing A ends Mon 2026-08-17 (abuts left),
+  // existing B starts Wed 2026-08-19 (abuts right). Error should appear exactly once.
+  it("adjacent ranges on both sides → blocked (error reported once)", () => {
+    const r = validateLeaveRequest({
+      ...cb,
+      startISO: "2026-08-18",
+      endISO: "2026-08-18",
+      sameTypeRanges: [
+        { startISO: "2026-08-14", endISO: "2026-08-17" }, // abuts left
+        { startISO: "2026-08-19", endISO: "2026-08-21" }, // abuts right
+      ],
+    });
+    expect(r.ok).toBe(false);
+    // Error appears exactly once (Array.some stops at first match).
+    const adjacentErrors = r.errors.filter((e) => e.includes(ADJACENT_MSG));
+    expect(adjacentErrors).toHaveLength(1);
+  });
+
+  // ── allowConsecutive: true → no restriction ──────────────────────────────
+  it("allowConsecutive:true with abutting range → allowed", () => {
+    const r = validateLeaveRequest({
+      ...cb,
+      allowConsecutive: true,
+      startISO: "2026-08-19",
+      endISO: "2026-08-19",
+      sameTypeRanges: [{ startISO: "2026-08-17", endISO: "2026-08-18" }],
+    });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes(ADJACENT_MSG))).toBe(false);
+  });
+
+  // ── allowConsecutive omitted → no restriction ────────────────────────────
+  it("allowConsecutive omitted (default) with abutting range → allowed (back-compat)", () => {
+    const { allowConsecutive: _ac, ...noCb } = cb;
+    const r = validateLeaveRequest({
+      ...noCb,
+      startISO: "2026-08-19",
+      endISO: "2026-08-19",
+      sameTypeRanges: [{ startISO: "2026-08-17", endISO: "2026-08-18" }],
+    });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes(ADJACENT_MSG))).toBe(false);
+  });
+
+  // ── empty sameTypeRanges → allowed ──────────────────────────────────────
+  it("allowConsecutive:false but sameTypeRanges empty → allowed", () => {
+    const r = validateLeaveRequest({ ...cb, sameTypeRanges: [] });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes(ADJACENT_MSG))).toBe(false);
+  });
+
+  // ── absent sameTypeRanges → allowed ─────────────────────────────────────
+  it("allowConsecutive:false but sameTypeRanges absent → allowed", () => {
+    const r = validateLeaveRequest({ ...cb });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes(ADJACENT_MSG))).toBe(false);
+  });
+});
