@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const actor = await requireUser();
 
   return (
-    <div className="app-shell" style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "220px 1fr" }}>
+    <div className="app-shell" style={{ minHeight: "100vh", display: "grid" }}>
       {/* Skip-to-content link (Epic 20.4): visually hidden until focused, then it reveals as
           the first focusable element so keyboard users can jump past the nav to the page.
           Styled via tokens (.skip-link in globals.css); shows the global green focus ring. */}
