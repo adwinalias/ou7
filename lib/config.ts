@@ -92,11 +92,13 @@ export interface LeaveTypeInput {
   paid: boolean;
   noteRequired: boolean;
   requiresApproval?: boolean; // default true
+  noticePeriodDays?: number; // default 0; negative = allow backdating
 }
 
 /** Partial of the per-type policy fields HR may edit (extensible for later stories). */
 export interface LeaveTypePolicyPatch {
   requiresApproval?: boolean;
+  noticePeriodDays?: number;
 }
 
 export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
@@ -109,6 +111,7 @@ export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
       paid: input.paid,
       noteRequired: input.noteRequired,
       requiresApproval: input.requiresApproval ?? true,
+      noticePeriodDays: input.noticePeriodDays ?? 0,
     },
   });
   await recordAudit(db, { actorId, action: "LEAVE_TYPE_CREATE", entity: "LeaveType", entityId: lt.id, after: { name: lt.name, code: lt.code, requiresApproval: lt.requiresApproval } });
@@ -131,12 +134,12 @@ export async function updateLeaveTypePolicy(actorId: string, id: string, patch: 
     action: "LEAVE_TYPE_UPDATE",
     entity: "LeaveType",
     entityId: id,
-    before: { requiresApproval: before.requiresApproval },
+    before: { requiresApproval: before.requiresApproval, noticePeriodDays: before.noticePeriodDays },
     after: patch,
   });
   return updated.id;
 }
 
 export async function listLeaveTypes() {
-  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true } });
+  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true } });
 }

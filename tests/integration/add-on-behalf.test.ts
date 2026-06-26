@@ -47,7 +47,9 @@ suite("Add leave on behalf (integration)", () => {
   });
 
   it("HR adds a PENDING request for the target, created-by the actor, audited", async () => {
-    const res = await addLeaveOnBehalf(actor({ employeeId: hrId, role: "HR", approverLevel: "APPROVER_ADD_EDIT" }), targetId, { leaveTypeId: typeId, mode: "DAY", startDate: "2026-03-02" });
+    // Future weekday — Epic 26.2 defaults leave types to noticePeriodDays=0 (today onward),
+    // so a past-dated booking would be rejected by the notice rule.
+    const res = await addLeaveOnBehalf(actor({ employeeId: hrId, role: "HR", approverLevel: "APPROVER_ADD_EDIT" }), targetId, { leaveTypeId: typeId, mode: "DAY", startDate: "2026-12-07" });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     const row = await db.leaveRequest.findUniqueOrThrow({ where: { id: res.id } });
@@ -59,12 +61,15 @@ suite("Add leave on behalf (integration)", () => {
 
   it("rejects actors without the +Add permission (403)", async () => {
     for (const bad of [actor({ employeeId: hrId, role: "STAFF" }), actor({ employeeId: hrId, role: "APPROVER", approverLevel: "APPROVER" })]) {
-      await expect(addLeaveOnBehalf(bad, targetId, { leaveTypeId: typeId, mode: "DAY", startDate: "2026-03-09" })).rejects.toBeInstanceOf(AuthError);
+      await expect(addLeaveOnBehalf(bad, targetId, { leaveTypeId: typeId, mode: "DAY", startDate: "2026-12-08" })).rejects.toBeInstanceOf(AuthError);
     }
   });
 
   it("still enforces validation (over-booking blocked)", async () => {
-    const res = await addLeaveOnBehalf(actor({ employeeId: hrId, role: "HR", approverLevel: "APPROVER_ADD_EDIT" }), targetId, { leaveTypeId: typeId, mode: "MULTI", startDate: "2026-04-06", endDate: "2026-04-17" });
+    // Future range (≥ today, distinct from the request created above) so this exercises the
+    // over-booking guard cleanly — 10 working days against an opening of 5 — without the
+    // notice rule (Epic 26.2) firing on a past date.
+    const res = await addLeaveOnBehalf(actor({ employeeId: hrId, role: "HR", approverLevel: "APPROVER_ADD_EDIT" }), targetId, { leaveTypeId: typeId, mode: "MULTI", startDate: "2026-12-14", endDate: "2026-12-25" });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.errors.join(" ")).toMatch(/available balance/i);
   });

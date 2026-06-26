@@ -23,9 +23,13 @@ let employeeId = "";
 let vacationId = "";
 let sickId = "";
 
-const MON = "2026-03-02"; // weekday in UAE (weekend = Sat/Sun)
-const MON2 = "2026-03-09";
-const FRI = "2026-03-13";
+// Future weekdays in UAE (weekend = Sat/Sun). Shifted +280 days (40 weeks) from the
+// original March dates so weekday alignment + working-day spans are identical, but the
+// dates are now after "today" — required since Epic 26.2 defaults leave types to
+// noticePeriodDays=0 (today onward), which rejects past-dated bookings.
+const MON = "2026-12-07"; // Monday
+const MON2 = "2026-12-14"; // Monday
+const FRI = "2026-12-18"; // Friday
 
 function input(over: Partial<LeaveInput> & Pick<LeaveInput, "leaveTypeId">): LeaveInput {
   return { mode: "DAY", startDate: MON, ...over };
