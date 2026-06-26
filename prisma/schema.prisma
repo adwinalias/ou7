@@ -137,9 +137,10 @@ model EntitlementPolicy {
 }
 
 model Department {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  minStaffing Int? // minimum present headcount
+  id             String  @id @default(cuid())
+  name           String  @unique
+  minStaffing    Int? // minimum present headcount (ADR-0014)
+  maxLeavePerDay Int? // maximum people off on any single working day (ADR-0014, story 28.2)
 
   employees      Employee[]
   restrictedDays RestrictedDay[]

@@ -1,7 +1,7 @@
 import "server-only";
-// Coverage check data assembly (ADR-0014, story 28.1).
-// Loads dept minStaffing + headcount + absentByDay in two queries (no N+1) then returns
-// the CoverageInput that core/leave.assessCoverage / core/approvals.decideLeave expect.
+// Coverage check data assembly (ADR-0014, stories 28.1 + 28.2).
+// Loads dept minStaffing + maxLeavePerDay + headcount + absentByDay in two queries (no N+1)
+// then returns the CoverageInput that core/leave.assessCoverage / core/approvals.decideLeave expect.
 import { isWorkingDay } from "@/core/calendar";
 import type { CoverageInput } from "@/core/leave";
 import { eachDate, rangesOverlap, toISO } from "@/core/dates";
@@ -10,10 +10,10 @@ import { db } from "./db";
 
 /**
  * Build the CoverageInput for a leave request, or return null when the employee
- * has no department or the department has no minStaffing threshold set.
+ * has no department or BOTH minStaffing and maxLeavePerDay are null (no check needed).
  *
  * Two queries total:
- *  1. Employee → department.minStaffing + ACTIVE headcount (via _count).
+ *  1. Employee → department.minStaffing + department.maxLeavePerDay + ACTIVE headcount (via _count).
  *  2. OTHER dept members' PENDING/APPROVED leave overlapping the range.
  *
  * @param excludeRequestId  Skip this requestId when counting overlapping leave (used at
@@ -34,17 +34,24 @@ export async function buildCoverageInput(
       department: {
         select: {
           minStaffing: true,
+          maxLeavePerDay: true,
           _count: { select: { employees: { where: { status: "ACTIVE" } } } },
         },
       },
     },
   });
 
-  if (!emp?.departmentId || !emp.department || emp.department.minStaffing == null) {
+  // Skip when: no department, OR both thresholds are null (nothing to check).
+  if (
+    !emp?.departmentId ||
+    !emp.department ||
+    (emp.department.minStaffing == null && emp.department.maxLeavePerDay == null)
+  ) {
     return null;
   }
 
   const minStaffing = emp.department.minStaffing;
+  const maxLeavePerDay = emp.department.maxLeavePerDay;
   const headcount = emp.department._count.employees;
 
   // One query: OTHER active dept members' overlapping PENDING/APPROVED leave.
@@ -83,5 +90,5 @@ export async function buildCoverageInput(
     absentByDay[day] = set.size;
   }
 
-  return { minStaffing, headcount, startISO, endISO, mode, cal, absentByDay };
+  return { minStaffing, maxLeavePerDay, headcount, startISO, endISO, mode, cal, absentByDay };
 }

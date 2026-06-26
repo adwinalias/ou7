@@ -359,6 +359,44 @@ export default function RequestForm({
                 </div>
               )}
 
+              {/* Story 28.2: remaining day-off slots. Show tightest day or per-day note. */}
+              {preview.coverageSlots && preview.coverageSlots.perDayRemaining.length > 0 && (() => {
+                const { maxLeavePerDay, perDayRemaining } = preview.coverageSlots!;
+                const tightest = perDayRemaining.reduce<number>(
+                  (min, d) => d.remaining < min ? d.remaining : min,
+                  perDayRemaining[0]?.remaining ?? 0,
+                );
+                const first = perDayRemaining[0];
+                return (
+                  <div
+                    role="note"
+                    aria-label="Day-off slot availability"
+                    style={{
+                      marginTop: "var(--space-3)",
+                      padding: "var(--space-2) var(--space-3)",
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
+                      borderLeft: "3px solid var(--border-strong)",
+                      color: "var(--text-muted)",
+                      fontSize: "var(--text-sm)",
+                    }}
+                  >
+                    {perDayRemaining.length === 1 && first ? (
+                      <span>
+                        <strong className="t-num">{Math.max(0, first.remaining)}</strong> of{" "}
+                        <strong className="t-num">{maxLeavePerDay}</strong> day-off slot{maxLeavePerDay !== 1 ? "s" : ""}{" "}
+                        remaining on {first.date}.
+                      </span>
+                    ) : (
+                      <span>
+                        Tightest day: <strong className="t-num">{Math.max(0, tightest)}</strong> of{" "}
+                        <strong className="t-num">{maxLeavePerDay}</strong> day-off slot{maxLeavePerDay !== 1 ? "s" : ""} remaining.
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* R6: grouped, spaced rows — each row is a label/value pair separated by a hairline. */}
               <dl style={{ display: "grid", gap: "var(--space-3)", margin: "var(--space-4) 0 0" }}>
                 <ImpactRow label="Working days" value={preview.workingDays} testid="working-days" />

@@ -7,6 +7,8 @@ import { z } from "zod";
 import { computeAvailable } from "@/core/allowance";
 import { decideLeave, OVER_COMMIT_MESSAGE } from "@/core/approvals";
 import { canAddLeaveForOthers } from "@/core/authz";
+import { isWorkingDay } from "@/core/calendar";
+import { eachDate, toISO } from "@/core/dates";
 import { validateLeaveRequest } from "@/core/leave";
 import type { Actor, DateRange, ISODate, RegionCalendar } from "@/core/types";
 import { getOpenPeriodBalance, periodBalanceExcluding } from "./allowance";
@@ -74,6 +76,14 @@ export interface PreviewResult {
   deductsAllowance: boolean;
   availableBefore: number | null;
   availableAfter: number | null;
+  /**
+   * Story 28.2: per-day remaining max-leave slots for the requested range.
+   * Only present when the department has maxLeavePerDay set. Each entry is the
+   * number of slots still available on that working day (maxLeavePerDay − others already off).
+   * Slot counts exclude the requester (who hasn't been booked yet), so < 0 means over-limit (0 = exactly at the cap).
+   * The UI surfaces the tightest day or a compact per-day note.
+   */
+  coverageSlots?: { maxLeavePerDay: number; perDayRemaining: Array<{ date: string; remaining: number }> };
 }
 
 export type SubmitResult = { ok: true; id: string } | { ok: false; errors: string[] };
@@ -234,12 +244,27 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     allowConsecutive: type.allowConsecutive,
     sameTypeRanges: allRanges.filter((r) => r.leaveTypeId === type.id),
     coverage: coverageInput
-      ? { minStaffing: coverageInput.minStaffing, headcount: coverageInput.headcount, absentByDay: coverageInput.absentByDay }
+      ? { minStaffing: coverageInput.minStaffing, maxLeavePerDay: coverageInput.maxLeavePerDay, headcount: coverageInput.headcount, absentByDay: coverageInput.absentByDay }
       : undefined,
   });
 
   const availableBefore = type.deductsAllowance ? available : null;
   const availableAfter = availableBefore === null ? null : computeAvailable(availableBefore, result.allowanceDays);
+
+  // Story 28.2: compute per-day remaining max-leave slots for the UI, if the dept has the limit set.
+  let coverageSlots: PreviewResult["coverageSlots"];
+  if (coverageInput?.maxLeavePerDay != null) {
+    const rangeEnd = input.mode === "DAY" ? input.startDate : endISO;
+    const perDayRemaining: Array<{ date: string; remaining: number }> = [];
+    for (const d of eachDate(input.startDate, rangeEnd)) {
+      if (!isWorkingDay(d, calendar)) continue;
+      const iso = toISO(d);
+      const othersOff = coverageInput.absentByDay[iso] ?? 0;
+      // remaining = how many more people can still book this day (not counting this requester)
+      perDayRemaining.push({ date: iso, remaining: coverageInput.maxLeavePerDay - othersOff - 1 });
+    }
+    coverageSlots = { maxLeavePerDay: coverageInput.maxLeavePerDay, perDayRemaining };
+  }
 
   return {
     ok: result.ok,
@@ -251,6 +276,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     deductsAllowance: type.deductsAllowance,
     availableBefore,
     availableAfter,
+    ...(coverageSlots ? { coverageSlots } : {}),
   };
 }
 

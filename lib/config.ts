@@ -77,6 +77,48 @@ export async function createDepartment(actorId: string, name: string) {
   return dept.id;
 }
 
+/** List all departments for the Admin config UI, including coverage thresholds. */
+export async function listDepartments() {
+  return db.department.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, minStaffing: true, maxLeavePerDay: true },
+  });
+}
+
+/**
+ * Set coverage thresholds for a department (story 28.1/28.2, ADR-0014).
+ * ≤0 / NaN → null (no limit). HR-only; audited.
+ */
+export async function setDepartmentCoverage(
+  actorId: string,
+  deptId: string,
+  patch: { minStaffing?: number | null; maxLeavePerDay?: number | null },
+) {
+  const before = await db.department.findUniqueOrThrow({ where: { id: deptId }, select: { minStaffing: true, maxLeavePerDay: true } });
+
+  // Clamp: null/undefined leaves field untouched; ≤0/NaN → null; ≥1 → floor.
+  function toThreshold(v: number | null | undefined, existing: number | null): number | null {
+    if (v === undefined) return existing;
+    if (v == null || isNaN(v) || v <= 0) return null;
+    return Math.floor(v);
+  }
+
+  const data = {
+    minStaffing: toThreshold(patch.minStaffing, before.minStaffing),
+    maxLeavePerDay: toThreshold(patch.maxLeavePerDay, before.maxLeavePerDay),
+  };
+
+  await db.department.update({ where: { id: deptId }, data });
+  await recordAudit(db, {
+    actorId,
+    action: "DEPARTMENT_COVERAGE_UPDATE",
+    entity: "Department",
+    entityId: deptId,
+    before: { minStaffing: before.minStaffing, maxLeavePerDay: before.maxLeavePerDay },
+    after: data,
+  });
+}
+
 // ─── Tags ──────────────────────────────────────────────────────────────────────
 export async function createTag(actorId: string, name: string) {
   const tag = await db.tag.create({ data: { name: name.trim() } });

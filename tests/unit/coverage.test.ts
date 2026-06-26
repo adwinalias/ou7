@@ -10,6 +10,7 @@ const uae: RegionCalendar = { weekendDays: [6, 0], holidays: new Set() };
 function cov(over: Partial<CoverageInput> = {}): CoverageInput {
   return {
     minStaffing: 3,
+    maxLeavePerDay: null,
     headcount: 5,
     startISO: "2026-08-18", // Tuesday
     endISO: "2026-08-18",
@@ -20,37 +21,38 @@ function cov(over: Partial<CoverageInput> = {}): CoverageInput {
   };
 }
 
-// ── assessCoverage ────────────────────────────────────────────────────────────
+// ── assessCoverage — minStaffing only (story 28.1) ───────────────────────────
 
-describe("assessCoverage — minStaffing null", () => {
-  it("returns empty result, no warning", () => {
-    const r = assessCoverage(cov({ minStaffing: null }));
+describe("assessCoverage — both null (skip-all)", () => {
+  it("returns empty result, no warnings", () => {
+    const r = assessCoverage(cov({ minStaffing: null, maxLeavePerDay: null }));
     expect(r.breachedDays).toEqual([]);
-    expect(r.warning).toBeNull();
+    expect(r.warnings).toEqual([]);
   });
 });
 
-describe("assessCoverage — single working day", () => {
+describe("assessCoverage — minStaffing only", () => {
   // headcount=5, minStaffing=3, requester absent → present = 5 - 0 - 1 = 4 ≥ 3 → no breach
   it("present == minStaffing+1 → no breach", () => {
     const r = assessCoverage(cov({ headcount: 5, minStaffing: 3, absentByDay: {} }));
     expect(r.breachedDays).toEqual([]);
-    expect(r.warning).toBeNull();
+    expect(r.warnings).toEqual([]);
   });
 
   // headcount=4, minStaffing=3 → present = 4 - 0 - 1 = 3 == minStaffing → no breach
   it("present == minStaffing (boundary) → no breach", () => {
     const r = assessCoverage(cov({ headcount: 4, minStaffing: 3, absentByDay: {} }));
     expect(r.breachedDays).toEqual([]);
-    expect(r.warning).toBeNull();
+    expect(r.warnings).toEqual([]);
   });
 
   // headcount=3, minStaffing=3 → present = 3 - 0 - 1 = 2 < 3 → breach
   it("present == minStaffing-1 → breach on that day", () => {
     const r = assessCoverage(cov({ headcount: 3, minStaffing: 3, absentByDay: {} }));
     expect(r.breachedDays).toEqual(["2026-08-18"]);
-    expect(r.warning).toContain("minimum staffing (3)");
-    expect(r.warning).toContain("1 day(s)");
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("minimum staffing (3)");
+    expect(r.warnings[0]).toContain("1 day(s)");
   });
 });
 
@@ -59,14 +61,14 @@ describe("assessCoverage — absentByDay reduces present", () => {
   it("other absent reduces present; still at boundary → no breach", () => {
     const r = assessCoverage(cov({ headcount: 5, minStaffing: 3, absentByDay: { "2026-08-18": 1 } }));
     expect(r.breachedDays).toEqual([]);
-    expect(r.warning).toBeNull();
+    expect(r.warnings).toEqual([]);
   });
 
   // headcount=5, 2 others absent, minStaffing=3 → present = 5-2-1=2 < 3 → breach
   it("two others absent drops below minimum → breach", () => {
     const r = assessCoverage(cov({ headcount: 5, minStaffing: 3, absentByDay: { "2026-08-18": 2 } }));
     expect(r.breachedDays).toEqual(["2026-08-18"]);
-    expect(r.warning).not.toBeNull();
+    expect(r.warnings).toHaveLength(1);
   });
 
   // days with no entry default to 0 absent
@@ -74,7 +76,7 @@ describe("assessCoverage — absentByDay reduces present", () => {
     // headcount=4, minStaffing=3 → present = 4-0-1 = 3 → no breach
     const r = assessCoverage(cov({ headcount: 4, minStaffing: 3, absentByDay: { "2026-08-19": 5 } }));
     expect(r.breachedDays).toEqual([]);
-    expect(r.warning).toBeNull();
+    expect(r.warnings).toEqual([]);
   });
 });
 
@@ -93,7 +95,7 @@ describe("assessCoverage — multi-day spanning weekend/holiday", () => {
       }),
     );
     expect(r.breachedDays).toEqual(["2026-08-17", "2026-08-18", "2026-08-19"]);
-    expect(r.warning).toContain("3 day(s)");
+    expect(r.warnings[0]).toContain("3 day(s)");
   });
 
   // Fri 2026-08-14 → Mon 2026-08-17 (MULTI): Sat(15)+Sun(16) are weekend → only Fri+Mon assessed
@@ -112,7 +114,7 @@ describe("assessCoverage — multi-day spanning weekend/holiday", () => {
     expect(r.breachedDays).toEqual(["2026-08-14", "2026-08-17"]);
     expect(r.breachedDays).not.toContain("2026-08-15"); // Saturday
     expect(r.breachedDays).not.toContain("2026-08-16"); // Sunday
-    expect(r.warning).toContain("2 day(s)");
+    expect(r.warnings[0]).toContain("2 day(s)");
   });
 
   // Range includes a public holiday: headcount=3, minStaffing=3, Tue 2026-08-18 is holiday
@@ -147,7 +149,7 @@ describe("assessCoverage — multi-day spanning weekend/holiday", () => {
       }),
     );
     expect(r.breachedDays).toEqual([]);
-    expect(r.warning).toBeNull();
+    expect(r.warnings).toEqual([]);
   });
 });
 
@@ -166,7 +168,7 @@ describe("assessCoverage — half-day request", () => {
     );
     // present = 3-0-1=2 < 3 → breach
     expect(r.breachedDays).toEqual(["2026-08-18"]);
-    expect(r.warning).not.toBeNull();
+    expect(r.warnings).toHaveLength(1);
   });
 
   it("half-day no breach when present == minStaffing", () => {
@@ -181,7 +183,7 @@ describe("assessCoverage — half-day request", () => {
     );
     // present = 4-0-1=3 == 3 → no breach
     expect(r.breachedDays).toEqual([]);
-    expect(r.warning).toBeNull();
+    expect(r.warnings).toEqual([]);
   });
 });
 
@@ -193,12 +195,192 @@ describe("assessCoverage — tiny department edge case", () => {
   });
 });
 
-describe("assessCoverage — warning message format", () => {
+describe("assessCoverage — minStaffing warning message format", () => {
   it("names the minimum and day count in the warning", () => {
     const r = assessCoverage(cov({ headcount: 3, minStaffing: 3 }));
-    expect(r.warning).toBe(
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toBe(
       "This booking drops the department below its minimum staffing (3) on 1 day(s).",
     );
+  });
+});
+
+// ── assessCoverage — maxLeavePerDay only (story 28.2) ────────────────────────
+
+describe("assessCoverage — maxLeavePerDay only", () => {
+  it("both null → no breach, no warnings", () => {
+    const r = assessCoverage(cov({ minStaffing: null, maxLeavePerDay: null }));
+    expect(r.breachedDays).toEqual([]);
+    expect(r.warnings).toEqual([]);
+  });
+
+  // totalOff = 0 + 1 = 1 == maxLeavePerDay=1 → no breach (≤ is OK)
+  it("total off == maxLeavePerDay (boundary) → no breach", () => {
+    const r = assessCoverage(cov({ minStaffing: null, maxLeavePerDay: 1, headcount: 5, absentByDay: {} }));
+    expect(r.breachedDays).toEqual([]);
+    expect(r.warnings).toEqual([]);
+  });
+
+  // totalOff = 1 + 1 = 2 > maxLeavePerDay=1 → breach
+  it("total off == max+1 → breach", () => {
+    const r = assessCoverage(cov({ minStaffing: null, maxLeavePerDay: 1, headcount: 5, absentByDay: { "2026-08-18": 1 } }));
+    expect(r.breachedDays).toEqual(["2026-08-18"]);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("maximum of 1 people off");
+    expect(r.warnings[0]).toContain("1 day(s)");
+  });
+
+  // totalOff = 0 + 1 = 1 ≤ maxLeavePerDay=2 → no breach
+  it("no other absentees, max=2 → no breach", () => {
+    const r = assessCoverage(cov({ minStaffing: null, maxLeavePerDay: 2, headcount: 5, absentByDay: {} }));
+    expect(r.breachedDays).toEqual([]);
+    expect(r.warnings).toEqual([]);
+  });
+
+  // totalOff = 2 + 1 = 3 > maxLeavePerDay=2 → breach
+  it("two other absentees, max=2 → breach", () => {
+    const r = assessCoverage(cov({ minStaffing: null, maxLeavePerDay: 2, headcount: 5, absentByDay: { "2026-08-18": 2 } }));
+    expect(r.breachedDays).toEqual(["2026-08-18"]);
+    expect(r.warnings).toHaveLength(1);
+  });
+
+  it("maxLeavePerDay warning message format", () => {
+    const r = assessCoverage(cov({ minStaffing: null, maxLeavePerDay: 2, headcount: 5, absentByDay: { "2026-08-18": 2 } }));
+    expect(r.warnings[0]).toBe(
+      "This booking exceeds the department's maximum of 2 people off on 1 day(s).",
+    );
+  });
+
+  // half-day: occupies exactly startISO, totalOff = 0+1=1 > max=0 not realistic, use max=1 no breach
+  it("half-day max check: totalOff == max → no breach", () => {
+    const r = assessCoverage(cov({ minStaffing: null, maxLeavePerDay: 1, headcount: 5, mode: "HALF", absentByDay: {} }));
+    expect(r.breachedDays).toEqual([]);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("half-day max breach when 1 other absent and max=1", () => {
+    const r = assessCoverage(cov({
+      minStaffing: null, maxLeavePerDay: 1, headcount: 5, mode: "HALF",
+      absentByDay: { "2026-08-18": 1 },
+    }));
+    // totalOff = 1+1=2 > 1 → breach
+    expect(r.breachedDays).toEqual(["2026-08-18"]);
+    expect(r.warnings).toHaveLength(1);
+  });
+
+  // Weekend/holiday skipped for max rule too.
+  it("max rule: weekend days skipped", () => {
+    const r = assessCoverage(cov({
+      minStaffing: null,
+      maxLeavePerDay: 1,
+      headcount: 5,
+      startISO: "2026-08-15", // Saturday
+      endISO: "2026-08-16",   // Sunday
+      mode: "MULTI",
+      absentByDay: { "2026-08-15": 5, "2026-08-16": 5 },
+    }));
+    expect(r.breachedDays).toEqual([]);
+    expect(r.warnings).toEqual([]);
+  });
+});
+
+// ── assessCoverage — both rules simultaneously (story 28.2) ──────────────────
+
+describe("assessCoverage — both rules set", () => {
+  // headcount=5, minStaffing=3, maxLeavePerDay=2
+  // 2026-08-18: 0 others absent → present=4 ≥ 3 (OK), totalOff=1 ≤ 2 (OK) → NEITHER
+  it("neither rule breached → no warnings, no breachedDays", () => {
+    const r = assessCoverage(cov({ minStaffing: 3, maxLeavePerDay: 2, headcount: 5, absentByDay: {} }));
+    expect(r.breachedDays).toEqual([]);
+    expect(r.warnings).toEqual([]);
+  });
+
+  // 2026-08-18: 2 others absent → present=5-2-1=2 < 3 (min breach), totalOff=2+1=3 > 2 (max breach)
+  // → both rules breached → two warnings, day in breachedDays once
+  it("both rules breached on same day → two warnings + day listed once", () => {
+    const r = assessCoverage(cov({
+      minStaffing: 3,
+      maxLeavePerDay: 2,
+      headcount: 5,
+      absentByDay: { "2026-08-18": 2 },
+    }));
+    expect(r.breachedDays).toEqual(["2026-08-18"]);
+    expect(r.warnings).toHaveLength(2);
+    expect(r.warnings[0]).toContain("minimum staffing");
+    expect(r.warnings[1]).toContain("maximum of 2 people off");
+  });
+
+  // Use multi-day to get different days breaching different rules:
+  // Mon 2026-08-17: 2 absent → present=5-2-1=2 < 3 (min breach), totalOff=3 > 2 (max breach) → BOTH
+  // Tue 2026-08-18: 1 absent → present=5-1-1=3 ≥ 3 (OK), totalOff=2 ≤ 2 (OK) → NEITHER
+  // Wed 2026-08-19: 0 absent → present=5-0-1=4 ≥ 3 (OK), totalOff=1 ≤ 2 (OK) → NEITHER
+  it("multi-day: only Monday breaches both rules", () => {
+    const r = assessCoverage(cov({
+      minStaffing: 3,
+      maxLeavePerDay: 2,
+      headcount: 5,
+      startISO: "2026-08-17",
+      endISO: "2026-08-19",
+      mode: "MULTI",
+      absentByDay: { "2026-08-17": 2 },
+    }));
+    expect(r.breachedDays).toEqual(["2026-08-17"]);
+    expect(r.warnings).toHaveLength(2);
+  });
+
+  // Day breaches ONLY min: headcount=3, minStaffing=3, maxLeavePerDay=5
+  // 0 others absent → present=3-0-1=2 < 3 (min breach), totalOff=1 ≤ 5 (OK) → ONLY min
+  it("only minStaffing breached → one warning (min)", () => {
+    const r = assessCoverage(cov({ minStaffing: 3, maxLeavePerDay: 5, headcount: 3, absentByDay: {} }));
+    expect(r.breachedDays).toEqual(["2026-08-18"]);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("minimum staffing");
+  });
+
+  // Day breaches ONLY max: headcount=10, minStaffing=3, maxLeavePerDay=1
+  // 1 other absent → present=10-1-1=8 ≥ 3 (OK), totalOff=1+1=2 > 1 (max breach) → ONLY max
+  it("only maxLeavePerDay breached → one warning (max)", () => {
+    const r = assessCoverage(cov({
+      minStaffing: 3,
+      maxLeavePerDay: 1,
+      headcount: 10,
+      absentByDay: { "2026-08-18": 1 },
+    }));
+    expect(r.breachedDays).toEqual(["2026-08-18"]);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("maximum of 1 people off");
+  });
+
+  // Multi-day: day A breaches only min, day B breaches only max — union in breachedDays
+  // Mon 2026-08-17: 2 absent → present=5-2-1=2 < 3 (min breach), totalOff=3 ≤ 4 (OK) → ONLY min
+  // Tue 2026-08-18: 4 absent → present=5-4-1=0 < 3 (min breach too), totalOff=5 > 4 (max breach) → BOTH
+  // → use different headcount to isolate: headcount=10, minStaffing=3, maxLeavePerDay=2
+  // Mon: 0 absent → present=10-0-1=9 ≥ 3 (OK), totalOff=1 ≤ 2 (OK) → NEITHER
+  // Tue: 2 absent → present=10-2-1=7 ≥ 3 (OK), totalOff=3 > 2 (max breach) → ONLY max
+  // Wed: 9 absent → present=10-9-1=0 < 3 (min breach), totalOff=10 > 2 (max breach too)
+  // Let's pick a cleaner scenario: headcount=5, minStaffing=3, maxLeavePerDay=3
+  // Mon 2026-08-17: 1 absent → present=5-1-1=3 ≥ 3 (OK), totalOff=2 ≤ 3 (OK) → NEITHER
+  // Tue 2026-08-18: 2 absent → present=5-2-1=2 < 3 (min), totalOff=3 ≤ 3 (OK) → ONLY min
+  // Wed 2026-08-19: 3 absent → present=5-3-1=1 < 3 (min), totalOff=4 > 3 (max) → BOTH
+  it("multi-day: union of min-only + max-only days in breachedDays, two warnings each naming correct count", () => {
+    const r = assessCoverage(cov({
+      minStaffing: 3,
+      maxLeavePerDay: 3,
+      headcount: 5,
+      startISO: "2026-08-17",
+      endISO: "2026-08-19",
+      mode: "MULTI",
+      absentByDay: { "2026-08-17": 1, "2026-08-18": 2, "2026-08-19": 3 },
+    }));
+    // Mon: neither breached (excluded from breachedDays)
+    // Tue: only min breached (present=2 < 3; totalOff=3 ≤ 3)
+    // Wed: both breached (present=1 < 3; totalOff=4 > 3)
+    expect(r.breachedDays).toEqual(["2026-08-18", "2026-08-19"]);
+    expect(r.warnings).toHaveLength(2);
+    // min breached on Tue + Wed = 2 days
+    expect(r.warnings[0]).toContain("minimum staffing (3) on 2 day(s)");
+    // max breached on Wed only = 1 day
+    expect(r.warnings[1]).toContain("maximum of 3 people off on 1 day(s)");
   });
 });
 
@@ -221,11 +403,12 @@ describe("validateLeaveRequest — coverage warnings (story 28.1)", () => {
     expect(r.warnings).toEqual([]);
   });
 
-  it("coverage breach adds a warning but keeps ok:true (no real errors)", () => {
+  it("minStaffing breach adds a warning but keeps ok:true (no real errors)", () => {
     const r = validateLeaveRequest({
       ...leaveBase,
       coverage: {
         minStaffing: 3,
+        maxLeavePerDay: null,
         headcount: 3, // present = 3-0-1=2 < 3 → breach
         absentByDay: {},
       },
@@ -240,6 +423,7 @@ describe("validateLeaveRequest — coverage warnings (story 28.1)", () => {
       ...leaveBase,
       coverage: {
         minStaffing: 3,
+        maxLeavePerDay: null,
         headcount: 5, // present = 5-0-1=4 ≥ 3 → no breach
         absentByDay: {},
       },
@@ -254,6 +438,7 @@ describe("validateLeaveRequest — coverage warnings (story 28.1)", () => {
       available: 0, // triggers over-booking error
       coverage: {
         minStaffing: 3,
+        maxLeavePerDay: null,
         headcount: 3, // triggers coverage warning
         absentByDay: {},
       },
@@ -269,11 +454,45 @@ describe("validateLeaveRequest — coverage warnings (story 28.1)", () => {
       ...leaveBase,
       coverage: {
         minStaffing: null,
+        maxLeavePerDay: null,
         headcount: 1,
         absentByDay: {},
       },
     });
     expect(r.warnings).toEqual([]);
+  });
+});
+
+describe("validateLeaveRequest — coverage warnings (story 28.2)", () => {
+  it("maxLeavePerDay breach surfaces as warning, ok stays true", () => {
+    const r = validateLeaveRequest({
+      ...leaveBase,
+      coverage: {
+        minStaffing: null,
+        maxLeavePerDay: 1,
+        headcount: 5,
+        absentByDay: { "2026-08-18": 1 }, // totalOff=2 > 1 → breach
+      },
+    });
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("maximum of 1 people off");
+  });
+
+  it("both rules breached → two warnings, ok still true", () => {
+    const r = validateLeaveRequest({
+      ...leaveBase,
+      coverage: {
+        minStaffing: 3,
+        maxLeavePerDay: 1,
+        headcount: 3, // present=2 < 3 + totalOff=2 > 1
+        absentByDay: { "2026-08-18": 1 },
+      },
+    });
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toHaveLength(2);
+    expect(r.warnings[0]).toContain("minimum staffing");
+    expect(r.warnings[1]).toContain("maximum of 1 people off");
   });
 });
 
@@ -298,11 +517,12 @@ describe("decideLeave — coverage warnings (story 28.1)", () => {
     expect(r.warnings).toEqual([]);
   });
 
-  it("coverage breach returns warning but ok:true and nextStatus:APPROVED", () => {
+  it("minStaffing breach returns warning but ok:true and nextStatus:APPROVED", () => {
     const r = decideLeave(
       approveBase({
         coverage: {
           minStaffing: 3,
+          maxLeavePerDay: null,
           headcount: 3,
           startISO: "2026-08-18",
           endISO: "2026-08-18",
@@ -324,6 +544,7 @@ describe("decideLeave — coverage warnings (story 28.1)", () => {
       approveBase({
         coverage: {
           minStaffing: 3,
+          maxLeavePerDay: null,
           headcount: 5,
           startISO: "2026-08-18",
           endISO: "2026-08-18",
@@ -345,6 +566,7 @@ describe("decideLeave — coverage warnings (story 28.1)", () => {
         otherPending: 0,
         coverage: {
           minStaffing: 3,
+          maxLeavePerDay: null,
           headcount: 3,
           startISO: "2026-08-18",
           endISO: "2026-08-18",
@@ -364,5 +586,50 @@ describe("decideLeave — coverage warnings (story 28.1)", () => {
     const r = decideLeave(approveBase({ action: "DECLINE", reason: "Too busy" }));
     expect(r.ok).toBe(true);
     expect(r.warnings).toEqual([]);
+  });
+});
+
+describe("decideLeave — coverage warnings (story 28.2)", () => {
+  it("maxLeavePerDay breach surfaces as warning on approval, ok:true", () => {
+    const r = decideLeave(
+      approveBase({
+        coverage: {
+          minStaffing: null,
+          maxLeavePerDay: 1,
+          headcount: 5,
+          startISO: "2026-08-18",
+          endISO: "2026-08-18",
+          mode: "DAY",
+          cal: uae,
+          absentByDay: { "2026-08-18": 1 }, // totalOff=2 > 1
+        },
+      }),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.nextStatus).toBe("APPROVED");
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("maximum of 1 people off");
+  });
+
+  it("both rules breached on approval → two warnings, still approved", () => {
+    const r = decideLeave(
+      approveBase({
+        coverage: {
+          minStaffing: 3,
+          maxLeavePerDay: 1,
+          headcount: 3,
+          startISO: "2026-08-18",
+          endISO: "2026-08-18",
+          mode: "DAY",
+          cal: uae,
+          absentByDay: { "2026-08-18": 1 }, // present=1 < 3 (min), totalOff=2 > 1 (max)
+        },
+      }),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.nextStatus).toBe("APPROVED");
+    expect(r.warnings).toHaveLength(2);
+    expect(r.warnings[0]).toContain("minimum staffing");
+    expect(r.warnings[1]).toContain("maximum of 1 people off");
   });
 });
