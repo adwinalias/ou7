@@ -23,6 +23,10 @@ export interface LeaveValidationInput {
   todayISO?: ISODate;
   /** Calendar days of notice required. Negative = allow backdating by |n| days. */
   noticePeriodDays?: number;
+  /** Minimum working days per request. A HALF (0.5) request fails minLengthDays: 1. */
+  minLengthDays?: number;
+  /** Maximum consecutive working days per request. */
+  maxConsecutiveDays?: number;
 }
 
 export interface LeaveValidationResult {
@@ -40,6 +44,14 @@ export function validateLeaveRequest(input: LeaveValidationInput): LeaveValidati
 
   if (workingDays <= 0) {
     errors.push("This request covers only non-working days.");
+  } else {
+    // Length limits (story 26.4) — only checked when workingDays > 0.
+    if (input.minLengthDays != null && input.minLengthDays > 0 && workingDays < input.minLengthDays) {
+      errors.push(`This leave type requires at least ${input.minLengthDays} working day(s).`);
+    }
+    if (input.maxConsecutiveDays != null && input.maxConsecutiveDays > 0 && workingDays > input.maxConsecutiveDays) {
+      errors.push(`This leave type allows at most ${input.maxConsecutiveDays} consecutive working day(s).`);
+    }
   }
 
   if (input.existing.some((r) => rangesOverlap(input.startISO, input.endISO, r.startISO, r.endISO))) {

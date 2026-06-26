@@ -25,6 +25,14 @@ const numOrNull = (v: FormDataEntryValue | null) => {
   return s === "" ? null : Number(s);
 };
 
+// positive int ≥ 1 → value; blank / 0 / negative / NaN → null (no limit)
+const limitOrNull = (v: FormDataEntryValue | null): number | null => {
+  const s = String(v ?? "").trim();
+  if (s === "") return null;
+  const n = parseInt(s, 10);
+  return isNaN(n) || n <= 0 ? null : n;
+};
+
 export async function upsertPolicyAction(formData: FormData) {
   const actor = await hr();
   await upsertEntitlementPolicy(actor.employeeId, {
@@ -69,6 +77,8 @@ export async function createLeaveTypeAction(formData: FormData) {
     requiresApproval: formData.get("requiresApproval") === "on",
     noticePeriodDays: isNaN(rawNotice) ? 0 : rawNotice,
     cancellationWindowDays: isNaN(rawWindow) ? 0 : Math.max(0, rawWindow),
+    minLengthDays: limitOrNull(formData.get("minLengthDays")),
+    maxConsecutiveDays: limitOrNull(formData.get("maxConsecutiveDays")),
   });
   revalidatePath("/admin/config");
 }
@@ -91,6 +101,9 @@ export async function updateLeaveTypePolicyAction(formData: FormData) {
     requiresApproval: formData.get("requiresApproval") === "on",
     ...(rawNotice !== undefined ? { noticePeriodDays: isNaN(rawNotice) ? 0 : rawNotice } : {}),
     ...(rawWindow !== undefined ? { cancellationWindowDays: isNaN(rawWindow) ? 0 : Math.max(0, rawWindow) } : {}),
+    // present (even empty) ⇒ include in patch so HR can clear a limit back to null
+    ...(formData.has("minLengthDays") ? { minLengthDays: limitOrNull(formData.get("minLengthDays")) } : {}),
+    ...(formData.has("maxConsecutiveDays") ? { maxConsecutiveDays: limitOrNull(formData.get("maxConsecutiveDays")) } : {}),
   });
   revalidatePath("/admin/config");
 }
