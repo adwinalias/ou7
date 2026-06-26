@@ -6,6 +6,7 @@
 // request becomes APPROVED, core/allowance counts its days as taken. This function only
 // decides whether that transition may happen — including a fresh over-booking check.
 import { canBook } from "../allowance";
+import { assessCoverage, type CoverageInput } from "../leave";
 import type { LeaveStatus } from "../types";
 
 export type DecisionAction = "APPROVE" | "DECLINE";
@@ -21,12 +22,16 @@ export interface DecisionInput {
   remainingExclR: number;
   /** Pending allowance days for the same period, excluding this request. */
   otherPending: number;
+  /** Story 28.1: optional coverage check inputs (ADR-0014). Advisory only — never sets ok:false. */
+  coverage?: CoverageInput;
 }
 
 export interface DecisionResult {
   ok: boolean;
   nextStatus: LeaveStatus | null;
   errors: string[];
+  /** Advisory warnings (e.g. coverage breach at approval). Never drives ok:false. */
+  warnings: string[];
 }
 
 // Explicit message: an over-committed balance is an HR data problem (e.g. an adjustment
@@ -36,22 +41,30 @@ export const OVER_COMMIT_MESSAGE =
 
 export function decideLeave(input: DecisionInput): DecisionResult {
   if (input.currentStatus !== "PENDING") {
-    return { ok: false, nextStatus: null, errors: ["Only pending requests can be approved or declined."] };
+    return { ok: false, nextStatus: null, errors: ["Only pending requests can be approved or declined."], warnings: [] };
   }
 
   if (input.action === "DECLINE") {
     if (!input.reason?.trim()) {
-      return { ok: false, nextStatus: null, errors: ["A reason is required to decline."] };
+      return { ok: false, nextStatus: null, errors: ["A reason is required to decline."], warnings: [] };
     }
-    return { ok: true, nextStatus: "DECLINED", errors: [] };
+    return { ok: true, nextStatus: "DECLINED", errors: [], warnings: [] };
   }
 
   // APPROVE — re-check over-booking against the current balance (deducting types only).
   if (input.deductsAllowance) {
     const capacity = input.remainingExclR - input.otherPending;
     if (!canBook(capacity, input.allowanceDays)) {
-      return { ok: false, nextStatus: null, errors: [OVER_COMMIT_MESSAGE] };
+      return { ok: false, nextStatus: null, errors: [OVER_COMMIT_MESSAGE], warnings: [] };
     }
   }
-  return { ok: true, nextStatus: "APPROVED", errors: [] };
+
+  // Coverage check (ADR-0014, story 28.1) — advisory only; approval still succeeds.
+  const warnings: string[] = [];
+  if (input.coverage) {
+    const cv = assessCoverage(input.coverage);
+    if (cv.warning) warnings.push(cv.warning);
+  }
+
+  return { ok: true, nextStatus: "APPROVED", errors: [], warnings };
 }

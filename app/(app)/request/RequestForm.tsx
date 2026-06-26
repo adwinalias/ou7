@@ -13,8 +13,9 @@ const MODES: { value: Mode; label: string }[] = [
 ];
 
 // Flat inline alert per DESIGN-SYSTEM §5: surface + hairline + 3px coloured left edge.
-function Alert({ tone, id, children }: { tone: "danger" | "success"; id?: string; children: React.ReactNode }) {
-  const color = tone === "danger" ? "var(--danger)" : "var(--success)";
+function Alert({ tone, id, children }: { tone: "danger" | "success" | "warning"; id?: string; children: React.ReactNode }) {
+  const color =
+    tone === "danger" ? "var(--danger)" : tone === "warning" ? "var(--warning)" : "var(--success)";
   return (
     <div
       id={id}
@@ -345,6 +346,17 @@ export default function RequestForm({
                 <Alert tone="success">
                   <strong className="t-num">{preview.allowanceDays}</strong> day(s) will be removed on approval.
                 </Alert>
+              )}
+
+              {/* Advisory coverage warning (ADR-0014, story 28.1) — not blocking */}
+              {preview.warnings && preview.warnings.length > 0 && (
+                <div style={{ marginTop: "var(--space-3)" }}>
+                  {preview.warnings.map((w) => (
+                    <Alert key={w} tone="warning">
+                      <strong>Staffing notice:</strong> {w} You can still submit — the approver will be informed.
+                    </Alert>
+                  ))}
+                </div>
               )}
 
               {/* R6: grouped, spaced rows — each row is a label/value pair separated by a hairline. */}

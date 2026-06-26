@@ -8,6 +8,7 @@ import { canApproveFor, isApprover, isHR } from "@/core/authz";
 import type { Actor } from "@/core/types";
 import { periodBalanceExcluding } from "./allowance";
 import { recordAudit } from "./audit";
+import { buildCoverageInput } from "./coverage";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
 import { AuthError } from "./rbac";
@@ -27,7 +28,9 @@ export interface PendingItem {
   notes: string | null;
 }
 
-export type DecideResult = { ok: true } | { ok: false; errors: string[] };
+export type DecideResult =
+  | { ok: true; warnings?: string[] }
+  | { ok: false; errors: string[] };
 
 export interface CompanyPendingItem extends PendingItem {
   departmentName: string | null;
@@ -163,9 +166,54 @@ export async function decideLeaveRequest(
   comment?: string,
 ): Promise<DecideResult> {
   // Authorize first (don't leak existence): only the assigned approver or HR may act.
-  const pre = await db.leaveRequest.findUnique({ where: { id: requestId }, select: { employeeId: true } });
+  // Also load the fields needed for the advisory coverage check (done outside the tx).
+  const pre = await db.leaveRequest.findUnique({
+    where: { id: requestId },
+    select: {
+      employeeId: true,
+      startDate: true,
+      endDate: true,
+      durationMode: true,
+      employee: { select: { regionId: true } },
+    },
+  });
   if (!pre || !canApproveFor(actor, pre.employeeId)) {
     throw new AuthError(403, "You can't act on this request.");
+  }
+
+  // Build coverage input BEFORE the transaction: advisory read-only work, no lock needed.
+  // Exclude this request itself so it isn't counted as "already absent" for its own approver.
+  let coverageInput = null;
+  if (action === "APPROVE") {
+    try {
+      const startISO = iso(pre.startDate);
+      const endISO = iso(pre.endDate);
+      const region = await db.region.findUniqueOrThrow({
+        where: { id: pre.employee.regionId },
+        select: { weekendDays: true },
+      });
+      const startYear = Number(startISO.slice(0, 4));
+      const endYear = Number(endISO.slice(0, 4));
+      const holidayRows = await db.holiday.findMany({
+        where: { regionId: pre.employee.regionId, year: { gte: startYear, lte: endYear } },
+        select: { date: true },
+      });
+      const cal = {
+        weekendDays: region.weekendDays,
+        holidays: new Set(holidayRows.map((h) => iso(h.date))),
+      };
+      coverageInput = await buildCoverageInput(
+        pre.employeeId,
+        startISO,
+        endISO,
+        pre.durationMode as "DAY" | "HALF" | "MULTI",
+        cal,
+        { excludeRequestId: requestId },
+      );
+    } catch (err) {
+      // Coverage check is advisory — never let an error here block approval.
+      console.error("[coverage] buildCoverageInput failed (non-fatal at approval):", err);
+    }
   }
 
   const outcome = await db.$transaction(async (tx) => {
@@ -199,6 +247,7 @@ export async function decideLeaveRequest(
       allowanceDays: req.allowanceDays,
       remainingExclR,
       otherPending,
+      coverage: coverageInput ?? undefined,
     });
     if (!decision.ok || !decision.nextStatus) {
       return { ok: false as const, errors: decision.errors };
@@ -220,16 +269,27 @@ export async function decideLeaveRequest(
     }
 
     // Audit the decision atomically with the write (Epic 16.1).
+    // ADR-0014: if a coverage breach occurred, record it on the LEAVE_APPROVE audit entry.
+    // ponytail: the warning string already contains the day count; record it verbatim.
+    const auditAfter: Record<string, unknown> = {
+      status: decision.nextStatus,
+      decisionComment: comment?.trim() || null,
+      decidedBy: actor.employeeId,
+    };
+    if (decision.warnings.length > 0) {
+      auditAfter.coverageBreach = decision.warnings[0];
+    }
+
     await recordAudit(tx, {
       actorId: actor.employeeId,
       action: action === "APPROVE" ? "LEAVE_APPROVE" : "LEAVE_DECLINE",
       entity: "LeaveRequest",
       entityId: requestId,
       before: { status: "PENDING" },
-      after: { status: decision.nextStatus, decisionComment: comment?.trim() || null, decidedBy: actor.employeeId },
+      after: auditAfter,
     });
 
-    return { ok: true as const, status: decision.nextStatus };
+    return { ok: true as const, status: decision.nextStatus, warnings: decision.warnings };
   });
 
   if (!outcome.ok) return outcome;
@@ -263,5 +323,5 @@ export async function decideLeaveRequest(
     console.error("[notify] leaveDecided dispatch failed (non-fatal):", err);
   }
 
-  return { ok: true };
+  return { ok: true, warnings: outcome.warnings };
 }

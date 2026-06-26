@@ -33,14 +33,14 @@ describe("decideLeave — decline", () => {
 
   it("declines with a reason regardless of balance", () => {
     const res = decideLeave(base({ action: "DECLINE", reason: "Too short-staffed", remainingExclR: -100 }));
-    expect(res).toEqual({ ok: true, nextStatus: "DECLINED", errors: [] });
+    expect(res).toEqual({ ok: true, nextStatus: "DECLINED", errors: [], warnings: [] });
   });
 });
 
 describe("decideLeave — approve + over-booking re-check", () => {
   it("approves when days fit the remaining capacity", () => {
     const res = decideLeave(base({ allowanceDays: 3, remainingExclR: 10, otherPending: 2 })); // capacity 8
-    expect(res).toEqual({ ok: true, nextStatus: "APPROVED", errors: [] });
+    expect(res).toEqual({ ok: true, nextStatus: "APPROVED", errors: [], warnings: [] });
   });
 
   it("approves at the exact boundary (days == capacity)", () => {
@@ -65,7 +65,7 @@ describe("decideLeave — approve + over-booking re-check", () => {
 
   it("ignores balance for non-deducting leave types", () => {
     const res = decideLeave(base({ deductsAllowance: false, allowanceDays: 0, remainingExclR: -50, otherPending: 99 }));
-    expect(res).toEqual({ ok: true, nextStatus: "APPROVED", errors: [] });
+    expect(res).toEqual({ ok: true, nextStatus: "APPROVED", errors: [], warnings: [] });
   });
 
   it("approves a zero-day deducting request even at zero capacity", () => {

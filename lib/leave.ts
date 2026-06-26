@@ -13,6 +13,7 @@ import { getOpenPeriodBalance, periodBalanceExcluding } from "./allowance";
 import { getMyApproverEmails } from "./approvals";
 import { recordAudit } from "./audit";
 import { getRestrictedRangesFor } from "./calendars";
+import { buildCoverageInput } from "./coverage";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
 import { AuthError } from "./rbac";
@@ -65,6 +66,8 @@ export interface RequestContext {
 export interface PreviewResult {
   ok: boolean;
   errors: string[];
+  /** Advisory warnings (e.g. coverage breach). Never blocks submit. */
+  warnings: string[];
   workingDays: number;
   freeDays: number;
   allowanceDays: number; // days removed on approval (0 for non-deducting types)
@@ -168,6 +171,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
   const empty: PreviewResult = {
     ok: false,
     errors: [],
+    warnings: [],
     workingDays: 0,
     freeDays: 0,
     allowanceDays: 0,
@@ -188,7 +192,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     select: { ...TYPE_SELECT, active: true, regions: { select: { id: true } } },
   });
   if (!type || !type.active || !availableInRegion(type.regions.map((r) => r.id), employee.regionId)) {
-    return { ...empty, errors: ["That leave type isn't available for your region."] };
+    return { ...empty, warnings: [], errors: ["That leave type isn't available for your region."] };
   }
 
   const endISO = endOf(input);
@@ -197,11 +201,18 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
 
   // Deducting leave with no allowance period can't be costed — block early and clearly.
   if (type.deductsAllowance && !balance) {
-    return { ...empty, deductsAllowance: true, errors: ["You don't have an allowance period yet. Contact HR."] };
+    return { ...empty, deductsAllowance: true, warnings: [], errors: ["You don't have an allowance period yet. Contact HR."] };
   }
   const available = balance?.available ?? 0;
 
-  const allRanges = await existingRanges(employeeId);
+  // Coverage check (ADR-0014, story 28.1) — advisory; never blocks. Build in parallel
+  // with the other async fetches above (calendar + balance already resolved).
+  const [allRanges, restricted, coverageInput] = await Promise.all([
+    existingRanges(employeeId),
+    getRestrictedRangesFor(employeeId, input.startDate, endISO),
+    buildCoverageInput(employeeId, input.startDate, endISO, input.mode, calendar),
+  ]);
+
   const result = validateLeaveRequest({
     startISO: input.startDate,
     endISO,
@@ -210,7 +221,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     deductsAllowance: type.deductsAllowance,
     available,
     existing: allRanges,
-    restricted: await getRestrictedRangesFor(employeeId, input.startDate, endISO),
+    restricted,
     noteRequired: type.noteRequired,
     note: input.notes,
     attachmentRequired: type.attachmentRequired,
@@ -222,6 +233,9 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     maxConsecutiveDays: type.maxConsecutiveDays ?? undefined,
     allowConsecutive: type.allowConsecutive,
     sameTypeRanges: allRanges.filter((r) => r.leaveTypeId === type.id),
+    coverage: coverageInput
+      ? { minStaffing: coverageInput.minStaffing, headcount: coverageInput.headcount, absentByDay: coverageInput.absentByDay }
+      : undefined,
   });
 
   const availableBefore = type.deductsAllowance ? available : null;
@@ -230,6 +244,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
   return {
     ok: result.ok,
     errors: result.errors,
+    warnings: result.warnings,
     workingDays: result.workingDays,
     freeDays: result.freeDays,
     allowanceDays: result.allowanceDays,

@@ -5,6 +5,55 @@ import { countDays, isWorkingDay } from "../calendar";
 import { addDays, eachDate, parseISO, rangesOverlap, toISO } from "../dates";
 import type { DateRange, DurationMode, ISODate, RegionCalendar, RestrictedRange } from "../types";
 
+// ── Coverage check (ADR-0014, story 28.1) ────────────────────────────────────
+
+export interface CoverageInput {
+  /** Department minimum present headcount; null = no check. */
+  minStaffing: number | null;
+  /** Active department members INCLUDING the requester. */
+  headcount: number;
+  startISO: ISODate;
+  endISO: ISODate;
+  mode: DurationMode;
+  cal: RegionCalendar;
+  /** Count of OTHER dept members on staffing-affecting leave, keyed by ISO day. */
+  absentByDay: Record<ISODate, number>;
+}
+
+export interface CoverageResult {
+  breachedDays: ISODate[];
+  warning: string | null;
+}
+
+/**
+ * Advisory-only coverage check (ADR-0014 §1). Never blocks; callers surface the
+ * warning in the UI and record it on audit, but ok/nextStatus are unaffected.
+ *
+ * ponytail: half-day absence = full absence for integer headcount (conservative).
+ * Half-day awareness lives in which DAYS the request occupies (via mode + calendar),
+ * not in fractional presence arithmetic.
+ */
+export function assessCoverage(input: CoverageInput): CoverageResult {
+  if (input.minStaffing === null) return { breachedDays: [], warning: null };
+
+  const rangeEnd = input.mode === "DAY" ? input.startISO : input.endISO;
+  const breachedDays: ISODate[] = [];
+
+  for (const d of eachDate(input.startISO, rangeEnd)) {
+    if (!isWorkingDay(d, input.cal)) continue;
+    const iso = toISO(d);
+    const otherAbsent = input.absentByDay[iso] ?? 0;
+    // Subtract other absentees AND this requester (−1).
+    const present = input.headcount - otherAbsent - 1;
+    if (present < input.minStaffing) breachedDays.push(iso);
+  }
+
+  if (breachedDays.length === 0) return { breachedDays: [], warning: null };
+
+  const warning = `This booking drops the department below its minimum staffing (${input.minStaffing}) on ${breachedDays.length} day(s).`;
+  return { breachedDays, warning };
+}
+
 export interface LeaveValidationInput {
   startISO: ISODate;
   endISO: ISODate;
@@ -31,6 +80,11 @@ export interface LeaveValidationInput {
   allowConsecutive?: boolean;
   /** Story 26.5: existing PENDING/APPROVED ranges of the same leave type for this employee. */
   sameTypeRanges?: DateRange[];
+  /**
+   * Story 28.1: optional coverage check inputs (ADR-0014). Advisory only — never sets ok:false.
+   * startISO/endISO/mode/cal are inherited from the request; only supply dept-specific fields.
+   */
+  coverage?: Pick<CoverageInput, "minStaffing" | "headcount" | "absentByDay">;
 }
 
 /**
@@ -56,6 +110,8 @@ function isAdjacentRange(aStart: ISODate, aEnd: ISODate, bStart: ISODate, bEnd: 
 export interface LeaveValidationResult {
   ok: boolean;
   errors: string[];
+  /** Advisory warnings (e.g. coverage breach). Never drives ok:false. */
+  warnings: string[];
   workingDays: number;
   freeDays: number;
   allowanceDays: number;
@@ -126,5 +182,12 @@ export function validateLeaveRequest(input: LeaveValidationInput): LeaveValidati
     errors.push("A supporting document is required.");
   }
 
-  return { ok: errors.length === 0, errors, workingDays, freeDays, allowanceDays };
+  // Coverage check (ADR-0014, story 28.1) — advisory only; never sets ok:false.
+  const warnings: string[] = [];
+  if (input.coverage) {
+    const cv = assessCoverage({ ...input.coverage, startISO: input.startISO, endISO: input.endISO, mode: input.mode, cal: input.cal });
+    if (cv.warning) warnings.push(cv.warning);
+  }
+
+  return { ok: errors.length === 0, errors, warnings, workingDays, freeDays, allowanceDays };
 }

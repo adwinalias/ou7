@@ -14,10 +14,12 @@ function Row({ item }: { item: PendingItem }) {
   const router = useRouter();
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [coverageWarning, setCoverageWarning] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function decide(action: "APPROVE" | "DECLINE") {
     setError(null);
+    setCoverageWarning(null);
     if (action === "DECLINE" && !comment.trim()) {
       setError("A reason is required to decline.");
       return;
@@ -25,8 +27,17 @@ function Row({ item }: { item: PendingItem }) {
     startTransition(async () => {
       try {
         const res = await decideAction({ requestId: item.id, action, comment: comment.trim() || undefined });
-        if (res.ok) router.refresh(); // decided request drops out of the queue
-        else setError(res.errors.join(" "));
+        if (res.ok) {
+          // ADR-0014: surface any coverage breach recorded on the LEAVE_APPROVE audit entry.
+          const warn = res.warnings?.[0] ?? null;
+          if (warn) {
+            setCoverageWarning(warn);
+          } else {
+            router.refresh(); // decided request drops out of the queue
+          }
+        } else {
+          setError(res.errors.join(" "));
+        }
       } catch {
         setError("Something went wrong. Please try again.");
       }
@@ -103,26 +114,53 @@ function Row({ item }: { item: PendingItem }) {
         </div>
       )}
 
-      <div style={{ marginTop: "var(--space-4)", display: "flex", gap: "var(--space-3)" }}>
-        <button
-          type="button"
-          className="btn btn-primary"
-          data-testid="approve"
-          onClick={() => decide("APPROVE")}
-          disabled={pending}
+      {/* ADR-0014: advisory coverage breach recorded on LEAVE_APPROVE audit. */}
+      {coverageWarning && (
+        <div
+          role="status"
+          style={{
+            marginTop: "var(--space-3)",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderLeft: "3px solid var(--warning)",
+            padding: "var(--space-3) var(--space-4)",
+            color: "var(--text)",
+          }}
         >
-          {pending ? "Working…" : "Approve"}
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger"
-          data-testid="decline"
-          onClick={() => decide("DECLINE")}
-          disabled={pending}
-        >
-          Decline
-        </button>
-      </div>
+          <strong>Approved — staffing notice:</strong> {coverageWarning} The breach has been recorded in the audit log.{" "}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ marginTop: "var(--space-2)" }}
+            onClick={() => router.refresh()}
+          >
+            Continue
+          </button>
+        </div>
+      )}
+
+      {!coverageWarning && (
+        <div style={{ marginTop: "var(--space-4)", display: "flex", gap: "var(--space-3)" }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            data-testid="approve"
+            onClick={() => decide("APPROVE")}
+            disabled={pending}
+          >
+            {pending ? "Working…" : "Approve"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-danger"
+            data-testid="decline"
+            onClick={() => decide("DECLINE")}
+            disabled={pending}
+          >
+            Decline
+          </button>
+        </div>
+      )}
     </section>
   );
 }
