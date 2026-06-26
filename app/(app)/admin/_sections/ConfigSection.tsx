@@ -88,7 +88,7 @@ export default async function ConfigSection() {
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Leave types</div>
         <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
           <table className="table" data-testid="leavetype-table">
-            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Min length (days)</th><th>Max consec. (days)</th><th>Allow consecutive</th><th>Status</th><th /></tr></thead>
+            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Min length (days)</th><th>Max consec. (days)</th><th>Allow consecutive</th><th>Visibility</th><th>Status</th><th /></tr></thead>
             <tbody>
               {leaveTypes.map((lt) => (
                 <tr key={lt.id}>
@@ -159,6 +159,21 @@ export default async function ConfigSection() {
                         />
                         Allow consec.
                       </label>
+                      <label className="t-label" style={{ display: "inline-flex", flexDirection: "column", gap: 2, minHeight: 40 }}>
+                        <span className="sr-only">Visibility for {lt.name}</span>
+                        <select
+                          name="visibility"
+                          defaultValue={lt.visibility}
+                          className="input"
+                          aria-label={`Visibility for ${lt.name}`}
+                          data-testid={`lt-visibility-${lt.code}`}
+                          style={{ minWidth: 160 }}
+                        >
+                          <option value="EVERYONE">Everyone</option>
+                          <option value="APPROVERS_SUPERUSERS">Approvers &amp; superusers</option>
+                          <option value="HR_ONLY">HR only</option>
+                        </select>
+                      </label>
                       <button type="submit" className="btn btn-secondary" aria-label={`Save policy for ${lt.name}`} style={{ padding: "2px 10px" }}>Save</button>
                     </form>
                   </td>
@@ -167,6 +182,7 @@ export default async function ConfigSection() {
                   <td className="t-num">{lt.minLengthDays ?? "—"}</td>
                   <td className="t-num">{lt.maxConsecutiveDays ?? "—"}</td>
                   <td>{lt.allowConsecutive ? "Yes" : "No"}</td>
+                  <td>{lt.visibility === "HR_ONLY" ? "HR only" : lt.visibility === "APPROVERS_SUPERUSERS" ? "Approvers+" : "Everyone"}</td>
                   <td>{lt.active ? "Active" : "Retired"}</td>
                   <td style={{ textAlign: "right" }}>
                     <form action={setLeaveTypeActiveAction}>
@@ -200,6 +216,13 @@ export default async function ConfigSection() {
           </label>
           <label className="t-label" style={fieldCol}>Max consecutive (working days)
             <input type="number" name="maxConsecutiveDays" min={1} placeholder="no limit" className="input t-num" data-testid="lt-max-consec-days" aria-label="Max consecutive (working days); leave blank for no limit" />
+          </label>
+          <label className="t-label" style={fieldCol}>Visibility
+            <select name="visibility" className="input" defaultValue="EVERYONE" data-testid="lt-visibility" aria-label="Visibility — who can see others' leave of this type">
+              <option value="EVERYONE">Everyone</option>
+              <option value="APPROVERS_SUPERUSERS">Approvers &amp; superusers</option>
+              <option value="HR_ONLY">HR only</option>
+            </select>
           </label>
           <button type="submit" className="btn btn-primary" data-testid="add-leavetype">Add type</button>
         </form>

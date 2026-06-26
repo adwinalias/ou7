@@ -6,6 +6,7 @@ import "server-only"; // Epic 22.4: DB-backed HR config — server-only.
 // Out of scope here (deferred — see OVERNIGHT-NOTES.md): branding + notification settings
 // (need PRD §14 inputs / Epic 11) and multi-level approval routing (Epic 5.5).
 import type { Role } from "@prisma/client";
+import type { LeaveTypeVisibility } from "@/core/authz";
 import { recordAudit } from "./audit";
 import { db } from "./db";
 
@@ -97,6 +98,7 @@ export interface LeaveTypeInput {
   minLengthDays?: number | null; // null = no minimum
   maxConsecutiveDays?: number | null; // null = no maximum
   allowConsecutive?: boolean; // default true (Story 26.5)
+  visibility?: LeaveTypeVisibility; // default EVERYONE (Story 27.1)
 }
 
 /** Partial of the per-type policy fields HR may edit (extensible for later stories). */
@@ -107,6 +109,13 @@ export interface LeaveTypePolicyPatch {
   minLengthDays?: number | null;
   maxConsecutiveDays?: number | null;
   allowConsecutive?: boolean; // Story 26.5
+  visibility?: LeaveTypeVisibility; // Story 27.1
+}
+
+const VALID_VISIBILITIES: LeaveTypeVisibility[] = ["EVERYONE", "APPROVERS_SUPERUSERS", "HR_ONLY"];
+// ponytail: guard — unknown string → safe default EVERYONE (never throw on a UI typo)
+function toVisibility(v: string | null | undefined): LeaveTypeVisibility {
+  return VALID_VISIBILITIES.includes(v as LeaveTypeVisibility) ? (v as LeaveTypeVisibility) : "EVERYONE";
 }
 
 // ponytail: clamp a limit to ≥1, or null if ≤0/null/undefined (0 and negatives are no-limit)
@@ -130,6 +139,7 @@ export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
       minLengthDays: clampLimit(input.minLengthDays),
       maxConsecutiveDays: clampLimit(input.maxConsecutiveDays),
       allowConsecutive: input.allowConsecutive ?? true,
+      visibility: toVisibility(input.visibility),
     },
   });
   await recordAudit(db, { actorId, action: "LEAVE_TYPE_CREATE", entity: "LeaveType", entityId: lt.id, after: { name: lt.name, code: lt.code, requiresApproval: lt.requiresApproval } });
@@ -154,6 +164,7 @@ export async function updateLeaveTypePolicy(actorId: string, id: string, patch: 
     ...(patch.minLengthDays !== undefined ? { minLengthDays: clampLimit(patch.minLengthDays) } : {}),
     ...(patch.maxConsecutiveDays !== undefined ? { maxConsecutiveDays: clampLimit(patch.maxConsecutiveDays) } : {}),
     ...(patch.allowConsecutive !== undefined ? { allowConsecutive: patch.allowConsecutive } : {}),
+    ...(patch.visibility !== undefined ? { visibility: toVisibility(patch.visibility) } : {}),
   };
   const updated = await db.leaveType.update({ where: { id }, data: safePatch });
   await recordAudit(db, {
@@ -168,5 +179,5 @@ export async function updateLeaveTypePolicy(actorId: string, id: string, patch: 
 }
 
 export async function listLeaveTypes() {
-  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true, minLengthDays: true, maxConsecutiveDays: true, allowConsecutive: true } });
+  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true, minLengthDays: true, maxConsecutiveDays: true, allowConsecutive: true, visibility: true } });
 }

@@ -63,3 +63,21 @@ export function canAccessAdmin(actor: Actor): boolean {
 export function hasRole(actor: Actor, role: Actor["role"]): boolean {
   return isActive(actor) && actor.role === role;
 }
+
+// ─── Per-leave-type visibility (story 27.1) ──────────────────────────────────
+export type LeaveTypeVisibility = "EVERYONE" | "APPROVERS_SUPERUSERS" | "HR_ONLY";
+
+/** Can this actor see bookings whose leave type has the given visibility setting?
+ *  Staff always see their OWN leave — that override is handled at the call site. */
+export function canSeeLeaveTypeVisibility(actor: Actor, visibility: LeaveTypeVisibility): boolean {
+  if (visibility === "EVERYONE") return true;
+  if (visibility === "APPROVERS_SUPERUSERS") return isApprover(actor); // isApprover includes HR
+  return isHR(actor); // HR_ONLY
+}
+
+/** All visibility values this actor may see — useful for building a Prisma `in` filter. */
+export function allowedLeaveTypeVisibilities(actor: Actor): LeaveTypeVisibility[] {
+  return (["EVERYONE", "APPROVERS_SUPERUSERS", "HR_ONLY"] as LeaveTypeVisibility[]).filter(
+    (v) => canSeeLeaveTypeVisibility(actor, v),
+  );
+}

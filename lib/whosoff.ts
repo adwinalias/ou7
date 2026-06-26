@@ -16,7 +16,7 @@ import { buildRow } from "@/core/wallchart";
 import { leaveCategory, type LeaveCategory } from "@/core/leave-categories";
 import { addDays, parseISO, toISO } from "@/core/dates";
 import type { ISODate, RegionCalendar } from "@/core/types";
-import { isHR } from "@/core/authz";
+import { isHR, allowedLeaveTypeVisibilities } from "@/core/authz";
 import type { Actor } from "@/core/types";
 import { db } from "./db";
 
@@ -102,13 +102,18 @@ export async function getWhosOff(actor: Actor, days = 7): Promise<WhosOffData> {
 
   // Leave overlapping the window. visibleOnWallChart only. NOTES ARE NOT SELECTED.
   // One bounded query across the company — no per-employee query (N+1).
+  // Story 27.1: visibility filter — own rows always visible; others filtered by visibility.
+  const allowedVis = allowedLeaveTypeVisibilities(actor);
   const leave = await db.leaveRequest.findMany({
     where: {
       status: { in: ["APPROVED", "PENDING"] },
       startDate: { lte: windowEnd },
       endDate: { gte: windowStart },
       employee: { status: "ACTIVE" },
-      leaveType: { visibleOnWallChart: true },
+      OR: [
+        { leaveType: { visibleOnWallChart: true, visibility: { in: allowedVis } } },
+        { employeeId: actor.employeeId, leaveType: { visibleOnWallChart: true } },
+      ],
     },
     select: {
       employeeId: true,
