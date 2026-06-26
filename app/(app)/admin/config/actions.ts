@@ -79,6 +79,7 @@ export async function createLeaveTypeAction(formData: FormData) {
     cancellationWindowDays: isNaN(rawWindow) ? 0 : Math.max(0, rawWindow),
     minLengthDays: limitOrNull(formData.get("minLengthDays")),
     maxConsecutiveDays: limitOrNull(formData.get("maxConsecutiveDays")),
+    allowConsecutive: formData.get("allowConsecutive") === "on",
   });
   revalidatePath("/admin/config");
 }
@@ -104,6 +105,8 @@ export async function updateLeaveTypePolicyAction(formData: FormData) {
     // present (even empty) ⇒ include in patch so HR can clear a limit back to null
     ...(formData.has("minLengthDays") ? { minLengthDays: limitOrNull(formData.get("minLengthDays")) } : {}),
     ...(formData.has("maxConsecutiveDays") ? { maxConsecutiveDays: limitOrNull(formData.get("maxConsecutiveDays")) } : {}),
+    // allowConsecutive: checkbox present = checked (true), absent = unchecked (false)
+    allowConsecutive: formData.get("allowConsecutive") === "on",
   });
   revalidatePath("/admin/config");
 }

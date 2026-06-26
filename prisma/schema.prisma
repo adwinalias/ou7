@@ -231,6 +231,7 @@ model LeaveType {
   cancellationWindowDays  Int     @default(0)
   minLengthDays           Int? // null = no minimum; ≥1 working days required per request
   maxConsecutiveDays      Int? // null = no maximum; working days cap per request
+  allowConsecutive        Boolean @default(true) // Story 26.5: when false, blocks adjacent same-type bookings
 
   regions  Region[] // availability per region
   requests LeaveRequest[]
