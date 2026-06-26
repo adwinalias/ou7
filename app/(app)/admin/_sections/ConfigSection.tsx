@@ -88,7 +88,7 @@ export default async function ConfigSection() {
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Leave types</div>
         <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
           <table className="table" data-testid="leavetype-table">
-            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Min length (days)</th><th>Max consec. (days)</th><th>Allow consecutive</th><th>Visibility</th><th>Status</th><th /></tr></thead>
+            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Min length (days)</th><th>Max consec. (days)</th><th>Allow consecutive</th><th>Visibility</th><th>Email on request</th><th>Email on decision</th><th>Email on cancel</th><th>Status</th><th /></tr></thead>
             <tbody>
               {leaveTypes.map((lt) => (
                 <tr key={lt.id}>
@@ -174,6 +174,45 @@ export default async function ConfigSection() {
                           <option value="HR_ONLY">HR only</option>
                         </select>
                       </label>
+                      <select
+                        name="emailOnRequest"
+                        defaultValue={lt.emailOnRequest}
+                        className="input"
+                        aria-label={`Email on request for ${lt.name}`}
+                        data-testid={`lt-email-request-${lt.code}`}
+                        style={{ minWidth: 160 }}
+                      >
+                        <option value="NONE">None</option>
+                        <option value="STAFF">Staff only</option>
+                        <option value="APPROVER">Approver only</option>
+                        <option value="STAFF_AND_APPROVER">Staff &amp; approver</option>
+                      </select>
+                      <select
+                        name="emailOnDecision"
+                        defaultValue={lt.emailOnDecision}
+                        className="input"
+                        aria-label={`Email on decision for ${lt.name}`}
+                        data-testid={`lt-email-decision-${lt.code}`}
+                        style={{ minWidth: 160 }}
+                      >
+                        <option value="NONE">None</option>
+                        <option value="STAFF">Staff only</option>
+                        <option value="APPROVER">Approver only</option>
+                        <option value="STAFF_AND_APPROVER">Staff &amp; approver</option>
+                      </select>
+                      <select
+                        name="emailOnCancellation"
+                        defaultValue={lt.emailOnCancellation}
+                        className="input"
+                        aria-label={`Email on cancellation for ${lt.name}`}
+                        data-testid={`lt-email-cancel-${lt.code}`}
+                        style={{ minWidth: 160 }}
+                      >
+                        <option value="NONE">None</option>
+                        <option value="STAFF">Staff only</option>
+                        <option value="APPROVER">Approver only</option>
+                        <option value="STAFF_AND_APPROVER">Staff &amp; approver</option>
+                      </select>
                       <button type="submit" className="btn btn-secondary" aria-label={`Save policy for ${lt.name}`} style={{ padding: "2px 10px" }}>Save</button>
                     </form>
                   </td>
@@ -183,6 +222,9 @@ export default async function ConfigSection() {
                   <td className="t-num">{lt.maxConsecutiveDays ?? "—"}</td>
                   <td>{lt.allowConsecutive ? "Yes" : "No"}</td>
                   <td>{lt.visibility === "HR_ONLY" ? "HR only" : lt.visibility === "APPROVERS_SUPERUSERS" ? "Approvers+" : "Everyone"}</td>
+                  <td>{lt.emailOnRequest === "NONE" ? "None" : lt.emailOnRequest === "STAFF" ? "Staff" : lt.emailOnRequest === "APPROVER" ? "Approver" : "Staff+Approver"}</td>
+                  <td>{lt.emailOnDecision === "NONE" ? "None" : lt.emailOnDecision === "STAFF" ? "Staff" : lt.emailOnDecision === "APPROVER" ? "Approver" : "Staff+Approver"}</td>
+                  <td>{lt.emailOnCancellation === "NONE" ? "None" : lt.emailOnCancellation === "STAFF" ? "Staff" : lt.emailOnCancellation === "APPROVER" ? "Approver" : "Staff+Approver"}</td>
                   <td>{lt.active ? "Active" : "Archived"}</td>
                   <td style={{ textAlign: "right" }}>
                     <form action={setLeaveTypeActiveAction}>
@@ -228,6 +270,30 @@ export default async function ConfigSection() {
               <option value="EVERYONE">Everyone</option>
               <option value="APPROVERS_SUPERUSERS">Approvers &amp; superusers</option>
               <option value="HR_ONLY">HR only</option>
+            </select>
+          </label>
+          <label className="t-label" style={fieldCol}>Email on request
+            <select name="emailOnRequest" className="input" defaultValue="STAFF_AND_APPROVER" data-testid="lt-email-request" aria-label="Who is emailed when a request is submitted">
+              <option value="NONE">None</option>
+              <option value="STAFF">Staff only</option>
+              <option value="APPROVER">Approver only</option>
+              <option value="STAFF_AND_APPROVER">Staff &amp; approver</option>
+            </select>
+          </label>
+          <label className="t-label" style={fieldCol}>Email on decision
+            <select name="emailOnDecision" className="input" defaultValue="STAFF" data-testid="lt-email-decision" aria-label="Who is emailed when a request is approved or declined">
+              <option value="NONE">None</option>
+              <option value="STAFF">Staff only</option>
+              <option value="APPROVER">Approver only</option>
+              <option value="STAFF_AND_APPROVER">Staff &amp; approver</option>
+            </select>
+          </label>
+          <label className="t-label" style={fieldCol}>Email on cancellation
+            <select name="emailOnCancellation" className="input" defaultValue="STAFF_AND_APPROVER" data-testid="lt-email-cancel" aria-label="Who is emailed when a request is cancelled">
+              <option value="NONE">None</option>
+              <option value="STAFF">Staff only</option>
+              <option value="APPROVER">Approver only</option>
+              <option value="STAFF_AND_APPROVER">Staff &amp; approver</option>
             </select>
           </label>
           <button type="submit" className="btn btn-primary" data-testid="add-leavetype">Add type</button>
