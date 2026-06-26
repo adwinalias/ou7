@@ -156,7 +156,8 @@ suite("Story 26.1 — requiresApproval enforcement (integration)", () => {
     const CODE = "RA26X";
     await db.leaveType.deleteMany({ where: { code: CODE } });
     // Simulate the form action reading `=== "on"` when checkbox is unchecked → passes false.
-    const id = await createLeaveType("system", {
+    // createLeaveType writes an audit event, so the actor must be a real Employee (FK).
+    const id = await createLeaveType(employeeId, {
       name: "RA26 No-approval create",
       code: CODE,
       color: "#000000",
