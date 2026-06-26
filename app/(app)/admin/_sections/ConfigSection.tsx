@@ -183,12 +183,18 @@ export default async function ConfigSection() {
                   <td className="t-num">{lt.maxConsecutiveDays ?? "—"}</td>
                   <td>{lt.allowConsecutive ? "Yes" : "No"}</td>
                   <td>{lt.visibility === "HR_ONLY" ? "HR only" : lt.visibility === "APPROVERS_SUPERUSERS" ? "Approvers+" : "Everyone"}</td>
-                  <td>{lt.active ? "Active" : "Retired"}</td>
+                  <td>{lt.active ? "Active" : "Archived"}</td>
                   <td style={{ textAlign: "right" }}>
                     <form action={setLeaveTypeActiveAction}>
                       <input type="hidden" name="id" value={lt.id} />
                       <input type="hidden" name="active" value={lt.active ? "false" : "true"} />
-                      <button className="btn btn-secondary" style={{ padding: "2px 10px" }}>{lt.active ? "Retire" : "Reactivate"}</button>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: "2px 10px" }}
+                        aria-label={lt.active ? `Archive leave type ${lt.name}` : `Restore leave type ${lt.name}`}
+                      >
+                        {lt.active ? "Archive" : "Restore"}
+                      </button>
                     </form>
                   </td>
                 </tr>
