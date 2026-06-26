@@ -9,13 +9,17 @@ import type { DurationMode, ISODate, RegionCalendar } from "@/core/types";
 import { db } from "./db";
 
 /**
- * Build the CoverageInput for a leave request, or return null when the employee
- * has no department or BOTH minStaffing and maxLeavePerDay are null (no check needed).
+ * Build the CoverageInput for a leave request, or return null when:
+ *  - the employee has no department, OR
+ *  - BOTH minStaffing and maxLeavePerDay are null (no check needed), OR
+ *  - the requested leave type has affectsStaffingLevels=false (skip entirely).
  *
  * Two queries total:
  *  1. Employee → department.minStaffing + department.maxLeavePerDay + ACTIVE headcount (via _count).
- *  2. OTHER dept members' PENDING/APPROVED leave overlapping the range.
+ *  2. OTHER dept members' PENDING/APPROVED, affectsStaffingLevels=true leave overlapping the range.
  *
+ * @param leaveTypeAffectsStaffing  Pass the requested type's affectsStaffingLevels value.
+ *                                   false → return null immediately (no coverage check for this booking).
  * @param excludeRequestId  Skip this requestId when counting overlapping leave (used at
  *                          approval so the request being decided isn't counted twice).
  */
@@ -25,8 +29,10 @@ export async function buildCoverageInput(
   endISO: ISODate,
   mode: DurationMode,
   cal: RegionCalendar,
-  opts: { excludeRequestId?: string } = {},
+  opts: { excludeRequestId?: string; leaveTypeAffectsStaffing?: boolean } = {},
 ): Promise<CoverageInput | null> {
+  // Story 28.3: if the requested type doesn't affect staffing, skip the whole check.
+  if (opts.leaveTypeAffectsStaffing === false) return null;
   const emp = await db.employee.findUnique({
     where: { id: requesterEmployeeId },
     select: {
@@ -55,7 +61,7 @@ export async function buildCoverageInput(
   const headcount = emp.department._count.employees;
 
   // One query: OTHER active dept members' overlapping PENDING/APPROVED leave.
-  // TODO(28.3): filter by affectsStaffingLevels=true here once that field exists.
+  // Story 28.3: only count leave whose type affectsStaffingLevels=true.
   const overlapping = await db.leaveRequest.findMany({
     where: {
       employee: { departmentId: emp.departmentId, status: "ACTIVE" },
@@ -63,6 +69,7 @@ export async function buildCoverageInput(
       status: { in: ["PENDING", "APPROVED"] },
       startDate: { lte: new Date(`${endISO}T00:00:00.000Z`) },
       endDate: { gte: new Date(`${startISO}T00:00:00.000Z`) },
+      leaveType: { affectsStaffingLevels: true },
       // Exclude the request being re-checked at approval to avoid double-counting.
       ...(opts.excludeRequestId ? { id: { not: opts.excludeRequestId } } : {}),
     },

@@ -159,6 +159,7 @@ export interface LeaveTypeInput {
   minLengthDays?: number | null; // null = no minimum
   maxConsecutiveDays?: number | null; // null = no maximum
   allowConsecutive?: boolean; // default true (Story 26.5)
+  affectsStaffingLevels?: boolean; // default true (Story 28.3)
   visibility?: LeaveTypeVisibility; // default EVERYONE (Story 27.1)
   // Story 27.3: email notification matrix
   emailOnRequest?: EmailRecipients; // default STAFF_AND_APPROVER
@@ -174,6 +175,7 @@ export interface LeaveTypePolicyPatch {
   minLengthDays?: number | null;
   maxConsecutiveDays?: number | null;
   allowConsecutive?: boolean; // Story 26.5
+  affectsStaffingLevels?: boolean; // Story 28.3
   visibility?: LeaveTypeVisibility; // Story 27.1
   // Story 27.3: email notification matrix
   emailOnRequest?: EmailRecipients;
@@ -214,6 +216,7 @@ export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
       minLengthDays: clampLimit(input.minLengthDays),
       maxConsecutiveDays: clampLimit(input.maxConsecutiveDays),
       allowConsecutive: input.allowConsecutive ?? true,
+      affectsStaffingLevels: input.affectsStaffingLevels ?? true,
       visibility: toVisibility(input.visibility),
       emailOnRequest: toEmailRecipients(input.emailOnRequest, "STAFF_AND_APPROVER"),
       emailOnDecision: toEmailRecipients(input.emailOnDecision, "STAFF"),
@@ -242,6 +245,7 @@ export async function updateLeaveTypePolicy(actorId: string, id: string, patch: 
     ...(patch.minLengthDays !== undefined ? { minLengthDays: clampLimit(patch.minLengthDays) } : {}),
     ...(patch.maxConsecutiveDays !== undefined ? { maxConsecutiveDays: clampLimit(patch.maxConsecutiveDays) } : {}),
     ...(patch.allowConsecutive !== undefined ? { allowConsecutive: patch.allowConsecutive } : {}),
+    ...(patch.affectsStaffingLevels !== undefined ? { affectsStaffingLevels: patch.affectsStaffingLevels } : {}),
     ...(patch.visibility !== undefined ? { visibility: toVisibility(patch.visibility) } : {}),
     // Story 27.3: email matrix fields — only patch if provided
     ...(patch.emailOnRequest !== undefined ? { emailOnRequest: toEmailRecipients(patch.emailOnRequest, "STAFF_AND_APPROVER") } : {}),
@@ -254,12 +258,12 @@ export async function updateLeaveTypePolicy(actorId: string, id: string, patch: 
     action: "LEAVE_TYPE_UPDATE",
     entity: "LeaveType",
     entityId: id,
-    before: { requiresApproval: before.requiresApproval, noticePeriodDays: before.noticePeriodDays, cancellationWindowDays: before.cancellationWindowDays, minLengthDays: before.minLengthDays, maxConsecutiveDays: before.maxConsecutiveDays, allowConsecutive: before.allowConsecutive },
+    before: { requiresApproval: before.requiresApproval, noticePeriodDays: before.noticePeriodDays, cancellationWindowDays: before.cancellationWindowDays, minLengthDays: before.minLengthDays, maxConsecutiveDays: before.maxConsecutiveDays, allowConsecutive: before.allowConsecutive, affectsStaffingLevels: before.affectsStaffingLevels },
     after: safePatch,
   });
   return updated.id;
 }
 
 export async function listLeaveTypes() {
-  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true, minLengthDays: true, maxConsecutiveDays: true, allowConsecutive: true, visibility: true, emailOnRequest: true, emailOnDecision: true, emailOnCancellation: true } });
+  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true, minLengthDays: true, maxConsecutiveDays: true, allowConsecutive: true, affectsStaffingLevels: true, visibility: true, emailOnRequest: true, emailOnDecision: true, emailOnCancellation: true } });
 }

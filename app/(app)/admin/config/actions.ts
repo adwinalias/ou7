@@ -97,6 +97,7 @@ export async function createLeaveTypeAction(formData: FormData) {
     minLengthDays: limitOrNull(formData.get("minLengthDays")),
     maxConsecutiveDays: limitOrNull(formData.get("maxConsecutiveDays")),
     allowConsecutive: formData.get("allowConsecutive") === "on",
+    affectsStaffingLevels: formData.get("affectsStaffingLevels") === "on",
     visibility: (String(formData.get("visibility") || "EVERYONE")) as import("@/core/authz").LeaveTypeVisibility,
     emailOnRequest: (String(formData.get("emailOnRequest") || "STAFF_AND_APPROVER")) as import("@prisma/client").EmailRecipients,
     emailOnDecision: (String(formData.get("emailOnDecision") || "STAFF")) as import("@prisma/client").EmailRecipients,
@@ -128,6 +129,8 @@ export async function updateLeaveTypePolicyAction(formData: FormData) {
     ...(formData.has("maxConsecutiveDays") ? { maxConsecutiveDays: limitOrNull(formData.get("maxConsecutiveDays")) } : {}),
     // allowConsecutive: checkbox present = checked (true), absent = unchecked (false)
     allowConsecutive: formData.get("allowConsecutive") === "on",
+    // affectsStaffingLevels: same checkbox-present=true pattern (Story 28.3)
+    affectsStaffingLevels: formData.get("affectsStaffingLevels") === "on",
     ...(formData.has("visibility") ? { visibility: (String(formData.get("visibility") || "EVERYONE")) as import("@/core/authz").LeaveTypeVisibility } : {}),
     // Story 27.3: email matrix — present in the per-type policy form → include in patch
     ...(formData.has("emailOnRequest") ? { emailOnRequest: (String(formData.get("emailOnRequest") || "STAFF_AND_APPROVER")) as import("@prisma/client").EmailRecipients } : {}),
