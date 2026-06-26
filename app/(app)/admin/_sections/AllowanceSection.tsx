@@ -1,6 +1,6 @@
 import AllowanceBreakdown from "@/components/AllowanceBreakdown";
 import { getAllPeriodBalances, getOpenPeriodBalance, type YearPeriodBalance } from "@/lib/allowance";
-import { listAdjustments, previewReset } from "@/lib/allowance-admin";
+import { getAllowanceLog, listAdjustments, previewReset, type AllowanceLogRow } from "@/lib/allowance-admin";
 import { getHolidayBalance } from "@/lib/holiday-balance";
 import { getEmployeeLeaveRecordsForYear, type YearLeaveRecord } from "@/lib/myleave";
 import { resetAction, rolloverYearAction, setHolidayAction } from "../allowance/actions";
@@ -59,6 +59,58 @@ async function PriorYearCard({ employeeId, period }: { employeeId: string; perio
   );
 }
 
+// Read-only chronological log of all AllowanceAdjustment rows for an employee (Epic 31.3).
+function AllowanceLogPanel({ employeeId, rows }: { employeeId: string; rows: AllowanceLogRow[] }) {
+  return (
+    <section className="card" style={{ padding: "var(--space-5)" }} data-testid="allowance-log-section">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-3)" }}>
+        <div className="t-label">Allowance log</div>
+        <a
+          href={`/admin/allowance/log/export?employeeId=${encodeURIComponent(employeeId)}`}
+          className="btn btn-secondary"
+          style={{ fontSize: "var(--text-xs)" }}
+          data-testid="allowance-log-export"
+        >
+          Export CSV
+        </a>
+      </div>
+      {rows.length === 0 ? (
+        <p className="t-muted">No balance changes recorded.</p>
+      ) : (
+        <div className="table-scroll">
+          <table className="table" data-testid="allowance-log-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Year</th>
+                <th>Kind</th>
+                <th>Bucket</th>
+                <th style={num}>Delta</th>
+                <th>Reason</th>
+                <th>By</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                // ponytail: index key is fine — log rows are immutable/append-only
+                <tr key={i}>
+                  <td className="t-num">{r.createdAtISO}</td>
+                  <td className="t-num">{r.year}</td>
+                  <td>{r.kind}</td>
+                  <td>{r.bucket === "PUBLIC_HOLIDAY" ? "Public holiday" : "Vacation"}</td>
+                  <td style={num}>{r.delta}</td>
+                  <td className="t-muted">{r.reason}</td>
+                  <td className="t-muted">{r.actorName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 // Reusable allowance-management surface for one employee (Epic 9.2 / 19.3b AD6; 24.2 ADR-0013).
 // Shows the CURRENT (open) year with full management controls and, alongside it, the PREVIOUS
 // year READ-ONLY — without re-selecting — reflowing to one column ≤640px. HR can drill from
@@ -70,6 +122,7 @@ export default async function AllowanceSection({ employeeId, year }: { employeeI
   const ledger = balance ? await listAdjustments(balance.periodId) : [];
   const preview = await previewReset(employeeId, year);
   const holidayDays = await getHolidayBalance(employeeId, year); // null = non-Remote
+  const logRows = await getAllowanceLog(employeeId);
 
   // Every period (newest first); the open one carries the current year, the next-newest is the
   // prior year shown alongside. If there is no prior period (new joiner), we show only current.
@@ -180,7 +233,7 @@ export default async function AllowanceSection({ employeeId, year }: { employeeI
           </section>
 
           {/* Ledger + add entry (current period only) */}
-          <section className="card" style={{ padding: "var(--space-5)" }}>
+          <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }}>
             <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Adjustment ledger</div>
             {ledger.length === 0 ? (
               <p className="t-muted" style={{ marginBottom: "var(--space-4)" }}>No entries.</p>
@@ -205,6 +258,9 @@ export default async function AllowanceSection({ employeeId, year }: { employeeI
             )}
             <AddEntryForm periodId={balance.periodId} />
           </section>
+
+          {/* Allowance log — read-only, cross-period, exportable (Epic 31.3). */}
+          <AllowanceLogPanel employeeId={employeeId} rows={logRows} />
         </>
       )}
     </>

@@ -6,6 +6,7 @@ import "server-only"; // Epic 22.4: DB-backed HR allowance ledger — server-onl
 // Balances stay engine-derived — only inputs are ever stored.
 import type { AdjustmentKind, AllowanceBucket } from "@prisma/client";
 import { computeRemaining, computeRollover, proRataOpening, round } from "@/core/allowance";
+import { toCsv } from "@/core/csv";
 import { recordAudit } from "./audit";
 import { getEntitlementPolicy } from "./config";
 import { db } from "./db";
@@ -439,4 +440,57 @@ export async function listAdjustments(periodId: string) {
     actorName: r.actor ? `${r.actor.firstName} ${r.actor.lastName}`.trim() : "—",
     createdAtISO: r.createdAt.toISOString().slice(0, 10),
   }));
+}
+
+// ─── Per-employee allowance log (Epic 31.3) ──────────────────────────────────
+
+export interface AllowanceLogRow {
+  createdAtISO: string;
+  year: number;
+  kind: AdjustmentKind;
+  bucket: AllowanceBucket;
+  delta: number;
+  reason: string;
+  actorName: string;
+}
+
+/**
+ * All AllowanceAdjustment rows for an employee across ALL their periods, newest-first.
+ * One query — joins adjustment → period (for the year) + actor (no N+1).
+ */
+export async function getAllowanceLog(employeeId: string): Promise<AllowanceLogRow[]> {
+  const rows = await db.allowanceAdjustment.findMany({
+    where: { employeeId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      period: { select: { startDate: true } },
+      actor: { select: { firstName: true, lastName: true } },
+    },
+  });
+  return rows.map((r) => ({
+    createdAtISO: r.createdAt.toISOString().slice(0, 10),
+    // Asia/Dubai (guardrail 7) — periods are stored at midnight UTC; derive the year in
+    // the app timezone so a runner west of UTC can't roll a Jan-1 period to the prior year.
+    year: Number(r.period.startDate.toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }).slice(0, 4)),
+    kind: r.kind,
+    bucket: r.bucket,
+    delta: r.delta,
+    reason: r.reason,
+    actorName: r.actor ? `${r.actor.firstName} ${r.actor.lastName}`.trim() : "—",
+  }));
+}
+
+/** CSV for the allowance log. Pure — takes the already-fetched rows. */
+export function buildAllowanceLogCsv(rows: AllowanceLogRow[]): string {
+  const header = ["Date", "Year", "Kind", "Bucket", "Delta", "Reason", "By"];
+  const data = rows.map((r) => [
+    r.createdAtISO,
+    String(r.year),
+    r.kind,
+    r.bucket === "PUBLIC_HOLIDAY" ? "Public holiday" : "Vacation",
+    String(r.delta),
+    r.reason,
+    r.actorName,
+  ]);
+  return toCsv([header, ...data]);
 }
