@@ -228,6 +228,7 @@ model LeaveType {
   active                  Boolean @default(true)
   requiresApproval        Boolean @default(true)
   noticePeriodDays        Int     @default(0)
+  cancellationWindowDays  Int     @default(0)
 
   regions  Region[] // availability per region
   requests LeaveRequest[]

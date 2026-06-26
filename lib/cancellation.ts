@@ -17,7 +17,10 @@ function dubaiToday(): ISODate {
 export type CancelResult = { ok: true } | { ok: false; error: string };
 
 export async function cancelLeaveRequest(actor: Actor, requestId: string): Promise<CancelResult> {
-  const req = await db.leaveRequest.findUnique({ where: { id: requestId }, select: { status: true, employeeId: true, startDate: true } });
+  const req = await db.leaveRequest.findUnique({
+    where: { id: requestId },
+    select: { status: true, employeeId: true, startDate: true, leaveType: { select: { cancellationWindowDays: true } } },
+  });
   if (!req) throw new AuthError(403, "You can't act on this request.");
 
   const isOwner = actor.employeeId === req.employeeId;
@@ -30,6 +33,7 @@ export async function cancelLeaveRequest(actor: Actor, requestId: string): Promi
     isHR: hr,
     todayISO: dubaiToday(),
     startISO: req.startDate.toISOString().slice(0, 10),
+    cancellationWindowDays: req.leaveType.cancellationWindowDays,
   });
   if (!decision.allowed) return { ok: false, error: decision.reason ?? "Cannot cancel." };
 

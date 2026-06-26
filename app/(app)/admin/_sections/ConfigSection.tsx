@@ -88,7 +88,7 @@ export default async function ConfigSection() {
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Leave types</div>
         <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
           <table className="table" data-testid="leavetype-table">
-            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Status</th><th /></tr></thead>
+            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Status</th><th /></tr></thead>
             <tbody>
               {leaveTypes.map((lt) => (
                 <tr key={lt.id}>
@@ -117,10 +117,21 @@ export default async function ConfigSection() {
                         className="input t-num"
                         style={{ width: 60, padding: "2px 6px" }}
                       />
-                      <button type="submit" className="btn btn-secondary" aria-label={`Save approval policy for ${lt.name}`} style={{ padding: "2px 10px" }}>Save</button>
+                      <input
+                        type="number"
+                        name="cancellationWindowDays"
+                        defaultValue={lt.cancellationWindowDays}
+                        min={0}
+                        aria-label={`Cancel window (days before start) for ${lt.name}`}
+                        data-testid={`lt-cancel-window-${lt.code}`}
+                        className="input t-num"
+                        style={{ width: 60, padding: "2px 6px" }}
+                      />
+                      <button type="submit" className="btn btn-secondary" aria-label={`Save policy for ${lt.name}`} style={{ padding: "2px 10px" }}>Save</button>
                     </form>
                   </td>
                   <td className="t-num">{lt.noticePeriodDays}</td>
+                  <td className="t-num">{lt.cancellationWindowDays}</td>
                   <td>{lt.active ? "Active" : "Retired"}</td>
                   <td style={{ textAlign: "right" }}>
                     <form action={setLeaveTypeActiveAction}>
@@ -144,6 +155,9 @@ export default async function ConfigSection() {
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="requiresApproval" defaultChecked /> Requires approval</label>
           <label className="t-label" style={fieldCol}>Notice (days; negative = allow past)
             <input type="number" name="noticePeriodDays" defaultValue={0} className="input t-num" data-testid="lt-notice-days" aria-label="Notice period days (negative allows backdating)" />
+          </label>
+          <label className="t-label" style={fieldCol}>Cancel window (days before start)
+            <input type="number" name="cancellationWindowDays" defaultValue={0} min={0} className="input t-num" data-testid="lt-cancel-window-days" aria-label="Cancel window (days before start)" />
           </label>
           <button type="submit" className="btn btn-primary" data-testid="add-leavetype">Add type</button>
         </form>
