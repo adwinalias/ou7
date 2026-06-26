@@ -10,9 +10,11 @@ import { canAddLeaveForOthers } from "@/core/authz";
 import { validateLeaveRequest } from "@/core/leave";
 import type { Actor, DateRange, ISODate, RegionCalendar } from "@/core/types";
 import { getOpenPeriodBalance, periodBalanceExcluding } from "./allowance";
+import { getMyApproverEmails } from "./approvals";
 import { recordAudit } from "./audit";
 import { getRestrictedRangesFor } from "./calendars";
 import { db } from "./db";
+import { notifier, resolveRecipients } from "./notify";
 import { AuthError } from "./rbac";
 
 // ─── Input contract (shared with the client form + server actions) ───────────────
@@ -254,8 +256,8 @@ export async function submitLeave(
     ? new Date(Date.UTC(toDate(input.startDate).getUTCFullYear() + 2, toDate(input.startDate).getUTCMonth(), toDate(input.startDate).getUTCDate()))
     : null;
 
-  // Look up requiresApproval for the chosen type (not in the preview shape; fetch it directly).
-  const lt = await db.leaveType.findUniqueOrThrow({ where: { id: input.leaveTypeId }, select: { requiresApproval: true, deductsAllowance: true } });
+  // Look up requiresApproval + email matrix for the chosen type (not in the preview shape; fetch directly).
+  const lt = await db.leaveType.findUniqueOrThrow({ where: { id: input.leaveTypeId }, select: { requiresApproval: true, deductsAllowance: true, name: true, emailOnRequest: true } });
   const autoApprove = !lt.requiresApproval;
 
   const actorId = opts.createdById ?? employeeId;
@@ -275,6 +277,29 @@ export async function submitLeave(
     allowancePeriodId: preview.deductsAllowance ? (balance?.periodId ?? null) : null,
     createdById: actorId,
   } as const;
+
+  // Story 27.3: fetch requester email for notification dispatch (one extra select, folded here).
+  const requesterEmployee = await db.employee.findUniqueOrThrow({
+    where: { id: employeeId },
+    select: { email: true, firstName: true, lastName: true },
+  });
+
+  /** Dispatch leaveRequested notification best-effort after a successful create. */
+  const dispatchRequested = async (id: string) => {
+    try {
+      const approverEmails = await getMyApproverEmails(employeeId);
+      const to = resolveRecipients(lt.emailOnRequest, requesterEmployee.email, approverEmails);
+      await notifier.leaveRequested({
+        to,
+        requesterName: `${requesterEmployee.firstName} ${requesterEmployee.lastName}`.trim(),
+        leaveTypeName: lt.name,
+        startISO: input.startDate,
+        endISO,
+      });
+    } catch (err) {
+      console.error("[notify] leaveRequested dispatch failed (non-fatal):", err, "requestId:", id);
+    }
+  };
 
   if (autoApprove && lt.deductsAllowance && balance) {
     // Mirror decideLeaveRequest exactly: lock period → balance re-check → write APPROVED → audit,
@@ -306,6 +331,8 @@ export async function submitLeave(
       });
       return { ok: true as const, id: created.id };
     });
+    // Story 27.3: fire leaveRequested for auto-approved requests too (one notification only).
+    if (outcome.ok) await dispatchRequested(outcome.id);
     return outcome;
   }
 
@@ -322,16 +349,18 @@ export async function submitLeave(
       entityId: created.id,
       after: { status: "APPROVED", leaveTypeId: input.leaveTypeId, employeeId, reason: "requiresApproval=false" },
     });
+    await dispatchRequested(created.id);
     return { ok: true, id: created.id };
   }
 
-  // requiresApproval=true: normal PENDING path, unchanged.
+  // requiresApproval=true: normal PENDING path.
   const created = await db.leaveRequest.create({
     data: { ...sharedData, status: "PENDING" },
     select: { id: true },
   });
 
-  // NOTE: approver notification (email + Teams DM) is Epic 11 — wired here later.
+  // Story 27.3: dispatch request notification (replaces "Epic 11 — wired here later" TODO).
+  await dispatchRequested(created.id);
   return { ok: true, id: created.id };
 }
 

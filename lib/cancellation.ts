@@ -6,8 +6,10 @@
 import { isHR } from "@/core/authz";
 import { canCancel } from "@/core/cancellation";
 import type { Actor, ISODate, LeaveStatus } from "@/core/types";
+import { getMyApproverEmails } from "./approvals";
 import { recordAudit } from "./audit";
 import { db } from "./db";
+import { notifier, resolveRecipients } from "./notify";
 import { AuthError } from "./rbac";
 
 function dubaiToday(): ISODate {
@@ -19,7 +21,14 @@ export type CancelResult = { ok: true } | { ok: false; error: string };
 export async function cancelLeaveRequest(actor: Actor, requestId: string): Promise<CancelResult> {
   const req = await db.leaveRequest.findUnique({
     where: { id: requestId },
-    select: { status: true, employeeId: true, startDate: true, leaveType: { select: { cancellationWindowDays: true } } },
+    select: {
+      status: true,
+      employeeId: true,
+      startDate: true,
+      endDate: true,
+      leaveType: { select: { cancellationWindowDays: true, name: true, emailOnCancellation: true } },
+      employee: { select: { email: true, firstName: true, lastName: true } },
+    },
   });
   if (!req) throw new AuthError(403, "You can't act on this request.");
 
@@ -37,7 +46,7 @@ export async function cancelLeaveRequest(actor: Actor, requestId: string): Promi
   });
   if (!decision.allowed) return { ok: false, error: decision.reason ?? "Cannot cancel." };
 
-  return db.$transaction(async (tx) => {
+  const txResult = await db.$transaction(async (tx) => {
     // Conditional: only transition while still PENDING/APPROVED (guards a race).
     const updated = await tx.leaveRequest.updateMany({
       where: { id: requestId, status: { in: ["PENDING", "APPROVED"] } },
@@ -54,4 +63,23 @@ export async function cancelLeaveRequest(actor: Actor, requestId: string): Promi
     });
     return { ok: true as const };
   });
+
+  // Story 27.3: dispatch cancellation notification outside the transaction (best-effort).
+  if (txResult.ok) {
+    try {
+      const approverEmails = await getMyApproverEmails(req.employeeId);
+      const to = resolveRecipients(req.leaveType.emailOnCancellation, req.employee.email, approverEmails);
+      await notifier.leaveCancelled({
+        to,
+        requesterName: `${req.employee.firstName} ${req.employee.lastName}`.trim(),
+        leaveTypeName: req.leaveType.name,
+        startISO: req.startDate.toISOString().slice(0, 10),
+        endISO: req.endDate.toISOString().slice(0, 10),
+      });
+    } catch (err) {
+      console.error("[notify] leaveCancelled dispatch failed (non-fatal):", err);
+    }
+  }
+
+  return txResult;
 }

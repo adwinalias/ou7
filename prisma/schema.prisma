@@ -87,6 +87,18 @@ enum LeaveTypeVisibility {
   HR_ONLY
 }
 
+// Story 27.3: per-type email notification matrix.
+// NOTE: OU7 has no distinct "notifier" role — WhosOff's "staff, approver & notifier"
+// collapses to STAFF_AND_APPROVER here because the only modelled parties are the
+// requester (STAFF) and their approver chain. A future notifier-role model would add
+// a NOTIFIER and STAFF_AND_APPROVER_AND_NOTIFIER variant — intentional, documented gap.
+enum EmailRecipients {
+  NONE
+  STAFF
+  APPROVER
+  STAFF_AND_APPROVER
+}
+
 // ─── Org structure ───────────────────────────────────────────
 model Region {
   id          String  @id @default(cuid())
@@ -239,6 +251,10 @@ model LeaveType {
   maxConsecutiveDays      Int? // null = no maximum; working days cap per request
   allowConsecutive        Boolean @default(true) // Story 26.5: when false, blocks adjacent same-type bookings
   visibility              LeaveTypeVisibility @default(EVERYONE) // Story 27.1: who can see others' leave of this type
+  // Story 27.3: email notification matrix — who gets emailed for each event.
+  emailOnRequest          EmailRecipients @default(STAFF_AND_APPROVER)
+  emailOnDecision         EmailRecipients @default(STAFF)
+  emailOnCancellation     EmailRecipients @default(STAFF_AND_APPROVER)
 
   regions  Region[] // availability per region
   requests LeaveRequest[]

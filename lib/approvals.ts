@@ -9,7 +9,7 @@ import type { Actor } from "@/core/types";
 import { periodBalanceExcluding } from "./allowance";
 import { recordAudit } from "./audit";
 import { db } from "./db";
-import { notifier } from "./notify";
+import { notifier, resolveRecipients } from "./notify";
 import { AuthError } from "./rbac";
 
 export interface PendingItem {
@@ -90,6 +90,17 @@ export async function getMyApprovers(employeeId: string): Promise<ApproverChainE
     level: index + 1,
     name: `${r.approver.firstName} ${r.approver.lastName}`.trim(),
   }));
+}
+
+/** Story 27.3: Email addresses of the employee's approver chain (for notification dispatch).
+ *  Internal — not exported as a public API surface; callers in lib/ use this. */
+export async function getMyApproverEmails(employeeId: string): Promise<string[]> {
+  const rows = await db.approverAssignment.findMany({
+    where: { employeeId },
+    orderBy: { order: "asc" },
+    include: { approver: { select: { email: true } } },
+  });
+  return rows.map((r) => r.approver.email);
 }
 
 /** The Prisma WHERE used for the approver's pending queue. SHARED between the list and the
@@ -223,20 +234,34 @@ export async function decideLeaveRequest(
 
   if (!outcome.ok) return outcome;
 
-  // Notify the requester outside the transaction (no-op/log for now — Epic 11).
-  const full = await db.leaveRequest.findUniqueOrThrow({
-    where: { id: requestId },
-    select: { startDate: true, endDate: true, employee: true, leaveType: { select: { name: true } } },
-  });
-  await notifier.leaveDecided({
-    to: full.employee.email,
-    requesterName: `${full.employee.firstName} ${full.employee.lastName}`.trim(),
-    leaveTypeName: full.leaveType.name,
-    startISO: iso(full.startDate),
-    endISO: iso(full.endDate),
-    status: outcome.status === "APPROVED" ? "APPROVED" : "DECLINED",
-    comment: comment?.trim() || null,
-  });
+  // Story 27.3: resolve recipients from emailOnDecision and notify outside the transaction.
+  // Best-effort: ALL of the recipient-fetch + dispatch is inside the try/catch so any DB or
+  // transport error here is logged and never surfaces to the caller. The decision is already
+  // committed at this point and must return ok: true regardless of notification failure.
+  try {
+    const full = await db.leaveRequest.findUniqueOrThrow({
+      where: { id: requestId },
+      select: {
+        startDate: true,
+        endDate: true,
+        employee: { select: { email: true, firstName: true, lastName: true } },
+        leaveType: { select: { name: true, emailOnDecision: true } },
+      },
+    });
+    const approverEmailsResolved = await getMyApproverEmails(pre.employeeId);
+    const to = resolveRecipients(full.leaveType.emailOnDecision, full.employee.email, approverEmailsResolved);
+    await notifier.leaveDecided({
+      to,
+      requesterName: `${full.employee.firstName} ${full.employee.lastName}`.trim(),
+      leaveTypeName: full.leaveType.name,
+      startISO: iso(full.startDate),
+      endISO: iso(full.endDate),
+      status: outcome.status === "APPROVED" ? "APPROVED" : "DECLINED",
+      comment: comment?.trim() || null,
+    });
+  } catch (err) {
+    console.error("[notify] leaveDecided dispatch failed (non-fatal):", err);
+  }
 
   return { ok: true };
 }

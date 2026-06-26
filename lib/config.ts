@@ -5,7 +5,7 @@ import "server-only"; // Epic 22.4: DB-backed HR config — server-only.
 //
 // Out of scope here (deferred — see OVERNIGHT-NOTES.md): branding + notification settings
 // (need PRD §14 inputs / Epic 11) and multi-level approval routing (Epic 5.5).
-import type { Role } from "@prisma/client";
+import type { EmailRecipients, Role } from "@prisma/client";
 import type { LeaveTypeVisibility } from "@/core/authz";
 import { recordAudit } from "./audit";
 import { db } from "./db";
@@ -99,6 +99,10 @@ export interface LeaveTypeInput {
   maxConsecutiveDays?: number | null; // null = no maximum
   allowConsecutive?: boolean; // default true (Story 26.5)
   visibility?: LeaveTypeVisibility; // default EVERYONE (Story 27.1)
+  // Story 27.3: email notification matrix
+  emailOnRequest?: EmailRecipients; // default STAFF_AND_APPROVER
+  emailOnDecision?: EmailRecipients; // default STAFF
+  emailOnCancellation?: EmailRecipients; // default STAFF_AND_APPROVER
 }
 
 /** Partial of the per-type policy fields HR may edit (extensible for later stories). */
@@ -110,12 +114,22 @@ export interface LeaveTypePolicyPatch {
   maxConsecutiveDays?: number | null;
   allowConsecutive?: boolean; // Story 26.5
   visibility?: LeaveTypeVisibility; // Story 27.1
+  // Story 27.3: email notification matrix
+  emailOnRequest?: EmailRecipients;
+  emailOnDecision?: EmailRecipients;
+  emailOnCancellation?: EmailRecipients;
 }
 
 const VALID_VISIBILITIES: LeaveTypeVisibility[] = ["EVERYONE", "APPROVERS_SUPERUSERS", "HR_ONLY"];
 // ponytail: guard — unknown string → safe default EVERYONE (never throw on a UI typo)
 function toVisibility(v: string | null | undefined): LeaveTypeVisibility {
   return VALID_VISIBILITIES.includes(v as LeaveTypeVisibility) ? (v as LeaveTypeVisibility) : "EVERYONE";
+}
+
+// Story 27.3: email matrix guard — unknown string → safe default (never throw on a UI typo)
+const VALID_EMAIL_RECIPIENTS: EmailRecipients[] = ["NONE", "STAFF", "APPROVER", "STAFF_AND_APPROVER"];
+function toEmailRecipients(v: string | null | undefined, fallback: EmailRecipients): EmailRecipients {
+  return VALID_EMAIL_RECIPIENTS.includes(v as EmailRecipients) ? (v as EmailRecipients) : fallback;
 }
 
 // ponytail: clamp a limit to ≥1, or null if ≤0/null/undefined (0 and negatives are no-limit)
@@ -140,6 +154,9 @@ export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
       maxConsecutiveDays: clampLimit(input.maxConsecutiveDays),
       allowConsecutive: input.allowConsecutive ?? true,
       visibility: toVisibility(input.visibility),
+      emailOnRequest: toEmailRecipients(input.emailOnRequest, "STAFF_AND_APPROVER"),
+      emailOnDecision: toEmailRecipients(input.emailOnDecision, "STAFF"),
+      emailOnCancellation: toEmailRecipients(input.emailOnCancellation, "STAFF_AND_APPROVER"),
     },
   });
   await recordAudit(db, { actorId, action: "LEAVE_TYPE_CREATE", entity: "LeaveType", entityId: lt.id, after: { name: lt.name, code: lt.code, requiresApproval: lt.requiresApproval } });
@@ -165,6 +182,10 @@ export async function updateLeaveTypePolicy(actorId: string, id: string, patch: 
     ...(patch.maxConsecutiveDays !== undefined ? { maxConsecutiveDays: clampLimit(patch.maxConsecutiveDays) } : {}),
     ...(patch.allowConsecutive !== undefined ? { allowConsecutive: patch.allowConsecutive } : {}),
     ...(patch.visibility !== undefined ? { visibility: toVisibility(patch.visibility) } : {}),
+    // Story 27.3: email matrix fields — only patch if provided
+    ...(patch.emailOnRequest !== undefined ? { emailOnRequest: toEmailRecipients(patch.emailOnRequest, "STAFF_AND_APPROVER") } : {}),
+    ...(patch.emailOnDecision !== undefined ? { emailOnDecision: toEmailRecipients(patch.emailOnDecision, "STAFF") } : {}),
+    ...(patch.emailOnCancellation !== undefined ? { emailOnCancellation: toEmailRecipients(patch.emailOnCancellation, "STAFF_AND_APPROVER") } : {}),
   };
   const updated = await db.leaveType.update({ where: { id }, data: safePatch });
   await recordAudit(db, {
@@ -179,5 +200,5 @@ export async function updateLeaveTypePolicy(actorId: string, id: string, patch: 
 }
 
 export async function listLeaveTypes() {
-  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true, minLengthDays: true, maxConsecutiveDays: true, allowConsecutive: true, visibility: true } });
+  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true, minLengthDays: true, maxConsecutiveDays: true, allowConsecutive: true, visibility: true, emailOnRequest: true, emailOnDecision: true, emailOnCancellation: true } });
 }
