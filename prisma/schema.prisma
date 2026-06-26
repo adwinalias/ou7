@@ -214,6 +214,8 @@ model Employee {
   allowanceAdjustments AllowanceAdjustment[] @relation("AdjustmentSubject")
   adjustmentsActed     AllowanceAdjustment[] @relation("AdjustmentActor")
   holidayBalances      HolidayBalance[]
+  staffRestrictionsA   StaffRestriction[] @relation("StaffRestrictionA")
+  staffRestrictionsB   StaffRestriction[] @relation("StaffRestrictionB")
 
   @@index([regionId])
   @@index([departmentId])
@@ -415,6 +417,23 @@ model RestrictedDay {
   startDate    DateTime
   endDate      DateTime
   reason       String?
+}
+
+// ─── Staff restrictions (story 29.1 / ADR-0014) ──────────────
+// Two employees who should not be off at the same time. Enforcement in 29.2.
+model StaffRestriction {
+  id            String   @id @default(cuid())
+  employeeA     Employee @relation("StaffRestrictionA", fields: [employeeAId], references: [id])
+  employeeAId   String
+  employeeB     Employee @relation("StaffRestrictionB", fields: [employeeBId], references: [id])
+  employeeBId   String
+  bidirectional Boolean  @default(true)
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  @@unique([employeeAId, employeeBId])
+  @@index([employeeAId])
+  @@index([employeeBId])
 }
 
 // ─── Notifications, reports, audit ───────────────────────────

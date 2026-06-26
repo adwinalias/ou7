@@ -4,6 +4,7 @@ import ConfigSection from "./_sections/ConfigSection";
 import EmployeeDetailPanel from "./_sections/EmployeeDetailPanel";
 import EmployeesSection from "./_sections/EmployeesSection";
 import RestrictedDaysSection from "./_sections/RestrictedDaysSection";
+import StaffRestrictionsSection from "./_sections/StaffRestrictionsSection";
 
 type Mode = "system" | "employee";
 
@@ -78,6 +79,7 @@ export default async function AdminPage({
           <ConfigSection />
           <CalendarsSection regionId={sp.region} yearStr={sp.year} formAction="/admin" preserveMode />
           <RestrictedDaysSection />
+          <StaffRestrictionsSection />
         </div>
       ) : (
         <div data-testid="admin-employee">
