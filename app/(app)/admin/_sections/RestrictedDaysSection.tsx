@@ -45,7 +45,7 @@ export default async function RestrictedDaysSection() {
           </div>
         )}
 
-        <form action={createRestrictedAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
+        <form action={createRestrictedAction} className="reflow-1col" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
           <label className="t-label" style={{ display: "flex", flexDirection: "column", gap: 2 }}>Scope
             <select name="scope" className="input" defaultValue="COMPANY" data-testid="r-scope">
               <option value="COMPANY">Company</option>

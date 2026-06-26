@@ -81,7 +81,7 @@ export default function EmployeeDetail({
         <strong>{employee.email}</strong> — email is fixed. Changing region, department or approver level asks you to confirm first.
       </p>
 
-      <form ref={formRef} action={action} onSubmit={onSubmit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
+      <form ref={formRef} action={action} onSubmit={onSubmit} className="reflow-1col" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
         <input type="hidden" name="employeeId" value={employee.id} />
 
         <label className="t-label" style={fieldCol}>Email (read-only)

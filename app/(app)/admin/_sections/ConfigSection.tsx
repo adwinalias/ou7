@@ -60,7 +60,7 @@ export default async function ConfigSection() {
             </table>
           </div>
         )}
-        <form action={upsertPolicyAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
+        <form action={upsertPolicyAction} className="reflow-1col" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
           <label className="t-label" style={fieldCol}>Region
             <select name="regionId" className="input" required aria-required="true" data-testid="policy-region">
               {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -107,7 +107,7 @@ export default async function ConfigSection() {
             </tbody>
           </table>
         </div>
-        <form action={createLeaveTypeAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
+        <form action={createLeaveTypeAction} className="reflow-1col" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
           <label className="t-label" style={fieldCol}>Name<input name="name" required aria-required="true" className="input" data-testid="lt-name" /></label>
           <label className="t-label" style={fieldCol}>Code<input name="code" required aria-required="true" className="input t-num" maxLength={4} data-testid="lt-code" /></label>
           <label className="t-label" style={fieldCol}>Colour<input type="color" name="color" defaultValue="#2F6FEB" className="input" /></label>
