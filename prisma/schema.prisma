@@ -81,6 +81,12 @@ enum RestrictedScope {
   REGION
 }
 
+enum LeaveTypeVisibility {
+  EVERYONE
+  APPROVERS_SUPERUSERS
+  HR_ONLY
+}
+
 // ─── Org structure ───────────────────────────────────────────
 model Region {
   id          String  @id @default(cuid())
@@ -232,6 +238,7 @@ model LeaveType {
   minLengthDays           Int? // null = no minimum; ≥1 working days required per request
   maxConsecutiveDays      Int? // null = no maximum; working days cap per request
   allowConsecutive        Boolean @default(true) // Story 26.5: when false, blocks adjacent same-type bookings
+  visibility              LeaveTypeVisibility @default(EVERYONE) // Story 27.1: who can see others' leave of this type
 
   regions  Region[] // availability per region
   requests LeaveRequest[]

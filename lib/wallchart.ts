@@ -21,7 +21,7 @@ import {
   leaveCategory,
   type LeaveCategory,
 } from "@/core/leave-categories";
-import { isHR } from "@/core/authz";
+import { isHR, allowedLeaveTypeVisibilities } from "@/core/authz";
 import type { Actor, ISODate, RegionCalendar } from "@/core/types";
 import { db } from "./db";
 
@@ -152,12 +152,18 @@ export async function getWallChart(
   }
 
   // Leave overlapping the month. visibleOnWallChart only. NOTES ARE NOT SELECTED.
+  // Story 27.1: visibility filter — show a row iff the leave type is visible to the actor
+  // (per allowedLeaveTypeVisibilities) OR the row belongs to the actor themselves.
+  const allowedVis = allowedLeaveTypeVisibilities(actor);
   const leave = await db.leaveRequest.findMany({
     where: {
       status: { in: ["APPROVED", "PENDING"] },
       startDate: { lte: monthEnd },
       endDate: { gte: monthStart },
-      leaveType: { visibleOnWallChart: true, ...(options.type ? { code: options.type } : {}) },
+      OR: [
+        { leaveType: { visibleOnWallChart: true, visibility: { in: allowedVis }, ...(options.type ? { code: options.type } : {}) } },
+        { employeeId: actor.employeeId, leaveType: { visibleOnWallChart: true, ...(options.type ? { code: options.type } : {}) } },
+      ],
     },
     select: {
       employeeId: true,

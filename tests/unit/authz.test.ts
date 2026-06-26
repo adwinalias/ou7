@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  allowedLeaveTypeVisibilities,
   canAccessAdmin,
   canAddLeaveForOthers,
   canApproveFor,
   canEditOthersLeave,
+  canSeeLeaveTypeVisibility,
   hasApproverLevel,
   hasRole,
   isActive,
   isApprover,
   isHR,
+  type LeaveTypeVisibility,
 } from "../../core/authz";
 import type { Actor, ApproverLevel, EmployeeStatus, Role } from "../../core/types";
 
@@ -132,6 +135,53 @@ describe("canAddLeaveForOthers / canEditOthersLeave", () => {
     expect(canEditOthersLeave(actor({ role: "APPROVER", approverLevel: "APPROVER_ADD" }))).toBe(false);
     expect(canEditOthersLeave(actor({ role: "APPROVER", approverLevel: "APPROVER_ADD_EDIT" }))).toBe(true);
     expect(canEditOthersLeave(actor({ role: "HR", approverLevel: "NONE" }))).toBe(true);
+  });
+});
+
+describe("canSeeLeaveTypeVisibility / allowedLeaveTypeVisibilities", () => {
+  const staff    = actor({ role: "STAFF" });
+  const approver = actor({ role: "APPROVER", approverLevel: "APPROVER" });
+  const hr       = actor({ role: "HR" });
+  const inactive = actor({ role: "HR", status: "INACTIVE" });
+
+  const VISIBILITIES: LeaveTypeVisibility[] = ["EVERYONE", "APPROVERS_SUPERUSERS", "HR_ONLY"];
+
+  describe("EVERYONE — all active roles can see", () => {
+    it("staff can see EVERYONE", ()    => expect(canSeeLeaveTypeVisibility(staff,    "EVERYONE")).toBe(true));
+    it("approver can see EVERYONE", () => expect(canSeeLeaveTypeVisibility(approver, "EVERYONE")).toBe(true));
+    it("hr can see EVERYONE", ()       => expect(canSeeLeaveTypeVisibility(hr,       "EVERYONE")).toBe(true));
+  });
+
+  describe("APPROVERS_SUPERUSERS — approver and HR only, not staff", () => {
+    it("staff cannot see APPROVERS_SUPERUSERS", ()    => expect(canSeeLeaveTypeVisibility(staff,    "APPROVERS_SUPERUSERS")).toBe(false));
+    it("approver can see APPROVERS_SUPERUSERS", ()    => expect(canSeeLeaveTypeVisibility(approver, "APPROVERS_SUPERUSERS")).toBe(true));
+    it("hr can see APPROVERS_SUPERUSERS", ()          => expect(canSeeLeaveTypeVisibility(hr,       "APPROVERS_SUPERUSERS")).toBe(true));
+  });
+
+  describe("HR_ONLY — HR only", () => {
+    it("staff cannot see HR_ONLY", ()    => expect(canSeeLeaveTypeVisibility(staff,    "HR_ONLY")).toBe(false));
+    it("approver cannot see HR_ONLY", () => expect(canSeeLeaveTypeVisibility(approver, "HR_ONLY")).toBe(false));
+    it("hr can see HR_ONLY", ()          => expect(canSeeLeaveTypeVisibility(hr,       "HR_ONLY")).toBe(true));
+  });
+
+  it("inactive HR sees nothing (not even EVERYONE via the predicate chain)", () => {
+    // isApprover and isHR both require active — so inactive HR gets false for all restricted
+    expect(canSeeLeaveTypeVisibility(inactive, "EVERYONE")).toBe(true); // constant true
+    expect(canSeeLeaveTypeVisibility(inactive, "APPROVERS_SUPERUSERS")).toBe(false);
+    expect(canSeeLeaveTypeVisibility(inactive, "HR_ONLY")).toBe(false);
+  });
+
+  describe("allowedLeaveTypeVisibilities consistency with canSeeLeaveTypeVisibility", () => {
+    it.each([staff, approver, hr, inactive])("allowedLeaveTypeVisibilities matches canSee for actor %#", (a) => {
+      const allowed = allowedLeaveTypeVisibilities(a);
+      for (const v of VISIBILITIES) {
+        expect(allowed.includes(v)).toBe(canSeeLeaveTypeVisibility(a, v));
+      }
+    });
+
+    it("staff gets only [EVERYONE]",                    () => expect(allowedLeaveTypeVisibilities(staff)).toEqual(["EVERYONE"]));
+    it("approver gets [EVERYONE, APPROVERS_SUPERUSERS]",() => expect(allowedLeaveTypeVisibilities(approver)).toEqual(["EVERYONE", "APPROVERS_SUPERUSERS"]));
+    it("hr gets all three",                             () => expect(allowedLeaveTypeVisibilities(hr)).toEqual(["EVERYONE", "APPROVERS_SUPERUSERS", "HR_ONLY"]));
   });
 });
 

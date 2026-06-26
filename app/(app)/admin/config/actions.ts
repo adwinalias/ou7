@@ -80,6 +80,7 @@ export async function createLeaveTypeAction(formData: FormData) {
     minLengthDays: limitOrNull(formData.get("minLengthDays")),
     maxConsecutiveDays: limitOrNull(formData.get("maxConsecutiveDays")),
     allowConsecutive: formData.get("allowConsecutive") === "on",
+    visibility: (String(formData.get("visibility") || "EVERYONE")) as import("@/core/authz").LeaveTypeVisibility,
   });
   revalidatePath("/admin/config");
 }
@@ -107,6 +108,7 @@ export async function updateLeaveTypePolicyAction(formData: FormData) {
     ...(formData.has("maxConsecutiveDays") ? { maxConsecutiveDays: limitOrNull(formData.get("maxConsecutiveDays")) } : {}),
     // allowConsecutive: checkbox present = checked (true), absent = unchecked (false)
     allowConsecutive: formData.get("allowConsecutive") === "on",
+    ...(formData.has("visibility") ? { visibility: (String(formData.get("visibility") || "EVERYONE")) as import("@/core/authz").LeaveTypeVisibility } : {}),
   });
   revalidatePath("/admin/config");
 }
