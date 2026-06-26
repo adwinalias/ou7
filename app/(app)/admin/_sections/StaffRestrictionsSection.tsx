@@ -20,7 +20,17 @@ export default async function StaffRestrictionsSection() {
 
   return (
     <div>
-      <h1 className="t-h1" style={{ marginBottom: "var(--space-2)" }}>Staff restrictions</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-2)" }}>
+        <h1 className="t-h1" style={{ margin: 0 }}>Staff restrictions</h1>
+        <a
+          href="/admin/staff-restrictions/export"
+          className="btn btn-secondary"
+          style={{ marginLeft: "auto" }}
+          aria-label="Export staff restrictions as CSV"
+        >
+          Export CSV
+        </a>
+      </div>
       <p className="t-muted" style={{ marginBottom: "var(--space-5)" }}>
         Pairs of employees who should not be off at the same time. Clash detection at request time is story 29.2.
       </p>
