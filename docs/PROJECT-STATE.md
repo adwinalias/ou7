@@ -1,6 +1,6 @@
 # OU7 — Project state & handover
 
-**Live snapshot as of 2026-06-18** (v1 feature-complete on `main` since 2026-06-09; v2 planning added 2026-06-18). If you're a fresh Claude / Claude Code picking this up on a new machine, **read this first**, then `CLAUDE.md` (guardrails — still all valid), `docs/EPICS.md` (v1 backlog), and `docs/V2-PRD.md` (the v2 add-on backlog). Everything described as on `main` is built, reviewed, and merged.
+**Live snapshot as of 2026-06-26** (v1 feature-complete on `main` since 2026-06-09; v2 scoped 2026-06-18; v3 backlog + ADRs 0014/0015 added 2026-06-26). If you're a fresh Claude / Claude Code picking this up on a new machine, **read this first**, then `CLAUDE.md` (guardrails — still all valid), `docs/EPICS.md` (v1 backlog), `docs/V2-PRD.md` (the v2 add-on backlog), and **`docs/V3-PRD.md` (the ACTIVE v3 backlog, epics 25–33)**. Everything described as on `main` is built, reviewed, and merged.
 
 ## TL;DR
 OU7 (self-hosted WhosOff replacement for Interesting Times DMCC) is **feature-complete on `main`** and **running on a Netlify test deploy with real Google sign-in**. Remaining work: the UX/performance/readiness **v2** pass (now scoped in `docs/V2-PRD.md`, epics 17–23) and the real **go-live** (Vercel + a near-region Postgres, then migration from WhosOff). **Immediately next:** Eddy is sharing a recorded UI/UX walkthrough in the next chat — process it into the v2 plan *before* building (see Next work §1).
@@ -12,7 +12,7 @@ OU7 (self-hosted WhosOff replacement for Interesting Times DMCC) is **feature-co
 - **Wall chart** (grid, grouping, filters, CSV, print), **dashboard** (donut, next-7, request widget), **My Leave** (history, allowance panel, holiday display, owner cancel/remind).
 - **HR console:** employees + bulk import (9.1), HR logs (9.4), config hub + entitlement/carry-over policy (9.5), allowance management (9.2).
 - **Holidays / regions / restricted days** (10.1/10.2/10.4). **Audit log** (16.1). **Branding** (logos wired + favicon). **Netlify deploy config** (`netlify.toml` + fail-fast env validation in `lib/env.ts`).
-- ADRs through **0011** in `docs/adr/`. Stale `feat/*` branches can be deleted; main is the source of truth.
+- ADRs through **0015** in `docs/adr/` (v2 added 0012 build-workflow + 0013 multi-year storage; v3 added 0014 coverage/clash + 0015 day-count snapshots & region moves). Stale `feat/*` branches can be deleted; main is the source of truth.
 
 ## Locked policy & decisions (HR-supplied — seeded as config, not code defaults)
 - **Entitlement (annual opening):** UAE 22 · KSA 21 · Beirut 15 · Remote 22. **"Flex" = the Remote region** (not a per-region tier).
@@ -45,6 +45,7 @@ OU7 (self-hosted WhosOff replacement for Interesting Times DMCC) is **feature-co
 - The Netlify secret scanner is disabled for the test; the cleaner fix is to read secrets at runtime in `lib/env` so they aren't baked into the build (optional, tidier for Vercel).
 
 ## Next work (priority order)
+0. **v3 build (ACTIVE) — `docs/V3-PRD.md` (epics 25–33).** Closes the WhosOff feature gaps (audited in `docs/WHOSOFF-V3-FEATURE-MAP.md`) and fixes the post-v2 mobile regressions. Enabling ADRs are written: **0014** (coverage & clash), **0015** (day-count snapshots + effective-dated region moves). A codebase analysis confirmed clash-free additions (see the V3-PRD "Integration map"). Phases A–B run autonomously (mobile fixes; leave-type policy; visibility/archive/per-type email); C–D add coverage + staff-clash + region-move integrity, then HR balance tooling + holiday seeding; **Phase E (go-live, Epic 33) is human-gated — never run autonomously.** Confirmed decisions: region-driven weekends, no lieu/TOIL, per-type visibility, archive-not-delete, build clash restrictions.
 1. **v2 UX/performance/readiness pass** — scoped in `docs/V2-PRD.md` (epics 17–23), supported by `V2-UX-AUDIT.md`, `V2-UX-IDEAS-FROM-THE-FIELD.md`, `V2-PERFORMANCE-RENDERING.md`, `V2-APP-READINESS-FIXES.md`, and `STRUCTURE-SECURITY-HOSTING.md`. Build order: responsive shell + bottom tab bar → dashboard widget grid + consistency + accessibility → performance + readiness (incl. wall-chart deep rebuild). Work one story at a time per `EPICS.md`.
 
    **▶ Immediate input (next chat): Eddy's recorded UI/UX walkthrough.** He'll share a screen+voice video of the running app.

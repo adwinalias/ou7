@@ -2,7 +2,7 @@
 
 **Status:** Set up 2026-06-23 · **Decision:** ADR-0012 · **Owner:** Eddy (hands-off)
 
-This is how OU7 v2 gets built **without Eddy in the per-task approval loop**. A single **orchestrator** (the top-level Claude Code session, running in this repo) plans the work, writes a precise brief for each story, hands it to **subagents** that do the work, then reviews their output brutally and only lets it through when it compiles, passes the gate, and meets the acceptance criteria. Eddy stays hands-off; the orchestrator + the gate + CI are the approval authority.
+This is how OU7 gets built (v2 shipped, **v3 now active**) **without Eddy in the per-task approval loop**. A single **orchestrator** (the top-level Claude Code session, running in this repo) plans the work, writes a precise brief for each story, hands it to **subagents** that do the work, then reviews their output brutally and only lets it through when it compiles, passes the gate, and meets the acceptance criteria. Eddy stays hands-off; the orchestrator + the gate + CI are the approval authority.
 
 > Why the orchestrator is the *top-level* session (not itself a subagent): Claude Code dispatches reliably from the top level down. Subagents do the work and report back; they are not asked to manage each other.
 
@@ -10,7 +10,7 @@ This is how OU7 v2 gets built **without Eddy in the per-task approval loop**. A 
 
 | Agent | Role | Model |
 |---|---|---|
-| **orchestrator** | The top-level session. Reads `docs/V2-PRD.md` + `docs/EPICS.md` + `CLAUDE.md`, picks the next story, writes the brief, delegates, reviews, runs the gate, commits, opens the PR. Strict approver. | (the session you launch) |
+| **orchestrator** | The top-level session. Reads **`docs/V3-PRD.md` (active backlog)** + `docs/EPICS.md` + `docs/V2-PRD.md` (shipped context) + `CLAUDE.md`, picks the next story, writes the brief, delegates, reviews, runs the gate, commits, opens the PR. Strict approver. | (the session you launch) |
 | **implementer-core** | Writes deterministic, pure `core/` logic (the allowance engine etc.) with exhaustive Vitest tests. | sonnet |
 | **implementer-app** | Writes `app/` + `components/` + `lib/` (UI, server actions, Prisma) honouring tokens, light/dark, WCAG AA. | sonnet |
 | **test-runner** | Runs the full Definition-of-Done gate + relevant Playwright E2E; reports exact failures. | sonnet |
@@ -18,8 +18,8 @@ This is how OU7 v2 gets built **without Eddy in the per-task approval loop**. A 
 
 ## The per-story loop (what the orchestrator runs, autonomously)
 
-1. **Pick** the next story from `docs/V2-PRD.md` (epics 17→24), smallest useful slice first, respecting the build phasing.
-2. **Brief** — write a JSON brief: `{ story, goal, acceptance_criteria[], files_in_scope[], constraints[] }`, derived from the epic's AC + the relevant `V2-UX-AUDIT.md` finding IDs + the guardrails.
+1. **Pick** the next story from `docs/V3-PRD.md` (epics 25→33), smallest useful slice first, respecting the build phasing (A–E).
+2. **Brief** — write a JSON brief: `{ story, goal, acceptance_criteria[], files_in_scope[], constraints[] }`, derived from the epic's AC + the relevant audit finding IDs (`V2-UX-AUDIT.md` for v2; `WHOSOFF-V3-FEATURE-MAP.md` + the V3-PRD "Integration map" hook points for v3) + the guardrails.
 3. **Branch** — `git switch -c feat/<epic>-<slug>`.
 4. **Delegate** to `implementer-core` (for `core/` work) or `implementer-app` (for UI/server). It returns changed files + self-checks.
 5. **Test** — delegate to `test-runner`. If red, loop back to the implementer with the exact failures.
@@ -72,12 +72,13 @@ This requires every change to go through a PR (no direct pushes to `main`), requ
 **Manual fallback (no terminal):** on `github.com/adwinalias/ou7` — Settings → General → Pull Requests → tick **Allow auto-merge**; then Settings → Branches → protect `main`: require a PR, require status check **`build-and-test`**, no direct pushes.
 
 ### Milestone audits (your actual oversight — plain English, no code)
-The orchestrator **pauses at each phase boundary** (A → B → C → D in `docs/V2-PRD.md` §3) and writes a plain-English milestone summary (what shipped, what's left, anything needing a decision). At that point an **independent reviewer** — Claude in a fresh Cowork session, or a scheduled audit task — reviews the merged diffs *and* clicks through the live test deploy, then reports to Eddy: "looks right / here's what to check / pause." Eddy's only job is **read the report and say go or pause**. The one review Eddy can do himself: open the test deploy and click through the changed screens (behavior, not code).
+The orchestrator **pauses at each phase boundary** (phases A–E in `docs/V3-PRD.md`) and writes a plain-English milestone summary (what shipped, what's left, anything needing a decision). At that point an **independent reviewer** — Claude in a fresh Cowork session, or a scheduled audit task — reviews the merged diffs *and* clicks through the live test deploy, then reports to Eddy: "looks right / here's what to check / pause." Eddy's only job is **read the report and say go or pause**. The one review Eddy can do himself: open the test deploy and click through the changed screens (behavior, not code).
 
 ## How Eddy runs it (on the Mac, where the repo + the gate live) — truly no prompts
 
 1. `cd` into the OU7 repo and run **`claude --dangerously-skip-permissions`**. This is what makes it actually hands-off — without it, Claude Code prompts on every shell command (e.g. `find`/`grep`), which defeats the point. Safety is preserved by the **PreToolUse guard hook** below, not by prompts.
-2. Tell it once: *"You are the orchestrator. Run Step 0 (bootstrap) first, then build OU7 v2 from docs/V2-PRD.md one story at a time, per docs/BUILD-WORKFLOW.md. Don't ask me to approve individual steps; open a PR per story and let auto-merge land them on green."*
+   - **Recommended first — install the `ponytail` skill** so every implementer writes the least code that satisfies each AC: `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` (desktop app: Customize → **+** by personal plugins → add marketplace → Add from repository → the repo URL `DietrichGebert/ponytail`). It adds an always-on YAGNI ruleset plus `/ponytail-review` (delete-list for a diff) and `/ponytail-audit`. It runs **two small Node.js lifecycle hooks** (MIT, ~45k★) — review and **trust** them before the hands-off run, since this is a skip-permissions session.
+2. Tell it once: *"You are the orchestrator. Run Step 0 (bootstrap) first, then build OU7 v3 from docs/V3-PRD.md (epics 25–33) one story at a time, per docs/BUILD-WORKFLOW.md. Don't ask me to approve individual steps; open a PR per story and let auto-merge land them on green. Skip Epic 33 — it's human-gated."*
 3. Walk away. I'll catch you at the first milestone with a plain-English report.
 
 Notes:
@@ -88,10 +89,11 @@ Notes:
 
 Hands-off has limits. The orchestrator pauses for a human decision when:
 - A story needs a **product/UX decision** not already settled in `docs/V2-PRD.md` / `V2-UX-AUDIT.md`.
-- The work would touch the **locked allowance-engine logic**, or **Epic 24 (multi-year storage)** — which needs **ADR-0013 written and approved first** (DC4).
+- The work would touch the **locked allowance-engine logic**. (The v3 enabling ADRs are already written: **ADR-0014** coverage/clash, **ADR-0015** day-count snapshots + effective-dated region moves — epics 28–30 may proceed.)
 - The same story **fails the gate or review repeatedly** (e.g. 3 loops) — likely the spec is wrong.
-- Anything implies a **schema/data migration**, a **secret**, or a **hosting/region change** (those are their own ADRs).
+- Anything implies a **secret** or a **hosting/region change** (their own ADRs). Additive, defaulted **schema migrations are expected in v3** (new leave-type fields, `Department.maxLeavePerDay`, `StaffRestriction`, `EmployeeRegionAssignment`) — proceed, but a *destructive* migration still pauses.
+- **Epic 33 (go-live / WhosOff migration) is human-gated** — spec and dry-runs only; never run the hosting cutover or a production data migration autonomously.
 
 ## OU7 invariants the harness enforces
 
-All the `CLAUDE.md` guardrails still hold and are baked into the reviewer: no AI at runtime (ADR-0003), `core/` stays pure, `app/ → lib/ → core/`, region-aware + Asia/Dubai, balances via `core/allowance`, design tokens only / grey = pending, no overtime, config-as-data — plus the v2 locked decisions (bottom tab bar, customizable widgets, **Team Calendar four-category abstraction with HR-sees-all**, **typed adjustment ledger**, **multi-year storage**).
+All the `CLAUDE.md` guardrails still hold and are baked into the reviewer: no AI at runtime (ADR-0003), `core/` stays pure, `app/ → lib/ → core/`, region-aware + Asia/Dubai, balances via `core/allowance`, design tokens only / grey = pending, no overtime, config-as-data — plus the v2 locked decisions (bottom tab bar, customizable widgets, **Team Calendar four-category abstraction with HR-sees-all**, **typed adjustment ledger**, **multi-year storage**) — plus the **v3 invariants**: leave day-counts are **snapshotted at creation and never recomputed** (ADR-0015); coverage is **advisory + audited** while staff-vs-staff **clash is a hard approval gate** (ADR-0014); **archive, never hard-delete** (leave types/tags); **no lieu/TOIL**; weekends stay **region-driven** (not per-user). The build also runs the **`ponytail`** skill (YAGNI ladder: *skip → stdlib → native → installed dep → one line → minimum*) so implementers write the least code that meets each AC — but it **never** trims trust-boundary validation, error/data-loss handling, security, accessibility, or the **exhaustive `core/` tests** the DoD requires (ponytail trims production code, not tests). `code-reviewer` enforces both halves; run `/ponytail-review` on a diff and `/ponytail-audit` on the repo at phase boundaries.

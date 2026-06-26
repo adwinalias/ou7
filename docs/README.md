@@ -31,6 +31,17 @@ v1 is feature-complete on `main`; these add-on docs scope the v2 quality pass. *
 | [V2-APP-READINESS-FIXES.md](V2-APP-READINESS-FIXES.md) | Accessibility, error handling, testing, data & security |
 | [STRUCTURE-SECURITY-HOSTING.md](STRUCTURE-SECURITY-HOSTING.md) | How the app is wired (frontend / backend / database), a security review, and hosting options |
 
+## v3 planning (WhosOff-parity, mobile fixes & go-live)
+
+v1 + v2 are on `main`; v3 is the **active** backlog. It closes the gaps found by auditing the live WhosOff admin and acts on the confirmed product decisions. **Start with `V3-PRD.md`.**
+
+| Document | What it covers |
+|---|---|
+| [V3-PRD.md](V3-PRD.md) | The **active** v3 backlog — epics 25–33, build phases A–E, the verified integration map (**start here**) |
+| [WHOSOFF-V3-FEATURE-MAP.md](WHOSOFF-V3-FEATURE-MAP.md) | Full map of WhosOff's admin features (the source of the v3 gaps) |
+| [adr/0014-…](adr/0014-coverage-and-clash-enforcement.md) | Coverage controls + staff-vs-staff clash enforcement |
+| [adr/0015-…](adr/0015-leave-daycount-snapshots-and-region-moves.md) | Leave day-count snapshots & effective-dated region moves |
+
 ## Non-negotiable principles (the short version)
 
 1. **Standalone.** No Notion agents, no n8n, no external runtime dependency. Notion is an *export target only*.
@@ -51,4 +62,4 @@ v1 is feature-complete on `main`; these add-on docs scope the v2 quality pass. *
 
 Planning complete. PRD + this documentation set are ready to hand to a build team (human or AI). Outstanding inputs from HR are tracked in PRD §14 (entitlement numbers, per-market carry-over rules, Notion target DB, Teams setup, branding assets).
 
-v1 is feature-complete on `main`. **v2 (UX, performance & readiness) is now scoped — see the v2 planning docs above, starting with `V2-PRD.md`.**
+v1 is feature-complete on `main`. v2 (UX, performance & readiness) is scoped in `V2-PRD.md`. **v3 (WhosOff-parity, mobile fixes & go-live) is the active backlog — see `V3-PRD.md`.**
