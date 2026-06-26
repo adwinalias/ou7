@@ -40,8 +40,10 @@ suite("Dashboard reads (integration)", () => {
     const other = await db.region.upsert({ where: { name: "Dash IT Other Region" }, update: {}, create: { name: "Dash IT Other Region", weekendDays: [5, 6] } });
     otherRegionId = other.id;
 
-    // Holidays: clear any test rows, then seed a past one (excluded), three future ones in
-    // the viewer's region (UAE) plus one in another region (must NOT show — region-aware).
+    // Holidays: clear ALL UAE holidays (stale seeded rows from holiday-seed.test.ts runs can
+    // pollute getUpcomingHolidays results since it queries by regionId with no name filter).
+    // Also clear any leftover test rows in other regions by prefix.
+    await db.holiday.deleteMany({ where: { regionId: uae.id } });
     await db.holiday.deleteMany({ where: { name: { startsWith: HOLIDAY_PREFIX } } });
     const past = addDaysISO(windowToday, -10);
     const f1 = addDaysISO(windowToday, 5);
