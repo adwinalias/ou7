@@ -94,6 +94,8 @@ export interface LeaveTypeInput {
   requiresApproval?: boolean; // default true
   noticePeriodDays?: number; // default 0; negative = allow backdating
   cancellationWindowDays?: number; // default 0; calendar days before start owner must cancel by
+  minLengthDays?: number | null; // null = no minimum
+  maxConsecutiveDays?: number | null; // null = no maximum
 }
 
 /** Partial of the per-type policy fields HR may edit (extensible for later stories). */
@@ -101,6 +103,14 @@ export interface LeaveTypePolicyPatch {
   requiresApproval?: boolean;
   noticePeriodDays?: number;
   cancellationWindowDays?: number;
+  minLengthDays?: number | null;
+  maxConsecutiveDays?: number | null;
+}
+
+// ponytail: clamp a limit to ≥1, or null if ≤0/null/undefined (0 and negatives are no-limit)
+function clampLimit(v: number | null | undefined): number | null {
+  if (v == null || v <= 0) return null;
+  return Math.floor(v);
 }
 
 export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
@@ -115,6 +125,8 @@ export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
       requiresApproval: input.requiresApproval ?? true,
       noticePeriodDays: input.noticePeriodDays ?? 0,
       cancellationWindowDays: Math.max(0, input.cancellationWindowDays ?? 0),
+      minLengthDays: clampLimit(input.minLengthDays),
+      maxConsecutiveDays: clampLimit(input.maxConsecutiveDays),
     },
   });
   await recordAudit(db, { actorId, action: "LEAVE_TYPE_CREATE", entity: "LeaveType", entityId: lt.id, after: { name: lt.name, code: lt.code, requiresApproval: lt.requiresApproval } });
@@ -131,22 +143,26 @@ export async function setLeaveTypeActive(actorId: string, id: string, active: bo
 /** Update the per-type policy fields (requiresApproval, and future story additions). */
 export async function updateLeaveTypePolicy(actorId: string, id: string, patch: LeaveTypePolicyPatch) {
   const before = await db.leaveType.findUniqueOrThrow({ where: { id } });
-  // clamp cancellationWindowDays to ≥0 (negative window is meaningless)
-  const safePatch: LeaveTypePolicyPatch = patch.cancellationWindowDays !== undefined
-    ? { ...patch, cancellationWindowDays: Math.max(0, patch.cancellationWindowDays) }
-    : patch;
+  const safePatch: LeaveTypePolicyPatch = {
+    ...patch,
+    ...(patch.cancellationWindowDays !== undefined ? { cancellationWindowDays: Math.max(0, patch.cancellationWindowDays) } : {}),
+    // minLengthDays / maxConsecutiveDays: present-but-undefined means "not in this patch";
+    // explicit null means "clear the limit"; positive int means "set the limit".
+    ...(patch.minLengthDays !== undefined ? { minLengthDays: clampLimit(patch.minLengthDays) } : {}),
+    ...(patch.maxConsecutiveDays !== undefined ? { maxConsecutiveDays: clampLimit(patch.maxConsecutiveDays) } : {}),
+  };
   const updated = await db.leaveType.update({ where: { id }, data: safePatch });
   await recordAudit(db, {
     actorId,
     action: "LEAVE_TYPE_UPDATE",
     entity: "LeaveType",
     entityId: id,
-    before: { requiresApproval: before.requiresApproval, noticePeriodDays: before.noticePeriodDays, cancellationWindowDays: before.cancellationWindowDays },
+    before: { requiresApproval: before.requiresApproval, noticePeriodDays: before.noticePeriodDays, cancellationWindowDays: before.cancellationWindowDays, minLengthDays: before.minLengthDays, maxConsecutiveDays: before.maxConsecutiveDays },
     after: safePatch,
   });
   return updated.id;
 }
 
 export async function listLeaveTypes() {
-  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true } });
+  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true, noticePeriodDays: true, cancellationWindowDays: true, minLengthDays: true, maxConsecutiveDays: true } });
 }

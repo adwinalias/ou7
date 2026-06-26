@@ -88,7 +88,7 @@ export default async function ConfigSection() {
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Leave types</div>
         <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
           <table className="table" data-testid="leavetype-table">
-            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Status</th><th /></tr></thead>
+            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Min length (days)</th><th>Max consec. (days)</th><th>Status</th><th /></tr></thead>
             <tbody>
               {leaveTypes.map((lt) => (
                 <tr key={lt.id}>
@@ -127,11 +127,35 @@ export default async function ConfigSection() {
                         className="input t-num"
                         style={{ width: 60, padding: "2px 6px" }}
                       />
+                      <input
+                        type="number"
+                        name="minLengthDays"
+                        defaultValue={lt.minLengthDays ?? ""}
+                        min={1}
+                        placeholder="—"
+                        aria-label={`Min length (working days) for ${lt.name}`}
+                        data-testid={`lt-min-length-${lt.code}`}
+                        className="input t-num"
+                        style={{ width: 60, padding: "2px 6px" }}
+                      />
+                      <input
+                        type="number"
+                        name="maxConsecutiveDays"
+                        defaultValue={lt.maxConsecutiveDays ?? ""}
+                        min={1}
+                        placeholder="—"
+                        aria-label={`Max consecutive (working days) for ${lt.name}`}
+                        data-testid={`lt-max-consec-${lt.code}`}
+                        className="input t-num"
+                        style={{ width: 60, padding: "2px 6px" }}
+                      />
                       <button type="submit" className="btn btn-secondary" aria-label={`Save policy for ${lt.name}`} style={{ padding: "2px 10px" }}>Save</button>
                     </form>
                   </td>
                   <td className="t-num">{lt.noticePeriodDays}</td>
                   <td className="t-num">{lt.cancellationWindowDays}</td>
+                  <td className="t-num">{lt.minLengthDays ?? "—"}</td>
+                  <td className="t-num">{lt.maxConsecutiveDays ?? "—"}</td>
                   <td>{lt.active ? "Active" : "Retired"}</td>
                   <td style={{ textAlign: "right" }}>
                     <form action={setLeaveTypeActiveAction}>
@@ -158,6 +182,12 @@ export default async function ConfigSection() {
           </label>
           <label className="t-label" style={fieldCol}>Cancel window (days before start)
             <input type="number" name="cancellationWindowDays" defaultValue={0} min={0} className="input t-num" data-testid="lt-cancel-window-days" aria-label="Cancel window (days before start)" />
+          </label>
+          <label className="t-label" style={fieldCol}>Min length (working days)
+            <input type="number" name="minLengthDays" min={1} placeholder="no limit" className="input t-num" data-testid="lt-min-length-days" aria-label="Min length (working days); leave blank for no limit" />
+          </label>
+          <label className="t-label" style={fieldCol}>Max consecutive (working days)
+            <input type="number" name="maxConsecutiveDays" min={1} placeholder="no limit" className="input t-num" data-testid="lt-max-consec-days" aria-label="Max consecutive (working days); leave blank for no limit" />
           </label>
           <button type="submit" className="btn btn-primary" data-testid="add-leavetype">Add type</button>
         </form>

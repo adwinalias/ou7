@@ -211,3 +211,157 @@ describe("notice period check (story 26.2)", () => {
     expect(r.errors.every((e) => !e.includes("notice"))).toBe(true);
   });
 });
+
+// ── Minimum length & max consecutive days (story 26.4) ────────────────────
+// 2026-08-18 = Tuesday (UAE: weekendDays [6,0] = Fri+Sat... wait, UAEcal uses
+// weekendDays:[6,0] = Sat(6)+Sun(0). So Mon–Thu+Fri are working days in UAE.
+// Use 2026-08-18 (Tuesday) as single day; 2026-08-17 (Monday) as adjacent day.
+describe("min length & max consecutive days (story 26.4)", () => {
+  const lb = { ...base, available: 20 };
+
+  // ── minLengthDays ──────────────────────────────────────────────────────────
+  it("minLengthDays: workingDays == min (boundary) → allowed", () => {
+    const r = validateLeaveRequest({ ...lb, minLengthDays: 1 });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes("requires at least"))).toBe(false);
+  });
+
+  it("minLengthDays: workingDays == min-1 (below min) → blocked", () => {
+    // HALF day = 0.5 working days, min = 1 → fails
+    const r = validateLeaveRequest({ ...lb, mode: "HALF", minLengthDays: 1 });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain("requires at least 1 working day(s)");
+  });
+
+  it("minLengthDays: HALF request (0.5 wd) vs minLengthDays:1 → blocked", () => {
+    const r = validateLeaveRequest({ ...lb, mode: "HALF", minLengthDays: 1 });
+    expect(r.errors.join()).toContain("requires at least 1 working day(s)");
+  });
+
+  it("minLengthDays: HALF request vs no min → allowed", () => {
+    const r = validateLeaveRequest({ ...lb, mode: "HALF" });
+    expect(r.errors.some((e) => e.includes("requires at least"))).toBe(false);
+  });
+
+  it("minLengthDays: 2 working days satisfies min:2 → allowed", () => {
+    // 2026-08-18 (Tue) + 2026-08-19 (Wed) = 2 working days
+    const r = validateLeaveRequest({ ...lb, endISO: "2026-08-19", mode: "MULTI", minLengthDays: 2 });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes("requires at least"))).toBe(false);
+  });
+
+  it("minLengthDays: 1 working day vs min:2 → blocked", () => {
+    const r = validateLeaveRequest({ ...lb, minLengthDays: 2 });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain("requires at least 2 working day(s)");
+  });
+
+  // ── maxConsecutiveDays ─────────────────────────────────────────────────────
+  it("maxConsecutiveDays: workingDays == max (boundary) → allowed", () => {
+    const r = validateLeaveRequest({ ...lb, maxConsecutiveDays: 1 });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes("allows at most"))).toBe(false);
+  });
+
+  it("maxConsecutiveDays: workingDays == max+1 → blocked", () => {
+    // 2 working days vs max:1
+    const r = validateLeaveRequest({ ...lb, endISO: "2026-08-19", mode: "MULTI", maxConsecutiveDays: 1 });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain("allows at most 1 consecutive working day(s)");
+  });
+
+  it("maxConsecutiveDays: HALF request (0.5 wd) vs max:1 → allowed", () => {
+    const r = validateLeaveRequest({ ...lb, mode: "HALF", maxConsecutiveDays: 1 });
+    expect(r.errors.some((e) => e.includes("allows at most"))).toBe(false);
+  });
+
+  // ── both set together ──────────────────────────────────────────────────────
+  it("both set: 2 wd satisfies min:2 and max:5 → allowed", () => {
+    const r = validateLeaveRequest({
+      ...lb,
+      endISO: "2026-08-19",
+      mode: "MULTI",
+      minLengthDays: 2,
+      maxConsecutiveDays: 5,
+    });
+    expect(r.ok).toBe(true);
+    expect(r.errors.some((e) => e.includes("requires at least") || e.includes("allows at most"))).toBe(false);
+  });
+
+  it("both set: 1 wd violates min:2 → blocked with min error", () => {
+    const r = validateLeaveRequest({ ...lb, minLengthDays: 2, maxConsecutiveDays: 5 });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain("requires at least 2 working day(s)");
+  });
+
+  it("both set: 3 wd violates max:2 → blocked with max error", () => {
+    // 2026-08-18 (Tue) → 2026-08-20 (Thu) = 3 working days
+    const r = validateLeaveRequest({
+      ...lb,
+      endISO: "2026-08-20",
+      mode: "MULTI",
+      minLengthDays: 1,
+      maxConsecutiveDays: 2,
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain("allows at most 2 consecutive working day(s)");
+  });
+
+  // ── absent / zero fields → no length errors (back-compat) ────────────────
+  it("absent minLengthDays → no min error", () => {
+    const r = validateLeaveRequest({ ...lb });
+    expect(r.errors.some((e) => e.includes("requires at least"))).toBe(false);
+  });
+
+  it("absent maxConsecutiveDays → no max error", () => {
+    const r = validateLeaveRequest({ ...lb, endISO: "2026-08-25", mode: "MULTI" });
+    expect(r.errors.some((e) => e.includes("allows at most"))).toBe(false);
+  });
+
+  it("minLengthDays:0 → treated as absent (no error)", () => {
+    const r = validateLeaveRequest({ ...lb, mode: "HALF", minLengthDays: 0 });
+    expect(r.errors.some((e) => e.includes("requires at least"))).toBe(false);
+  });
+
+  it("maxConsecutiveDays:0 → treated as absent (no error)", () => {
+    const r = validateLeaveRequest({ ...lb, endISO: "2026-08-25", mode: "MULTI", maxConsecutiveDays: 0 });
+    expect(r.errors.some((e) => e.includes("allows at most"))).toBe(false);
+  });
+
+  // ── all-weekend request: workingDays=0 → reports non-working first, skips min ──
+  it("all-weekend request: reports non-working days error; no min-length error", () => {
+    // 2026-08-22 = Saturday (UAE weekend), 2026-08-23 = Sunday → 0 working days
+    const r = validateLeaveRequest({ ...lb, startISO: "2026-08-22", endISO: "2026-08-23", mode: "MULTI", minLengthDays: 1 });
+    expect(r.errors.some((e) => e.includes("non-working"))).toBe(true);
+    expect(r.errors.some((e) => e.includes("requires at least"))).toBe(false);
+  });
+
+  // ── working-day span vs calendar span ─────────────────────────────────────
+  // Mon 2026-08-17 → Mon 2026-08-24: 8 calendar days spanning a Sat+Sun weekend.
+  // UAE weekend = [6,0] (Sat+Sun), so working days = Mon+Tue+Wed+Thu+Fri + Mon = 6.
+  it("weekends excluded: Mon–Mon range (8 calendar days) counts as 6 working days for limit", () => {
+    // 2026-08-17 Mon → 2026-08-24 Mon = 8 calendar days, 6 working days (Sat 22 + Sun 23 excluded)
+    const r = validateLeaveRequest({
+      ...lb,
+      startISO: "2026-08-17",
+      endISO: "2026-08-24",
+      mode: "MULTI",
+      maxConsecutiveDays: 6,
+    });
+    expect(r.ok).toBe(true);
+    expect(r.workingDays).toBe(6);
+    expect(r.errors.some((e) => e.includes("allows at most"))).toBe(false);
+  });
+
+  it("weekends excluded: same range blocked at maxConsecutiveDays:5 (working days=6 > 5)", () => {
+    const r = validateLeaveRequest({
+      ...lb,
+      startISO: "2026-08-17",
+      endISO: "2026-08-24",
+      mode: "MULTI",
+      maxConsecutiveDays: 5,
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toContain("allows at most 5 consecutive working day(s)");
+  });
+});

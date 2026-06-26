@@ -84,6 +84,8 @@ const TYPE_SELECT = {
   attachmentRequired: true,
   attachmentThresholdDays: true,
   noticePeriodDays: true,
+  minLengthDays: true,
+  maxConsecutiveDays: true,
 } as const;
 
 // ponytail: mirrors dubaiToday() in lib/cancellation.ts — one-liner, no shared dep needed
@@ -210,6 +212,8 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     hasAttachment: !!input.attachmentUrl,
     todayISO: dubaiToday(),
     noticePeriodDays: type.noticePeriodDays,
+    minLengthDays: type.minLengthDays ?? undefined,
+    maxConsecutiveDays: type.maxConsecutiveDays ?? undefined,
   });
 
   const availableBefore = type.deductsAllowance ? available : null;

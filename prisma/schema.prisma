@@ -229,6 +229,8 @@ model LeaveType {
   requiresApproval        Boolean @default(true)
   noticePeriodDays        Int     @default(0)
   cancellationWindowDays  Int     @default(0)
+  minLengthDays           Int? // null = no minimum; ≥1 working days required per request
+  maxConsecutiveDays      Int? // null = no maximum; working days cap per request
 
   regions  Region[] // availability per region
   requests LeaveRequest[]
