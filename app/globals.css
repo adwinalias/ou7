@@ -77,6 +77,11 @@
   padding: var(--space-6);
 }
 
+/* App shell grid (Epic 17.1/25.1) — desktop: sidebar 220px + content track.
+   gridTemplateColumns lives here (not inline) so the ≤640px media query below can
+   override it naturally without !important. */
+.app-shell { grid-template-columns: 220px 1fr; }
+
 /* Bottom tab bar (Epic 17.1) — phone-only nav. Desktop keeps the sidebar.
    Hidden above 640px (and in print via .no-print); the sidebar hides below it. */
 .bottom-tabs { display: none; }

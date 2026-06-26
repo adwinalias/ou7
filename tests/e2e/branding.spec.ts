@@ -39,3 +39,26 @@ test("the brand logo is visible on a phone viewport (Epic 17.5 — mobile)", asy
   await expect(logo).toBeVisible();
   await expect(logo).toHaveAccessibleName(/OU7/);
 });
+
+test("the app shell collapses to a single column with no overflow on a phone (Epic 25.1)", async ({ page }) => {
+  await signIn(page, HR_EMAIL);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/dashboard");
+
+  // The grid columns now live in CSS (not an inline style), so the ≤640px media query
+  // collapses .app-shell to one track. Computed gridTemplateColumns must be a single
+  // track (no leftover "220px ..." sidebar column).
+  const tracks = await page.locator(".app-shell").evaluate(
+    (el) => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
+  );
+  expect(tracks).toBe(1);
+
+  // The desktop sidebar is hidden on phones.
+  await expect(page.locator(".app-sidebar")).toBeHidden();
+
+  // No horizontal overflow at 375px.
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+});
