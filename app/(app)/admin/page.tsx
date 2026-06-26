@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/rbac";
 import CalendarsSection from "./_sections/CalendarsSection";
 import ConfigSection from "./_sections/ConfigSection";
+import DayCountIntegritySection from "./_sections/DayCountIntegritySection";
 import EmployeeDetailPanel from "./_sections/EmployeeDetailPanel";
 import EmployeesSection from "./_sections/EmployeesSection";
 import RestrictedDaysSection from "./_sections/RestrictedDaysSection";
@@ -80,6 +81,7 @@ export default async function AdminPage({
           <CalendarsSection regionId={sp.region} yearStr={sp.year} formAction="/admin" preserveMode />
           <RestrictedDaysSection />
           <StaffRestrictionsSection />
+          <DayCountIntegritySection />
         </div>
       ) : (
         <div data-testid="admin-employee">
