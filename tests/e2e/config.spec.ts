@@ -21,3 +21,24 @@ test("HR sets an entitlement policy (Epic 9.5)", async ({ page }) => {
 
   await expect(page.getByTestId("policy-table")).toContainText("25");
 });
+
+test("admin config forms collapse to a single column on a phone (Epic 25.4)", async ({ page }) => {
+  await signIn(page, HR_EMAIL);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/admin/config");
+  await expect(page.getByRole("heading", { name: "Configuration" })).toBeVisible();
+
+  // The reflow-1col class + the ≤640px !important rule force one column on phones.
+  const form = page.locator("form.reflow-1col").first();
+  await expect(form).toBeVisible();
+  const tracks = await form.evaluate(
+    (el) => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
+  );
+  expect(tracks).toBe(1);
+
+  // No page-level horizontal overflow.
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+});
