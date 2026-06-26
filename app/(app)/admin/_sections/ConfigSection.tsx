@@ -1,10 +1,11 @@
-import { listEntitlementPolicies, listLeaveTypes, listTags } from "@/lib/config";
+import { listDepartments, listEntitlementPolicies, listLeaveTypes, listTags } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
   createDepartmentAction,
   createLeaveTypeAction,
   createTagAction,
   deletePolicyAction,
+  setDepartmentCoverageAction,
   setLeaveTypeActiveAction,
   setTagArchivedAction,
   updateLeaveTypePolicyAction,
@@ -21,7 +22,7 @@ export default async function ConfigSection() {
   const [policies, regions, departments, tags, leaveTypes] = await Promise.all([
     listEntitlementPolicies(),
     db.region.findMany({ orderBy: { name: "asc" } }),
-    db.department.findMany({ orderBy: { name: "asc" } }),
+    listDepartments(),
     listTags(),
     listLeaveTypes(),
   ]);
@@ -306,7 +307,64 @@ export default async function ConfigSection() {
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Departments &amp; tags</div>
         <div className="reflow-1col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
           <div>
-            <p className="t-muted" style={{ fontSize: "var(--text-sm)" }}>{departments.map((d) => d.name).join(", ") || "None"}</p>
+            {/* Department table with coverage thresholds (stories 28.1 + 28.2, ADR-0014) */}
+            {departments.length > 0 && (
+              <div className="table-scroll" style={{ marginBottom: "var(--space-3)" }}>
+                <table className="table" data-testid="dept-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Min. staff present</th>
+                      <th>Max. off per day</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {departments.map((d) => (
+                      <tr key={d.id}>
+                        <td>{d.name}</td>
+                        <td>
+                          <form action={setDepartmentCoverageAction} style={{ display: "inline-flex", gap: "var(--space-1)", alignItems: "center" }}>
+                            <input type="hidden" name="id" value={d.id} />
+                            <input type="hidden" name="maxLeavePerDay" value={d.maxLeavePerDay ?? ""} />
+                            <input
+                              type="number"
+                              name="minStaffing"
+                              defaultValue={d.minStaffing ?? ""}
+                              min={1}
+                              placeholder="—"
+                              className="input t-num"
+                              style={{ width: 60, padding: "2px 6px" }}
+                              aria-label={`Minimum staff present for ${d.name}`}
+                              data-testid={`dept-min-staffing-${d.name}`}
+                            />
+                            <button type="submit" className="btn btn-secondary" style={{ padding: "2px 8px" }} aria-label={`Save coverage thresholds for ${d.name}`}>Save</button>
+                          </form>
+                        </td>
+                        <td>
+                          <form action={setDepartmentCoverageAction} style={{ display: "inline-flex", gap: "var(--space-1)", alignItems: "center" }}>
+                            <input type="hidden" name="id" value={d.id} />
+                            <input type="hidden" name="minStaffing" value={d.minStaffing ?? ""} />
+                            <input
+                              type="number"
+                              name="maxLeavePerDay"
+                              defaultValue={d.maxLeavePerDay ?? ""}
+                              min={1}
+                              placeholder="—"
+                              className="input t-num"
+                              style={{ width: 60, padding: "2px 6px" }}
+                              aria-label={`Maximum people off per day for ${d.name}`}
+                              data-testid={`dept-max-leave-${d.name}`}
+                            />
+                            <button type="submit" className="btn btn-secondary" style={{ padding: "2px 8px" }} aria-label={`Save coverage thresholds for ${d.name}`}>Save</button>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <form action={createDepartmentAction} style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
               <input name="name" required aria-required="true" aria-label="New department name" className="input" placeholder="New department" data-testid="dept-name" />
               <button className="btn btn-primary" data-testid="add-dept">Add</button>

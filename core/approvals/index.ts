@@ -63,7 +63,7 @@ export function decideLeave(input: DecisionInput): DecisionResult {
   const warnings: string[] = [];
   if (input.coverage) {
     const cv = assessCoverage(input.coverage);
-    if (cv.warning) warnings.push(cv.warning);
+    warnings.push(...cv.warnings);
   }
 
   return { ok: true, nextStatus: "APPROVED", errors: [], warnings };

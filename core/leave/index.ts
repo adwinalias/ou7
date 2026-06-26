@@ -10,6 +10,8 @@ import type { DateRange, DurationMode, ISODate, RegionCalendar, RestrictedRange 
 export interface CoverageInput {
   /** Department minimum present headcount; null = no check. */
   minStaffing: number | null;
+  /** Maximum department members off on any single day (incl. requester); null = no check. */
+  maxLeavePerDay: number | null;
   /** Active department members INCLUDING the requester. */
   headcount: number;
   startISO: ISODate;
@@ -22,7 +24,8 @@ export interface CoverageInput {
 
 export interface CoverageResult {
   breachedDays: ISODate[];
-  warning: string | null;
+  /** Advisory warning strings (0–2 entries). Never drives ok:false. */
+  warnings: string[];
 }
 
 /**
@@ -34,24 +37,43 @@ export interface CoverageResult {
  * not in fractional presence arithmetic.
  */
 export function assessCoverage(input: CoverageInput): CoverageResult {
-  if (input.minStaffing === null) return { breachedDays: [], warning: null };
+  // ponytail: skip all work if both checks are disabled.
+  if (input.minStaffing === null && input.maxLeavePerDay === null) return { breachedDays: [], warnings: [] };
 
   const rangeEnd = input.mode === "DAY" ? input.startISO : input.endISO;
-  const breachedDays: ISODate[] = [];
+  const minBreached = new Set<ISODate>();
+  const maxBreached = new Set<ISODate>();
 
   for (const d of eachDate(input.startISO, rangeEnd)) {
     if (!isWorkingDay(d, input.cal)) continue;
     const iso = toISO(d);
     const otherAbsent = input.absentByDay[iso] ?? 0;
-    // Subtract other absentees AND this requester (−1).
-    const present = input.headcount - otherAbsent - 1;
-    if (present < input.minStaffing) breachedDays.push(iso);
+
+    if (input.minStaffing !== null) {
+      // Subtract other absentees AND this requester (−1).
+      const present = input.headcount - otherAbsent - 1;
+      if (present < input.minStaffing) minBreached.add(iso);
+    }
+
+    if (input.maxLeavePerDay !== null) {
+      // Total off on this day = other absentees + this requester.
+      const totalOff = otherAbsent + 1;
+      if (totalOff > input.maxLeavePerDay) maxBreached.add(iso);
+    }
   }
 
-  if (breachedDays.length === 0) return { breachedDays: [], warning: null };
+  // Union of breached days, sorted.
+  const breachedDays = [...new Set([...minBreached, ...maxBreached])].sort();
 
-  const warning = `This booking drops the department below its minimum staffing (${input.minStaffing}) on ${breachedDays.length} day(s).`;
-  return { breachedDays, warning };
+  const warnings: string[] = [];
+  if (minBreached.size > 0) {
+    warnings.push(`This booking drops the department below its minimum staffing (${input.minStaffing}) on ${minBreached.size} day(s).`);
+  }
+  if (maxBreached.size > 0) {
+    warnings.push(`This booking exceeds the department's maximum of ${input.maxLeavePerDay} people off on ${maxBreached.size} day(s).`);
+  }
+
+  return { breachedDays, warnings };
 }
 
 export interface LeaveValidationInput {
@@ -81,10 +103,10 @@ export interface LeaveValidationInput {
   /** Story 26.5: existing PENDING/APPROVED ranges of the same leave type for this employee. */
   sameTypeRanges?: DateRange[];
   /**
-   * Story 28.1: optional coverage check inputs (ADR-0014). Advisory only — never sets ok:false.
+   * Story 28.1/28.2: optional coverage check inputs (ADR-0014). Advisory only — never sets ok:false.
    * startISO/endISO/mode/cal are inherited from the request; only supply dept-specific fields.
    */
-  coverage?: Pick<CoverageInput, "minStaffing" | "headcount" | "absentByDay">;
+  coverage?: Pick<CoverageInput, "minStaffing" | "maxLeavePerDay" | "headcount" | "absentByDay">;
 }
 
 /**
@@ -186,7 +208,7 @@ export function validateLeaveRequest(input: LeaveValidationInput): LeaveValidati
   const warnings: string[] = [];
   if (input.coverage) {
     const cv = assessCoverage({ ...input.coverage, startISO: input.startISO, endISO: input.endISO, mode: input.mode, cal: input.cal });
-    if (cv.warning) warnings.push(cv.warning);
+    warnings.push(...cv.warnings);
   }
 
   return { ok: errors.length === 0, errors, warnings, workingDays, freeDays, allowanceDays };

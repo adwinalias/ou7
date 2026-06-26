@@ -277,7 +277,8 @@ export async function decideLeaveRequest(
       decidedBy: actor.employeeId,
     };
     if (decision.warnings.length > 0) {
-      auditAfter.coverageBreach = decision.warnings[0];
+      // ADR-0014: persist ALL breach warnings (both min-staffing and max-per-day can fire on the same day).
+      auditAfter.coverageBreach = decision.warnings;
     }
 
     await recordAudit(tx, {

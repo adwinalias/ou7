@@ -8,6 +8,7 @@ import {
   createLeaveType,
   createTag,
   deleteEntitlementPolicy,
+  setDepartmentCoverage,
   setLeaveTypeActive,
   setTagArchived,
   updateLeaveTypePolicy,
@@ -55,6 +56,15 @@ export async function deletePolicyAction(formData: FormData) {
 export async function createDepartmentAction(formData: FormData) {
   const actor = await hr();
   await createDepartment(actor.employeeId, String(formData.get("name")));
+  revalidatePath("/admin/config");
+}
+
+export async function setDepartmentCoverageAction(formData: FormData) {
+  const actor = await hr();
+  await setDepartmentCoverage(actor.employeeId, String(formData.get("id")), {
+    minStaffing: limitOrNull(formData.get("minStaffing")),
+    maxLeavePerDay: limitOrNull(formData.get("maxLeavePerDay")),
+  });
   revalidatePath("/admin/config");
 }
 
