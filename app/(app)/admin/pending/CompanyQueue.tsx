@@ -55,8 +55,8 @@ function Row({ item }: { item: CompanyPendingItem }) {
       <td style={num}>{item.startISO === item.endISO ? item.startISO : `${item.startISO}→${item.endISO}`}</td>
       <td style={num}>{item.daysPending}d</td>
       <td>
-        <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
-          <input className="input" aria-label={`Reason to decline ${item.requesterName}'s request`} placeholder="reason (to decline)" value={comment} onChange={(e) => { setComment(e.target.value); setError(null); }} style={{ width: 150 }} data-testid="pending-reason" />
+        <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
+          <input className="input" aria-label={`Reason to decline ${item.requesterName}'s request`} placeholder="reason (to decline)" value={comment} onChange={(e) => { setComment(e.target.value); setError(null); }} style={{ flex: "1 1 140px", minWidth: 120, maxWidth: "100%" }} data-testid="pending-reason" />
           <button className="btn btn-primary" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => decide("APPROVE")} data-testid="pending-approve">Approve</button>
           <button className="btn btn-danger" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => decide("DECLINE")}>Decline</button>
           <button className="btn btn-secondary" style={{ padding: "2px 10px" }} disabled={pending} onClick={cancel} data-testid="pending-cancel">Cancel</button>
