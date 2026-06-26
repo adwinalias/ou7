@@ -175,6 +175,7 @@ export async function decideLeaveRequest(
       endDate: true,
       durationMode: true,
       employee: { select: { regionId: true } },
+      leaveType: { select: { affectsStaffingLevels: true } }, // Story 28.3
     },
   });
   if (!pre || !canApproveFor(actor, pre.employeeId)) {
@@ -208,7 +209,7 @@ export async function decideLeaveRequest(
         endISO,
         pre.durationMode as "DAY" | "HALF" | "MULTI",
         cal,
-        { excludeRequestId: requestId },
+        { excludeRequestId: requestId, leaveTypeAffectsStaffing: pre.leaveType.affectsStaffingLevels },
       );
     } catch (err) {
       // Coverage check is advisory — never let an error here block approval.

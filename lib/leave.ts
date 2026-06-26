@@ -102,6 +102,7 @@ const TYPE_SELECT = {
   minLengthDays: true,
   maxConsecutiveDays: true,
   allowConsecutive: true,
+  affectsStaffingLevels: true, // Story 28.3: pass to buildCoverageInput to skip non-affecting types
 } as const;
 
 // ponytail: mirrors dubaiToday() in lib/cancellation.ts — one-liner, no shared dep needed
@@ -220,7 +221,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
   const [allRanges, restricted, coverageInput] = await Promise.all([
     existingRanges(employeeId),
     getRestrictedRangesFor(employeeId, input.startDate, endISO),
-    buildCoverageInput(employeeId, input.startDate, endISO, input.mode, calendar),
+    buildCoverageInput(employeeId, input.startDate, endISO, input.mode, calendar, { leaveTypeAffectsStaffing: type.affectsStaffingLevels }),
   ]);
 
   const result = validateLeaveRequest({

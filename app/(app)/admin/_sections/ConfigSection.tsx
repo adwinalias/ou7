@@ -90,7 +90,7 @@ export default async function ConfigSection() {
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Leave types</div>
         <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
           <table className="table" data-testid="leavetype-table">
-            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Min length (days)</th><th>Max consec. (days)</th><th>Allow consecutive</th><th>Visibility</th><th>Email on request</th><th>Email on decision</th><th>Email on cancel</th><th>Status</th><th /></tr></thead>
+            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Cancel window (days)</th><th>Min length (days)</th><th>Max consec. (days)</th><th>Allow consecutive</th><th>Affects staffing</th><th>Visibility</th><th>Email on request</th><th>Email on decision</th><th>Email on cancel</th><th>Status</th><th /></tr></thead>
             <tbody>
               {leaveTypes.map((lt) => (
                 <tr key={lt.id}>
@@ -161,6 +161,16 @@ export default async function ConfigSection() {
                         />
                         Allow consec.
                       </label>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 4, minHeight: 40 }}>
+                        <input
+                          type="checkbox"
+                          name="affectsStaffingLevels"
+                          defaultChecked={lt.affectsStaffingLevels}
+                          aria-label={`Affects staffing levels for ${lt.name}`}
+                          data-testid={`lt-affects-staffing-${lt.code}`}
+                        />
+                        Affects staffing
+                      </label>
                       <label className="t-label" style={{ display: "inline-flex", flexDirection: "column", gap: 2, minHeight: 40 }}>
                         <span className="sr-only">Visibility for {lt.name}</span>
                         <select
@@ -223,6 +233,7 @@ export default async function ConfigSection() {
                   <td className="t-num">{lt.minLengthDays ?? "—"}</td>
                   <td className="t-num">{lt.maxConsecutiveDays ?? "—"}</td>
                   <td>{lt.allowConsecutive ? "Yes" : "No"}</td>
+                  <td>{lt.affectsStaffingLevels ? "Yes" : "No"}</td>
                   <td>{lt.visibility === "HR_ONLY" ? "HR only" : lt.visibility === "APPROVERS_SUPERUSERS" ? "Approvers+" : "Everyone"}</td>
                   <td>{lt.emailOnRequest === "NONE" ? "None" : lt.emailOnRequest === "STAFF" ? "Staff" : lt.emailOnRequest === "APPROVER" ? "Approver" : "Staff+Approver"}</td>
                   <td>{lt.emailOnDecision === "NONE" ? "None" : lt.emailOnDecision === "STAFF" ? "Staff" : lt.emailOnDecision === "APPROVER" ? "Approver" : "Staff+Approver"}</td>
@@ -255,6 +266,7 @@ export default async function ConfigSection() {
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="noteRequired" /> Note req.</label>
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="requiresApproval" defaultChecked /> Requires approval</label>
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="allowConsecutive" defaultChecked data-testid="lt-allow-consecutive" aria-label="Allow consecutive bookings" /> Allow consecutive bookings</label>
+          <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="affectsStaffingLevels" defaultChecked data-testid="lt-affects-staffing" aria-label="Affects staffing levels (uncheck for types like Out-of-Office that should not reduce headcount)" /> Affects staffing levels</label>
           <label className="t-label" style={fieldCol}>Notice (days; negative = allow past)
             <input type="number" name="noticePeriodDays" defaultValue={0} className="input t-num" data-testid="lt-notice-days" aria-label="Notice period days (negative allows backdating)" />
           </label>
