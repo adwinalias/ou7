@@ -148,6 +148,7 @@ model Department {
 model Tag {
   id        String     @id @default(cuid())
   name      String     @unique
+  archived  Boolean    @default(false) // Story 27.4: archive-not-delete; m2m membership is preserved
   employees Employee[]
 }
 

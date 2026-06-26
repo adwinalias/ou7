@@ -84,6 +84,25 @@ export async function createTag(actorId: string, name: string) {
   return tag.id;
 }
 
+/** List all tags (active + archived) for the Admin config UI. */
+export async function listTags() {
+  return db.tag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, archived: true } });
+}
+
+/** Archive or restore a tag. Does NOT remove employee m2m membership. */
+export async function setTagArchived(actorId: string, id: string, archived: boolean) {
+  const before = await db.tag.findUniqueOrThrow({ where: { id } });
+  await db.tag.update({ where: { id }, data: { archived } });
+  await recordAudit(db, {
+    actorId,
+    action: archived ? "TAG_ARCHIVE" : "TAG_RESTORE",
+    entity: "Tag",
+    entityId: id,
+    before: { archived: before.archived },
+    after: { archived },
+  });
+}
+
 // ─── Leave types (create + retire/reactivate + policy edit) ──────────────────────
 export interface LeaveTypeInput {
   name: string;
