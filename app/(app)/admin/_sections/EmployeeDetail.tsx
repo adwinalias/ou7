@@ -46,6 +46,9 @@ export default function EmployeeDetail({
   const [regionId, setRegionId] = useState(employee.regionId);
   const [departmentId, setDepartmentId] = useState(employee.departmentId ?? "");
   const [approverLevel, setApproverLevel] = useState(employee.approverLevel);
+  // Effective-from date for a region change (ADR-0015). Defaults to today; HR may set a
+  // future date to schedule a move in advance. Only shown when the region has been changed.
+  const [regionEffectiveFrom, setRegionEffectiveFrom] = useState("");
   const [confirming, setConfirming] = useState<{ label: string; from: string; to: string }[] | null>(null);
 
   const regionName = (id: string) => regions.find((r) => r.id === id)?.name ?? id;
@@ -94,10 +97,26 @@ export default function EmployeeDetail({
           <input name="lastName" required aria-required="true" className="input" defaultValue={employee.lastName} data-testid="ed-last" />
         </label>
         <label className="t-label" style={fieldCol}>Region
-          <select name="regionId" className="input" value={regionId} onChange={(e) => setRegionId(e.target.value)} data-testid="ed-region">
+          <select name="regionId" className="input" value={regionId} onChange={(e) => { setRegionId(e.target.value); setRegionEffectiveFrom(""); }} data-testid="ed-region">
             {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </label>
+        {/* Show effective-from only when the region has changed. Defaults to today server-side
+            if left blank; HR can set a future date to schedule a move. */}
+        {regionId !== employee.regionId && (
+          <label className="t-label" style={fieldCol}>Effective from
+            <input
+              type="date"
+              name="regionEffectiveFrom"
+              className="input"
+              value={regionEffectiveFrom}
+              onChange={(e) => setRegionEffectiveFrom(e.target.value)}
+              aria-label="Region change effective from date"
+              data-testid="ed-region-effective"
+            />
+            <span className="t-muted" style={{ fontSize: "var(--text-xs)" }}>Leave blank for today</span>
+          </label>
+        )}
         <label className="t-label" style={fieldCol}>Department
           <select name="departmentId" className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} data-testid="ed-department">
             <option value="">—</option>

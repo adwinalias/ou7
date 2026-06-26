@@ -111,11 +111,12 @@ model Region {
   carryOverCapDays Float?
   carryOverExpiry  String? // ISO month-day, e.g. "03-31"; null = no expiry
 
-  employees      Employee[]
-  holidays       Holiday[]
-  restrictedDays RestrictedDay[]
+  employees        Employee[]
+  regionAssignments EmployeeRegionAssignment[]
+  holidays         Holiday[]
+  restrictedDays   RestrictedDay[]
   allowancePeriods AllowancePeriod[]
-  leaveTypes     LeaveType[] // m2m: availability per region
+  leaveTypes       LeaveType[] // m2m: availability per region
   entitlementPolicies EntitlementPolicy[]
 }
 
@@ -216,10 +217,27 @@ model Employee {
   holidayBalances      HolidayBalance[]
   staffRestrictionsA   StaffRestriction[] @relation("StaffRestrictionA")
   staffRestrictionsB   StaffRestriction[] @relation("StaffRestrictionB")
+  regionAssignments    EmployeeRegionAssignment[]
 
   @@index([regionId])
   @@index([departmentId])
   @@index([managerId])
+}
+
+// Effective-dated region assignment history (ADR-0015, story 30.2). Employee.regionId is
+// kept as a denormalised "current region" cache. One row is backfilled per employee at
+// joiningDate; every HR-initiated move creates a new row. "Region on date D" =
+// regionOnDate(assignments, D) from core/region.
+model EmployeeRegionAssignment {
+  id            String   @id @default(cuid())
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  employeeId    String
+  region        Region   @relation(fields: [regionId], references: [id])
+  regionId      String
+  effectiveFrom DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([employeeId, effectiveFrom])
 }
 
 // An employee's approver(s), ordered. HR is always an implicit fallback (see core/approvals).

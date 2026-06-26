@@ -22,8 +22,10 @@ import {
   type LeaveCategory,
 } from "@/core/leave-categories";
 import { isHR, allowedLeaveTypeVisibilities } from "@/core/authz";
+import { regionOnDate } from "@/core/region";
 import type { Actor, ISODate, RegionCalendar } from "@/core/types";
 import { db } from "./db";
+import { batchRegionAssignments } from "./region";
 
 // The canonical representative leave-type code whose DB colour paints each category's
 // cells/legend swatch for non-HR viewers. Reading the colour from the leaveType rows keeps
@@ -137,19 +139,48 @@ export async function getWallChart(
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
 
-  // Region calendars (weekends + this year's holidays), built once per distinct region.
-  const regionIds = [...new Set(employees.map((e) => e.region.id))];
+  // Effective region per employee at the month's start (ADR-0015, story 30.2).
+  // ponytail: per-DAY region resolution within a month is deliberately not done — weekend
+  // shading is cosmetic only; balance correctness is snapshot-frozen at request creation.
+  // Batch-load all assignments in one query to avoid N+1.
+  const employeeIds = employees.map((e) => e.id);
+  const assignmentMap = await batchRegionAssignments(employeeIds);
+  const effectiveRegionId = (employeeId: string, fallbackId: string): string => {
+    const entry = assignmentMap.get(employeeId);
+    if (!entry) return fallbackId;
+    return regionOnDate(entry.assignments, firstISO) ?? entry.fallbackRegionId;
+  };
+
+  // Region calendars (weekends + this year's holidays), built once per distinct resolved region.
+  // We resolve each employee's effective region at the month start, then load holiday data for
+  // the distinct set of effective region IDs.
+  const regionMeta = new Map<string, { weekendDays: number[] }>();
+  for (const e of employees) {
+    // Pre-populate from the fetched employee data (current-cache region always in the select).
+    regionMeta.set(e.region.id, { weekendDays: e.region.weekendDays });
+  }
+  // Collect distinct effective region IDs (may differ from e.region.id after a move).
+  const effectiveRegionIds = new Set(employees.map((e) => effectiveRegionId(e.id, e.region.id)));
+  // Any effective region IDs not already in regionMeta need their weekendDays loaded.
+  const missing = [...effectiveRegionIds].filter((id) => !regionMeta.has(id));
+  if (missing.length > 0) {
+    const extraRegions = await db.region.findMany({ where: { id: { in: missing } }, select: { id: true, weekendDays: true } });
+    for (const r of extraRegions) regionMeta.set(r.id, { weekendDays: r.weekendDays });
+  }
+
+  const allRegionIds = [...new Set([...regionMeta.keys()])];
   const holidayRows = await db.holiday.findMany({
-    where: { regionId: { in: regionIds }, year },
+    where: { regionId: { in: allRegionIds }, year },
     select: { regionId: true, date: true },
   });
   const calendars = new Map<string, RegionCalendar>();
-  for (const e of employees) {
-    if (calendars.has(e.region.id)) continue;
+  for (const regionId of effectiveRegionIds) {
+    const meta = regionMeta.get(regionId);
+    if (!meta) continue;
     const holidays = new Set<ISODate>(
-      holidayRows.filter((h) => h.regionId === e.region.id).map((h) => h.date.toISOString().slice(0, 10)),
+      holidayRows.filter((h) => h.regionId === regionId).map((h) => h.date.toISOString().slice(0, 10)),
     );
-    calendars.set(e.region.id, { weekendDays: e.region.weekendDays, holidays });
+    calendars.set(regionId, { weekendDays: meta.weekendDays, holidays });
   }
 
   // Leave overlapping the month. visibleOnWallChart only. NOTES ARE NOT SELECTED.
@@ -225,6 +256,7 @@ export async function getWallChart(
   let rows: WallRow[] = employees
     .filter((e) => !nameFilter || `${e.firstName} ${e.lastName}`.toLowerCase().includes(nameFilter))
     .map((e) => {
+      const resolvedRegionId = effectiveRegionId(e.id, e.region.id);
       const segments = (byEmployee.get(e.id) ?? []).map((l) => ({
         startISO: l.startDate.toISOString().slice(0, 10),
         endISO: l.endDate.toISOString().slice(0, 10),
@@ -242,7 +274,7 @@ export async function getWallChart(
         regionName: e.region.name,
         departmentName: e.department?.name ?? null,
         tags: e.tags.map((t) => t.name),
-        cells: buildRow(dayList, segments, calendars.get(e.region.id)!, todayISO),
+        cells: buildRow(dayList, segments, calendars.get(resolvedRegionId)!, todayISO),
       };
     });
 

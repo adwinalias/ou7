@@ -49,6 +49,9 @@ export interface EmployeeUpdate {
   firstName?: string;
   lastName?: string;
   regionId?: string;
+  /** ISO date (YYYY-MM-DD) the region change becomes effective. Defaults to today (Asia/Dubai).
+   *  Ignored when regionId is unchanged or not provided. */
+  regionEffectiveFrom?: string;
   departmentId?: string | null;
   managerId?: string | null;
   joiningISO?: string;
@@ -56,6 +59,9 @@ export interface EmployeeUpdate {
   approverLevel?: ApproverLevel;
   employmentType?: EmploymentType;
 }
+
+const dubaiTodayISO = (): string =>
+  new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 
 export async function updateEmployee(actorId: string, employeeId: string, patch: EmployeeUpdate) {
   const before = await db.employee.findUniqueOrThrow({ where: { id: employeeId } });
@@ -70,15 +76,46 @@ export async function updateEmployee(actorId: string, employeeId: string, patch:
     ...(patch.approverLevel !== undefined ? { approverLevel: patch.approverLevel } : {}),
     ...(patch.employmentType !== undefined ? { employmentType: patch.employmentType } : {}),
   };
-  await db.employee.update({ where: { id: employeeId }, data });
-  await recordAudit(db, {
-    actorId,
-    action: "EMPLOYEE_UPDATE",
-    entity: "Employee",
-    entityId: employeeId,
-    before: { regionId: before.regionId, role: before.role, approverLevel: before.approverLevel, departmentId: before.departmentId, joiningISO: toISO(before.joiningDate) },
-    after: data,
-  });
+
+  const regionChanged = patch.regionId !== undefined && patch.regionId !== before.regionId;
+
+  if (regionChanged) {
+    // Atomic: update employee + create assignment row + audit in one transaction (ADR-0015).
+    const effectiveISO = patch.regionEffectiveFrom ?? dubaiTodayISO();
+    const effectiveFrom = atUtc(effectiveISO);
+    await db.$transaction(async (tx) => {
+      await tx.employee.update({ where: { id: employeeId }, data });
+      await tx.employeeRegionAssignment.create({
+        data: { employeeId, regionId: patch.regionId!, effectiveFrom },
+      });
+      await recordAudit(tx, {
+        actorId,
+        action: "REGION_CHANGE",
+        entity: "Employee",
+        entityId: employeeId,
+        before: { regionId: before.regionId },
+        after: { regionId: patch.regionId, effectiveFrom: effectiveISO },
+      });
+      await recordAudit(tx, {
+        actorId,
+        action: "EMPLOYEE_UPDATE",
+        entity: "Employee",
+        entityId: employeeId,
+        before: { regionId: before.regionId, role: before.role, approverLevel: before.approverLevel, departmentId: before.departmentId, joiningISO: toISO(before.joiningDate) },
+        after: data,
+      });
+    });
+  } else {
+    await db.employee.update({ where: { id: employeeId }, data });
+    await recordAudit(db, {
+      actorId,
+      action: "EMPLOYEE_UPDATE",
+      entity: "Employee",
+      entityId: employeeId,
+      before: { regionId: before.regionId, role: before.role, approverLevel: before.approverLevel, departmentId: before.departmentId, joiningISO: toISO(before.joiningDate) },
+      after: data,
+    });
+  }
 }
 
 /** Deactivate (offboard) — keep history; revoke access via status (Epic 2.5). */

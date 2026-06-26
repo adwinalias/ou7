@@ -43,10 +43,12 @@ export type UpdateEmployeeState = { ok: boolean; message: string } | null;
 export async function updateEmployeeAction(_prev: UpdateEmployeeState, formData: FormData): Promise<UpdateEmployeeState> {
   const actor = await hr();
   const employeeId = String(formData.get("employeeId"));
+  const regionEffectiveRaw = formData.get("regionEffectiveFrom");
   await updateEmployee(actor.employeeId, employeeId, {
     firstName: String(formData.get("firstName")),
     lastName: String(formData.get("lastName")),
     regionId: String(formData.get("regionId")),
+    regionEffectiveFrom: regionEffectiveRaw ? String(regionEffectiveRaw) : undefined,
     departmentId: formData.get("departmentId") ? String(formData.get("departmentId")) : null,
     approverLevel: String(formData.get("approverLevel")) as ApproverLevel,
     employmentType: String(formData.get("employmentType")) as EmploymentType,
