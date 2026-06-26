@@ -417,9 +417,12 @@ export default function WallGrid({ data }: { data: WallChartData }) {
         aria-colcount={colCount}
         aria-activedescendant={activeId}
         onKeyDown={onKeyDown}
+        className="wc-grid"
         style={{
           display: "grid",
-          gridTemplateColumns: `180px repeat(${n}, minmax(${CELL_MIN}px, 1fr))`,
+          // CSS vars let the media query in globals.css shrink name-col/cell widths on
+          // mobile without touching CELL_MIN (which drives row HEIGHT + windowing math).
+          gridTemplateColumns: `var(--wc-name, 180px) repeat(${n}, minmax(var(--wc-cell, ${CELL_MIN}px), 1fr))`,
           minWidth: "fit-content",
           // The grid uses the aria-activedescendant pattern: the visible green focus
           // indicator is the active cell's FOCUS_RING (always rendered), not a ring on the
