@@ -64,3 +64,26 @@ test("wall chart exports CSV and offers a print view (Epic 6.4 / 19.7 W9 — adm
   await page.goto("/wall-chart?y=2026&m=9");
   await expect(page.getByTestId("wc-print")).toBeVisible();
 });
+
+test("wall chart fits name + ≥4 day columns at 390px without page overflow (Epic 25.2)", async ({ page }) => {
+  await signIn(page, HR_EMAIL);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/wall-chart?y=2026&m=9");
+  await expect(page.getByTestId("wall-chart")).toBeVisible();
+
+  // On mobile the CSS vars shrink the name column (180→90px) and day cells (40→28px).
+  const tracks = await page.locator(".wc-grid").evaluate((el) =>
+    getComputedStyle(el).gridTemplateColumns.split(" ").map((v) => parseFloat(v)),
+  );
+  expect(tracks[0]).toBeLessThanOrEqual(100); // name column ~90px
+  expect(tracks[1]).toBeLessThanOrEqual(34); // day cell ~28px
+  // Name + 4 day columns fit within the 390px viewport (AC: ≥4 visible without scroll).
+  const fiveCols = tracks.slice(0, 5).reduce((a, b) => a + b, 0);
+  expect(fiveCols).toBeLessThanOrEqual(390);
+
+  // The grid scrolls horizontally in its own container — the page itself must not overflow.
+  const pageOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(pageOverflow).toBeLessThanOrEqual(0);
+});

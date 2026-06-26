@@ -180,6 +180,14 @@
     font-weight: var(--weight-semibold);
     border-left-color: var(--accent);
   }
+
+  /* 25.2 — wall chart: narrower name-col + day-cells on mobile so ≥4 day columns
+     are visible at 390px without horizontal scroll of the page (the grid itself
+     still scrolls horizontally). Row HEIGHT is driven by CELL_MIN in WallGrid.tsx
+     and is NOT changed here — only horizontal widths shrink.
+     ponytail: 28px cell width is below the 40px touch-target (Epic 20.1) but ≥ the
+     24px WCAG-AA minimum (SC 2.5.8); this is exactly what AC 25.2 requires. */
+  .wc-grid { --wc-name: 90px; --wc-cell: 28px; }
 }
 
 /* Theme toggle (Epic 19.2) — single icon button (sun/moon) in the app header.
