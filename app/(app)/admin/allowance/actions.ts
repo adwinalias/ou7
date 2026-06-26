@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { AdjustmentKind, AllowanceBucket } from "@prisma/client";
 import { isHR } from "@/core/authz";
-import { addLedgerEntry, resetBalance, rolloverYear } from "@/lib/allowance-admin";
+import { addLedgerEntry, resetBalance, rolloverYear, setRemaining } from "@/lib/allowance-admin";
 import { setHolidayBalance } from "@/lib/holiday-balance";
 import { AuthError, requireActor } from "@/lib/rbac";
 
@@ -39,6 +39,29 @@ export async function rolloverYearAction(formData: FormData) {
   const actor = await hr();
   await rolloverYear(actor.employeeId, String(formData.get("employeeId")), Number(formData.get("fromYear")));
   revalidatePath("/admin/allowance");
+}
+
+export async function setRemainingAction(_prev: EntryState, formData: FormData): Promise<EntryState> {
+  const actor = await hr();
+  // Trust boundary: distinguish a blank field from an intended 0. Number("") is 0, which would
+  // silently set Remaining to 0 on a direct (non-UI) POST — require an explicit numeric target.
+  const rawTarget = formData.get("target");
+  if (rawTarget == null || String(rawTarget).trim() === "") {
+    return { ok: false, message: "Enter a target remaining." };
+  }
+  const target = Number(rawTarget);
+  if (!Number.isFinite(target)) {
+    return { ok: false, message: "Target must be a number." };
+  }
+  const res = await setRemaining(
+    actor.employeeId,
+    String(formData.get("periodId")),
+    target,
+    String(formData.get("reason") ?? ""),
+  );
+  revalidatePath("/admin/allowance");
+  if (res.ok) return { ok: true, message: "noOp" in res ? res.message : (("warning" in res ? res.warning : undefined) ?? "Applied.") };
+  return { ok: false, message: res.error };
 }
 
 export async function setHolidayAction(formData: FormData) {

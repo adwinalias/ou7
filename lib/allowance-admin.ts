@@ -207,6 +207,42 @@ export async function rolloverYear(actorId: string, employeeId: string, fromYear
   });
 }
 
+export interface SetRemainingPreview {
+  currentRemaining: number;
+  target: number;
+  impliedDelta: number;
+}
+
+/**
+ * Preview what a "Set remaining to X" call would write — pure read, no writes.
+ * `target` must be a finite number (not NaN/Infinity).
+ */
+export async function previewSetRemaining(periodId: string, target: number): Promise<SetRemainingPreview | { ok: false; error: string }> {
+  if (!Number.isFinite(target)) return { ok: false, error: "Target must be a finite number." };
+  const period = await db.allowancePeriod.findUnique({ where: { id: periodId } });
+  if (!period) return { ok: false, error: "Allowance period not found." };
+  const takenApproved = (await db.leaveRequest.aggregate({ where: { allowancePeriodId: periodId, status: "APPROVED" }, _sum: { allowanceDays: true } }))._sum.allowanceDays ?? 0;
+  const currentRemaining = computeRemaining({ opening: period.opening, carryOver: period.carryOver, adjustments: period.adjustments, deductions: period.deductions, takenApproved });
+  return { currentRemaining, target: round(target), impliedDelta: round(target - currentRemaining) };
+}
+
+export type SetRemainingResult = LedgerResult | { ok: true; noOp: true; message: string };
+
+/**
+ * Set remaining to exactly `target` by writing ONE typed VACATION ADJUSTMENT whose delta
+ * is `target − currentRemaining`. Goes exclusively through addLedgerEntry — never touches
+ * AllowancePeriod columns directly. Audited. `reason` is mandatory (mirrors addLedgerEntry).
+ */
+export async function setRemaining(actorId: string, periodId: string, target: number, reason: string): Promise<SetRemainingResult> {
+  if (!reason?.trim()) return { ok: false, error: "A reason is required." };
+  if (!Number.isFinite(target)) return { ok: false, error: "Target must be a finite number." };
+  const preview = await previewSetRemaining(periodId, target);
+  if ("ok" in preview && !preview.ok) return preview;
+  const { impliedDelta } = preview as SetRemainingPreview;
+  if (impliedDelta === 0) return { ok: true, noOp: true, message: `Already at target (${target} day(s)). No ledger row written.` };
+  return addLedgerEntry(actorId, periodId, { kind: "ADJUSTMENT", bucket: "VACATION", delta: impliedDelta, reason: reason.trim() });
+}
+
 export async function listAdjustments(periodId: string) {
   const rows = await db.allowanceAdjustment.findMany({
     where: { periodId },

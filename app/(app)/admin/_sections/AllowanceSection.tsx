@@ -5,6 +5,7 @@ import { getHolidayBalance } from "@/lib/holiday-balance";
 import { getEmployeeLeaveRecordsForYear, type YearLeaveRecord } from "@/lib/myleave";
 import { resetAction, rolloverYearAction, setHolidayAction } from "../allowance/actions";
 import AddEntryForm from "../allowance/AddEntryForm";
+import SetRemainingForm from "../allowance/SetRemainingForm";
 
 const num: React.CSSProperties = { textAlign: "right", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" };
 
@@ -167,6 +168,16 @@ export default async function AllowanceSection({ employeeId, year }: { employeeI
               </form>
             </section>
           )}
+
+          {/* Set remaining to X (Epic 31.1) — single typed adjustment via the ledger. */}
+          <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }} data-testid="set-remaining-section">
+            <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Set remaining to</div>
+            <p className="t-muted" style={{ marginBottom: "var(--space-3)" }}>
+              Enter a target; a single VACATION adjustment is written to make remaining equal that value.
+              Current remaining: <strong className="t-num" data-testid="current-remaining">{balance.remaining}</strong> day(s).
+            </p>
+            <SetRemainingForm periodId={balance.periodId} currentRemaining={balance.remaining} />
+          </section>
 
           {/* Ledger + add entry (current period only) */}
           <section className="card" style={{ padding: "var(--space-5)" }}>
