@@ -18,6 +18,7 @@ import { getRestrictedRangesFor } from "./calendars";
 import { buildCoverageInput } from "./coverage";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
+import { regionIdOnDate } from "./region";
 import { buildClashCounterparts } from "./restrictions";
 import { AuthError } from "./rbac";
 
@@ -198,17 +199,19 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
   }
   const input = parsed.data;
 
-  const employee = await db.employee.findUniqueOrThrow({ where: { id: employeeId }, select: { regionId: true } });
+  // Use the region effective on the booking's start date (ADR-0015, story 30.2).
+  // Falls back to Employee.regionId cache if no assignment pre-dates the start.
+  const effectiveRegionId = await regionIdOnDate(employeeId, input.startDate);
   const type = await db.leaveType.findUnique({
     where: { id: input.leaveTypeId },
     select: { ...TYPE_SELECT, active: true, regions: { select: { id: true } } },
   });
-  if (!type || !type.active || !availableInRegion(type.regions.map((r) => r.id), employee.regionId)) {
+  if (!type || !type.active || !availableInRegion(type.regions.map((r) => r.id), effectiveRegionId)) {
     return { ...empty, warnings: [], errors: ["That leave type isn't available for your region."] };
   }
 
   const endISO = endOf(input);
-  const calendar = await buildCalendar(employee.regionId, input.startDate, endISO);
+  const calendar = await buildCalendar(effectiveRegionId, input.startDate, endISO);
   const balance = await loadBalance(employeeId);
 
   // Deducting leave with no allowance period can't be costed — block early and clearly.
