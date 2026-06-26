@@ -2,6 +2,7 @@
 // A StaffRestriction records two employees who should not be off at the same time.
 // Enforcement (29.2) — buildClashCounterparts — is added here.
 import type { ClashCounterpart } from "@/core/leave";
+import { toCsv } from "@/core/csv";
 import type { ISODate } from "@/core/types";
 import { recordAudit } from "./audit";
 import { db } from "./db";
@@ -148,6 +149,18 @@ export async function buildClashCounterparts(
     startISO: r.startDate.toISOString().slice(0, 10) as ISODate,
     endISO: r.endDate.toISOString().slice(0, 10) as ISODate,
   }));
+}
+
+/** Story 29.3 — CSV export builder (pure; no I/O). */
+export function buildStaffRestrictionsCsv(rows: StaffRestrictionRow[]): string {
+  const header = ["Person A", "Person B", "Both ways", "Reason"];
+  const body = rows.map((r) => [
+    r.employeeAName,
+    r.employeeBName,
+    r.bidirectional ? "Yes" : "No",
+    r.reason ?? "",
+  ]);
+  return toCsv([header, ...body]);
 }
 
 export async function deleteStaffRestriction(actorId: string, id: string): Promise<void> {
