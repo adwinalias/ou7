@@ -131,7 +131,8 @@ export async function getWallChart(
       lastName: true,
       region: { select: { id: true, name: true, weekendDays: true } },
       department: { select: { name: true } },
-      tags: { select: { name: true } },
+      // Story 27.4: exclude archived tags so they don't form group facets; m2m rows stay.
+      tags: { where: { archived: false }, select: { name: true } },
     },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });

@@ -9,6 +9,7 @@ import {
   createTag,
   deleteEntitlementPolicy,
   setLeaveTypeActive,
+  setTagArchived,
   updateLeaveTypePolicy,
   upsertEntitlementPolicy,
 } from "@/lib/config";
@@ -60,6 +61,12 @@ export async function createDepartmentAction(formData: FormData) {
 export async function createTagAction(formData: FormData) {
   const actor = await hr();
   await createTag(actor.employeeId, String(formData.get("name")));
+  revalidatePath("/admin/config");
+}
+
+export async function setTagArchivedAction(formData: FormData) {
+  const actor = await hr();
+  await setTagArchived(actor.employeeId, String(formData.get("id")), formData.get("archived") === "true");
   revalidatePath("/admin/config");
 }
 

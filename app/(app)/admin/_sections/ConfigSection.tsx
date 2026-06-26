@@ -1,4 +1,4 @@
-import { listEntitlementPolicies, listLeaveTypes } from "@/lib/config";
+import { listEntitlementPolicies, listLeaveTypes, listTags } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
   createDepartmentAction,
@@ -6,6 +6,7 @@ import {
   createTagAction,
   deletePolicyAction,
   setLeaveTypeActiveAction,
+  setTagArchivedAction,
   updateLeaveTypePolicyAction,
   upsertPolicyAction,
 } from "../config/actions";
@@ -21,7 +22,7 @@ export default async function ConfigSection() {
     listEntitlementPolicies(),
     db.region.findMany({ orderBy: { name: "asc" } }),
     db.department.findMany({ orderBy: { name: "asc" } }),
-    db.tag.findMany({ orderBy: { name: "asc" } }),
+    listTags(),
     listLeaveTypes(),
   ]);
 
@@ -312,7 +313,35 @@ export default async function ConfigSection() {
             </form>
           </div>
           <div>
-            <p className="t-muted" style={{ fontSize: "var(--text-sm)" }}>{tags.map((t) => t.name).join(", ") || "None"}</p>
+            {tags.length === 0 ? (
+              <p className="t-muted" style={{ fontSize: "var(--text-sm)" }} data-testid="tags-empty">No tags yet.</p>
+            ) : (
+              <table className="table" data-testid="tags-table" style={{ marginBottom: "var(--space-3)" }}>
+                <thead><tr><th>Name</th><th>Status</th><th /></tr></thead>
+                <tbody>
+                  {tags.map((t) => (
+                    <tr key={t.id}>
+                      <td>{t.name}</td>
+                      <td>{t.archived ? "Archived" : "Active"}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <form action={setTagArchivedAction}>
+                          <input type="hidden" name="id" value={t.id} />
+                          <input type="hidden" name="archived" value={t.archived ? "false" : "true"} />
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: "2px 10px" }}
+                            aria-label={t.archived ? `Restore tag ${t.name}` : `Archive tag ${t.name}`}
+                            data-testid={t.archived ? `tag-restore-${t.name}` : `tag-archive-${t.name}`}
+                          >
+                            {t.archived ? "Restore" : "Archive"}
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
             <form action={createTagAction} style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
               <input name="name" required aria-required="true" aria-label="New tag name" className="input" placeholder="New tag" data-testid="tag-name" />
               <button className="btn btn-primary" data-testid="add-tag">Add</button>
