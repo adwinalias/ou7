@@ -1,6 +1,6 @@
-import { listHolidays } from "@/lib/calendars";
+import { listHolidays, previewRegionHolidayImport } from "@/lib/calendars";
 import { db } from "@/lib/db";
-import { cloneHolidaysAction, createHolidayAction, deleteHolidayAction, updateWeekendsAction } from "../calendars/actions";
+import { cloneHolidaysAction, createHolidayAction, deleteHolidayAction, importRegionHolidaysAction, updateWeekendsAction } from "../calendars/actions";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -26,6 +26,7 @@ export default async function CalendarsSection({
   const region = regions.find((r) => r.id === regionId) ?? regions[0];
   const year = yearStr && /^\d{4}$/.test(yearStr) ? Number(yearStr) : dubaiYear();
   const holidays = region ? await listHolidays(region.id, year) : [];
+  const importPreview = region ? await previewRegionHolidayImport(region.id, year) : [];
   const years = [year - 1, year, year + 1, year + 2];
 
   if (!region) return <p className="t-muted">No regions configured.</p>;
@@ -109,6 +110,79 @@ export default async function CalendarsSection({
           <input type="hidden" name="fromYear" value={year - 1} />
           <button type="submit" className="btn btn-secondary" data-testid="clone-holidays">Clone {year - 1} → {year}</button>
         </form>
+      </section>
+
+      {/* Bundled import (story 32.2) */}
+      <section className="card" style={{ padding: "var(--space-5)", marginTop: "var(--space-5)" }} aria-label="Import bundled public holidays">
+        <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Import bundled public holidays — {region.name} {year}</div>
+
+        {importPreview.length === 0 ? (
+          <p className="t-muted" data-testid="import-empty">No bundled holidays available for {region.name} {year}.</p>
+        ) : (
+          <>
+            <p className="t-muted" style={{ marginBottom: "var(--space-3)" }}>
+              Preview of the bundled dataset. Entries marked &quot;Added&quot; already exist and will be skipped.{" "}
+              <strong>Dates marked [Hijri estimate] are moon-sighting dependent — HR must confirm and adjust them after import.</strong>
+            </p>
+            <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
+              <table className="table" data-testid="import-preview-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.map((e) => (
+                    <tr key={e.dateISO}>
+                      <td className="t-num">{e.dateISO}</td>
+                      <td>{e.name}</td>
+                      <td>
+                        {e.alreadyExists ? (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "2px 8px",
+                              border: "1px solid var(--border)",
+                              color: "var(--text-muted)",
+                              fontSize: "var(--text-xs)",
+                            }}
+                            aria-label="Already added"
+                            data-testid="import-badge-exists"
+                          >Added</span>
+                        ) : (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "2px 8px",
+                              background: "var(--surface-2)",
+                              color: "var(--text)",
+                              fontSize: "var(--text-xs)",
+                            }}
+                            aria-label="Will be imported"
+                            data-testid="import-badge-new"
+                          >New</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {importPreview.some((e) => !e.alreadyExists) ? (
+              <form action={importRegionHolidaysAction}>
+                <input type="hidden" name="regionId" value={region.id} />
+                <input type="hidden" name="year" value={year} />
+                <button type="submit" className="btn btn-primary" data-testid="apply-import">
+                  Apply import ({importPreview.filter((e) => !e.alreadyExists).length} new)
+                </button>
+              </form>
+            ) : (
+              <p className="t-muted" data-testid="import-all-done">All bundled holidays for {year} are already added.</p>
+            )}
+          </>
+        )}
       </section>
     </div>
   );

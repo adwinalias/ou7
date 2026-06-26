@@ -4,6 +4,7 @@
 import type { RestrictedRange } from "@/core/types";
 import { recordAudit } from "./audit";
 import { db } from "./db";
+import { HOLIDAY_SEED_DATA } from "./holiday-seed-data";
 
 const atUtc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 const toISO = (d: Date) => d.toISOString().slice(0, 10);
@@ -56,6 +57,64 @@ export async function cloneHolidays(actorId: string, regionId: string, fromYear:
   }
   await recordAudit(db, { actorId, action: "HOLIDAY_CLONE", entity: "Region", entityId: regionId, after: { fromYear, toYear, cloned } });
   return cloned;
+}
+
+// ─── Bundled holiday import (story 32.2) ──────────────────────────────────────────
+
+export interface HolidayImportPreviewEntry {
+  dateISO: string;
+  name: string;
+  alreadyExists: boolean;
+}
+
+/** Resolve the dataset key for a region: Remote mirrors UAE per the 32.1 policy. */
+function datasetKey(regionName: string): string {
+  return regionName === "Remote" ? "UAE" : regionName;
+}
+
+/**
+ * Read-only preview: returns the bundled entries for the region/year with an
+ * `alreadyExists` flag for each. Returns `[]` if no dataset covers this region.
+ */
+export async function previewRegionHolidayImport(regionId: string, year: number): Promise<HolidayImportPreviewEntry[]> {
+  const region = await db.region.findUnique({ where: { id: regionId }, select: { name: true } });
+  if (!region) return [];
+
+  const entries = (HOLIDAY_SEED_DATA[datasetKey(region.name)] ?? []).filter((e) => e.dateISO.startsWith(String(year)));
+  if (entries.length === 0) return [];
+
+  const existing = new Set(
+    (await db.holiday.findMany({ where: { regionId, year }, select: { date: true } })).map((h) => h.date.toISOString().slice(0, 10)),
+  );
+
+  return entries.map((e) => ({ dateISO: e.dateISO, name: e.name, alreadyExists: existing.has(e.dateISO) }));
+}
+
+/**
+ * Insert the missing bundled entries for this region/year, skip existing rows (idempotent),
+ * and write one HOLIDAY_IMPORT audit event. Returns `{ imported, skipped }`.
+ */
+export async function importRegionHolidays(actorId: string, regionId: string, year: number): Promise<{ imported: number; skipped: number }> {
+  const region = await db.region.findUnique({ where: { id: regionId }, select: { name: true } });
+  if (!region) return { imported: 0, skipped: 0 };
+
+  const entries = (HOLIDAY_SEED_DATA[datasetKey(region.name)] ?? []).filter((e) => e.dateISO.startsWith(String(year)));
+
+  const existing = new Set(
+    (await db.holiday.findMany({ where: { regionId, year }, select: { date: true } })).map((h) => h.date.toISOString().slice(0, 10)),
+  );
+
+  let imported = 0;
+  let skipped = 0;
+  for (const { dateISO, name } of entries) {
+    if (existing.has(dateISO)) { skipped++; continue; }
+    const date = atUtc(dateISO);
+    await db.holiday.create({ data: { regionId, year: date.getUTCFullYear(), date, name } });
+    imported++;
+  }
+
+  await recordAudit(db, { actorId, action: "HOLIDAY_IMPORT", entity: "Region", entityId: regionId, after: { regionId, year, imported } });
+  return { imported, skipped };
 }
 
 // ─── Restricted / blackout days (10.2) ───────────────────────────────────────────
