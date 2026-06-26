@@ -2,6 +2,11 @@ import "server-only"; // Epic 22.4: DB-backed balance reads — server-only.
 // Shared balance reads. The arithmetic lives in core/allowance (pure); this assembles
 // the inputs from the DB so both lib/leave (preview/submit) and lib/approvals (the
 // approval-time over-booking re-check) compute balances the same way.
+// ADR-0015 GUARDRAIL: balance reads always SUM the stored LeaveRequest.allowanceDays values.
+// No code here (or anywhere in lib/leave, lib/approvals, lib/cancellation) recomputes
+// workingDays/freeDays/allowanceDays for an existing request. Those values are immutable
+// snapshots written once at creation. The ONLY legitimate rewrite is the one-time
+// lib/backfill.backfillLeaveDayCounts() utility for legacy zero-rows.
 import type { Prisma } from "@prisma/client";
 import { computeAvailable, computeRemaining } from "@/core/allowance";
 import { db } from "./db";
