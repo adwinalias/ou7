@@ -1,10 +1,18 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import WebVitals from "@/components/WebVitals";
 
 export const metadata: Metadata = {
   title: "OU7",
   description: "Leave & absence management — Interesting Times",
+};
+
+// Explicit viewport (Epic 25.5). Matches Next.js's default (device-width, initial-scale 1)
+// so there is no visual change — it just makes the responsive contract explicit alongside
+// the mobile fixes in Epic 25, rather than relying on the framework default.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 // Set the theme before first paint to avoid a flash (reads saved choice / OS preference).

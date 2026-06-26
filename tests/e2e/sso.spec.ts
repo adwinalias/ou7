@@ -32,6 +32,17 @@ test("the sign-in page offers Google Workspace SSO", async ({ page }) => {
   await expect(page.getByRole("button", { name: /sign in with google/i })).toBeVisible();
 });
 
+test("the explicit viewport meta is present and zoomable (Epic 25.5)", async ({ page }) => {
+  await page.goto("/sign-in"); // public page — the root layout's viewport applies everywhere
+  const content = await page.locator('head meta[name="viewport"]').getAttribute("content");
+  expect(content).toBeTruthy();
+  expect(content).toContain("width=device-width");
+  expect(content).toMatch(/initial-scale=1\b/);
+  // a11y: must not block pinch-zoom (no user-scalable=no / maximum-scale=1).
+  expect(content).not.toMatch(/user-scalable\s*=\s*no/);
+  expect(content).not.toMatch(/maximum-scale\s*=\s*1\b/);
+});
+
 test("after signing in, a protected route is reachable (no redirect)", async ({ page }) => {
   await signIn(page, E2E_EMAIL);
   await page.goto(PROTECTED);
