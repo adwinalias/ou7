@@ -6,6 +6,7 @@ import {
   createTagAction,
   deletePolicyAction,
   setLeaveTypeActiveAction,
+  updateLeaveTypePolicyAction,
   upsertPolicyAction,
 } from "../config/actions";
 
@@ -87,13 +88,29 @@ export default async function ConfigSection() {
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Leave types</div>
         <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
           <table className="table" data-testid="leavetype-table">
-            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Status</th><th /></tr></thead>
+            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Status</th><th /></tr></thead>
             <tbody>
               {leaveTypes.map((lt) => (
                 <tr key={lt.id}>
                   <td><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><i aria-hidden style={{ width: 10, height: 10, background: lt.color }} />{lt.name}</span></td>
                   <td className="t-num">{lt.code}</td>
                   <td>{lt.deductsAllowance ? "Yes" : "No"}</td>
+                  <td>
+                    <form action={updateLeaveTypePolicyAction} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <input type="hidden" name="id" value={lt.id} />
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 4, minHeight: 40 }}>
+                        <input
+                          type="checkbox"
+                          name="requiresApproval"
+                          defaultChecked={lt.requiresApproval}
+                          aria-label={`Requires approval for ${lt.name}`}
+                          data-testid={`lt-requires-approval-${lt.code}`}
+                        />
+                        {lt.requiresApproval ? "Yes" : "No"}
+                      </label>
+                      <button type="submit" className="btn btn-secondary" aria-label={`Save approval policy for ${lt.name}`} style={{ padding: "2px 10px" }}>Save</button>
+                    </form>
+                  </td>
                   <td>{lt.active ? "Active" : "Retired"}</td>
                   <td style={{ textAlign: "right" }}>
                     <form action={setLeaveTypeActiveAction}>
@@ -114,6 +131,7 @@ export default async function ConfigSection() {
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="deductsAllowance" defaultChecked /> Deducts</label>
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="paid" defaultChecked /> Paid</label>
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="noteRequired" /> Note req.</label>
+          <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="requiresApproval" defaultChecked /> Requires approval</label>
           <button type="submit" className="btn btn-primary" data-testid="add-leavetype">Add type</button>
         </form>
       </section>

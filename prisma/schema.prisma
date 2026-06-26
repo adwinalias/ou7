@@ -226,6 +226,7 @@ model LeaveType {
   annualCapDays           Int? // optional per-type yearly cap
   visibleOnWallChart      Boolean @default(true)
   active                  Boolean @default(true)
+  requiresApproval        Boolean @default(true)
 
   regions  Region[] // availability per region
   requests LeaveRequest[]

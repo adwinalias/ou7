@@ -83,7 +83,7 @@ export async function createTag(actorId: string, name: string) {
   return tag.id;
 }
 
-// ─── Leave types (create + retire/reactivate) ────────────────────────────────────
+// ─── Leave types (create + retire/reactivate + policy edit) ──────────────────────
 export interface LeaveTypeInput {
   name: string;
   code: string;
@@ -91,6 +91,12 @@ export interface LeaveTypeInput {
   deductsAllowance: boolean;
   paid: boolean;
   noteRequired: boolean;
+  requiresApproval?: boolean; // default true
+}
+
+/** Partial of the per-type policy fields HR may edit (extensible for later stories). */
+export interface LeaveTypePolicyPatch {
+  requiresApproval?: boolean;
 }
 
 export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
@@ -102,9 +108,10 @@ export async function createLeaveType(actorId: string, input: LeaveTypeInput) {
       deductsAllowance: input.deductsAllowance,
       paid: input.paid,
       noteRequired: input.noteRequired,
+      requiresApproval: input.requiresApproval ?? true,
     },
   });
-  await recordAudit(db, { actorId, action: "LEAVE_TYPE_CREATE", entity: "LeaveType", entityId: lt.id, after: { name: lt.name, code: lt.code } });
+  await recordAudit(db, { actorId, action: "LEAVE_TYPE_CREATE", entity: "LeaveType", entityId: lt.id, after: { name: lt.name, code: lt.code, requiresApproval: lt.requiresApproval } });
   return lt.id;
 }
 
@@ -115,6 +122,21 @@ export async function setLeaveTypeActive(actorId: string, id: string, active: bo
   await recordAudit(db, { actorId, action: active ? "LEAVE_TYPE_REACTIVATE" : "LEAVE_TYPE_RETIRE", entity: "LeaveType", entityId: id, before: { active: before.active }, after: { active } });
 }
 
+/** Update the per-type policy fields (requiresApproval, and future story additions). */
+export async function updateLeaveTypePolicy(actorId: string, id: string, patch: LeaveTypePolicyPatch) {
+  const before = await db.leaveType.findUniqueOrThrow({ where: { id } });
+  const updated = await db.leaveType.update({ where: { id }, data: patch });
+  await recordAudit(db, {
+    actorId,
+    action: "LEAVE_TYPE_UPDATE",
+    entity: "LeaveType",
+    entityId: id,
+    before: { requiresApproval: before.requiresApproval },
+    after: patch,
+  });
+  return updated.id;
+}
+
 export async function listLeaveTypes() {
-  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true } });
+  return db.leaveType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true, color: true, active: true, deductsAllowance: true, requiresApproval: true } });
 }

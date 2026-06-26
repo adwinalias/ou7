@@ -5,10 +5,11 @@ import "server-only"; // Epic 22.4: DB-backed leave orchestration — server-onl
 // Balances are computed, never hand-stored (CLAUDE.md / ADR 0003).
 import { z } from "zod";
 import { computeAvailable } from "@/core/allowance";
+import { decideLeave, OVER_COMMIT_MESSAGE } from "@/core/approvals";
 import { canAddLeaveForOthers } from "@/core/authz";
 import { validateLeaveRequest } from "@/core/leave";
 import type { Actor, DateRange, ISODate, RegionCalendar } from "@/core/types";
-import { getOpenPeriodBalance } from "./allowance";
+import { getOpenPeriodBalance, periodBalanceExcluding } from "./allowance";
 import { recordAudit } from "./audit";
 import { getRestrictedRangesFor } from "./calendars";
 import { db } from "./db";
@@ -220,7 +221,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
   };
 }
 
-/** Re-validate and persist a PENDING request. Never trusts a prior preview. */
+/** Re-validate and persist a PENDING (or APPROVED for no-approval types) request. Never trusts a prior preview. */
 export async function submitLeave(
   employeeId: string,
   rawInput: LeaveInput,
@@ -237,24 +238,80 @@ export async function submitLeave(
     ? new Date(Date.UTC(toDate(input.startDate).getUTCFullYear() + 2, toDate(input.startDate).getUTCMonth(), toDate(input.startDate).getUTCDate()))
     : null;
 
+  // Look up requiresApproval for the chosen type (not in the preview shape; fetch it directly).
+  const lt = await db.leaveType.findUniqueOrThrow({ where: { id: input.leaveTypeId }, select: { requiresApproval: true, deductsAllowance: true } });
+  const autoApprove = !lt.requiresApproval;
+
+  const actorId = opts.createdById ?? employeeId;
+  const sharedData = {
+    employeeId,
+    leaveTypeId: input.leaveTypeId,
+    startDate: toDate(input.startDate),
+    endDate: toDate(endISO),
+    durationMode: input.mode,
+    halfDayPeriod: input.mode === "HALF" ? input.halfDayPeriod : null,
+    workingDays: preview.workingDays,
+    freeDays: preview.freeDays,
+    allowanceDays: preview.allowanceDays,
+    notes: input.notes?.trim() || null,
+    attachmentUrl,
+    attachmentExpiresAt,
+    allowancePeriodId: preview.deductsAllowance ? (balance?.periodId ?? null) : null,
+    createdById: actorId,
+  } as const;
+
+  if (autoApprove && lt.deductsAllowance && balance) {
+    // Mirror decideLeaveRequest exactly: lock period → balance re-check → write APPROVED → audit,
+    // all in ONE transaction so concurrent auto-approves serialize on the same period row.
+    const outcome = await db.$transaction(async (tx) => {
+      // Lock the period row — same pattern as lib/approvals.ts decideLeaveRequest.
+      await tx.$queryRaw`SELECT id FROM "AllowancePeriod" WHERE id = ${balance.periodId} FOR UPDATE`;
+      const { remainingExclR, otherPending } = await periodBalanceExcluding(tx, balance.periodId, "");
+      const check = decideLeave({
+        currentStatus: "PENDING",
+        action: "APPROVE",
+        deductsAllowance: true,
+        allowanceDays: preview.allowanceDays,
+        remainingExclR,
+        otherPending,
+      });
+      if (!check.ok) return { ok: false as const, errors: check.errors.length ? check.errors : [OVER_COMMIT_MESSAGE] };
+
+      const created = await tx.leaveRequest.create({
+        data: { ...sharedData, status: "APPROVED", decisionAt: new Date(), decisionById: actorId },
+        select: { id: true },
+      });
+      await recordAudit(tx, {
+        actorId,
+        action: "LEAVE_AUTO_APPROVED",
+        entity: "LeaveRequest",
+        entityId: created.id,
+        after: { status: "APPROVED", leaveTypeId: input.leaveTypeId, employeeId, reason: "requiresApproval=false" },
+      });
+      return { ok: true as const, id: created.id };
+    });
+    return outcome;
+  }
+
+  if (autoApprove) {
+    // Non-deducting auto-approve: no balance to lock; create APPROVED + audit outside a transaction.
+    const created = await db.leaveRequest.create({
+      data: { ...sharedData, status: "APPROVED", decisionAt: new Date(), decisionById: actorId },
+      select: { id: true },
+    });
+    await recordAudit(db, {
+      actorId,
+      action: "LEAVE_AUTO_APPROVED",
+      entity: "LeaveRequest",
+      entityId: created.id,
+      after: { status: "APPROVED", leaveTypeId: input.leaveTypeId, employeeId, reason: "requiresApproval=false" },
+    });
+    return { ok: true, id: created.id };
+  }
+
+  // requiresApproval=true: normal PENDING path, unchanged.
   const created = await db.leaveRequest.create({
-    data: {
-      employeeId,
-      leaveTypeId: input.leaveTypeId,
-      startDate: toDate(input.startDate),
-      endDate: toDate(endISO),
-      durationMode: input.mode,
-      halfDayPeriod: input.mode === "HALF" ? input.halfDayPeriod : null,
-      workingDays: preview.workingDays,
-      freeDays: preview.freeDays,
-      allowanceDays: preview.allowanceDays,
-      notes: input.notes?.trim() || null,
-      attachmentUrl,
-      attachmentExpiresAt,
-      status: "PENDING", // allowance is debited only on approval (Epic 5.4)
-      allowancePeriodId: preview.deductsAllowance ? (balance?.periodId ?? null) : null,
-      createdById: opts.createdById ?? employeeId,
-    },
+    data: { ...sharedData, status: "PENDING" },
     select: { id: true },
   });
 
