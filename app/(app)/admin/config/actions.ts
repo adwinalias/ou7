@@ -9,6 +9,7 @@ import {
   createTag,
   deleteEntitlementPolicy,
   setLeaveTypeActive,
+  updateLeaveTypePolicy,
   upsertEntitlementPolicy,
 } from "@/lib/config";
 import { AuthError, requireActor } from "@/lib/rbac";
@@ -63,6 +64,7 @@ export async function createLeaveTypeAction(formData: FormData) {
     deductsAllowance: formData.get("deductsAllowance") === "on",
     paid: formData.get("paid") === "on",
     noteRequired: formData.get("noteRequired") === "on",
+    requiresApproval: formData.get("requiresApproval") === "on",
   });
   revalidatePath("/admin/config");
 }
@@ -70,5 +72,13 @@ export async function createLeaveTypeAction(formData: FormData) {
 export async function setLeaveTypeActiveAction(formData: FormData) {
   const actor = await hr();
   await setLeaveTypeActive(actor.employeeId, String(formData.get("id")), formData.get("active") === "true");
+  revalidatePath("/admin/config");
+}
+
+export async function updateLeaveTypePolicyAction(formData: FormData) {
+  const actor = await hr();
+  await updateLeaveTypePolicy(actor.employeeId, String(formData.get("id")), {
+    requiresApproval: formData.get("requiresApproval") === "on",
+  });
   revalidatePath("/admin/config");
 }
