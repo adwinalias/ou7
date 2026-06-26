@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { isHR } from "@/core/authz";
-import { cloneHolidays, createHoliday, deleteHoliday, updateRegionWeekends } from "@/lib/calendars";
+import { cloneHolidays, createHoliday, deleteHoliday, importRegionHolidays, updateRegionWeekends } from "@/lib/calendars";
 import { AuthError, requireActor } from "@/lib/rbac";
 
 async function hr() {
@@ -38,5 +38,11 @@ export async function deleteHolidayAction(formData: FormData) {
 export async function cloneHolidaysAction(formData: FormData) {
   const actor = await hr();
   await cloneHolidays(actor.employeeId, String(formData.get("regionId")), Number(formData.get("fromYear")));
+  revalidatePath("/admin/calendars");
+}
+
+export async function importRegionHolidaysAction(formData: FormData) {
+  const actor = await hr();
+  await importRegionHolidays(actor.employeeId, String(formData.get("regionId")), Number(formData.get("year")));
   revalidatePath("/admin/calendars");
 }
