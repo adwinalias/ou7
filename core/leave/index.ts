@@ -2,7 +2,7 @@
 // Pure: returns errors; performs no I/O. The API layer fetches data and calls this.
 import { canBook } from "../allowance";
 import { countDays } from "../calendar";
-import { rangesOverlap } from "../dates";
+import { addDays, parseISO, rangesOverlap, toISO } from "../dates";
 import type { DateRange, DurationMode, ISODate, RegionCalendar, RestrictedRange } from "../types";
 
 export interface LeaveValidationInput {
@@ -19,6 +19,10 @@ export interface LeaveValidationInput {
   attachmentRequired?: boolean;
   attachmentThresholdDays?: number | null;
   hasAttachment?: boolean;
+  /** "Today" in Asia/Dubai as YYYY-MM-DD. Must be provided together with noticePeriodDays. */
+  todayISO?: ISODate;
+  /** Calendar days of notice required. Negative = allow backdating by |n| days. */
+  noticePeriodDays?: number;
 }
 
 export interface LeaveValidationResult {
@@ -51,6 +55,18 @@ export function validateLeaveRequest(input: LeaveValidationInput): LeaveValidati
 
   if (allowanceDays > 0 && !canBook(input.available, allowanceDays)) {
     errors.push("This exceeds your available balance.");
+  }
+
+  // Notice period check — calendar days only, no working-day logic (story 26.2).
+  if (input.todayISO != null && input.noticePeriodDays != null) {
+    const earliestStartISO = toISO(addDays(parseISO(input.todayISO), input.noticePeriodDays));
+    if (input.startISO < earliestStartISO) {
+      if (input.noticePeriodDays >= 0) {
+        errors.push(`This leave type needs at least ${input.noticePeriodDays} day(s) notice.`);
+      } else {
+        errors.push(`This leave type can't be booked more than ${Math.abs(input.noticePeriodDays)} day(s) in the past.`);
+      }
+    }
   }
 
   if (input.noteRequired && !input.note?.trim()) {

@@ -88,7 +88,7 @@ export default async function ConfigSection() {
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Leave types</div>
         <div className="table-scroll" style={{ marginBottom: "var(--space-4)" }}>
           <table className="table" data-testid="leavetype-table">
-            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Status</th><th /></tr></thead>
+            <thead><tr><th>Name</th><th>Code</th><th>Deducts</th><th>Requires approval</th><th>Notice (days)</th><th>Status</th><th /></tr></thead>
             <tbody>
               {leaveTypes.map((lt) => (
                 <tr key={lt.id}>
@@ -108,9 +108,19 @@ export default async function ConfigSection() {
                         />
                         {lt.requiresApproval ? "Yes" : "No"}
                       </label>
+                      <input
+                        type="number"
+                        name="noticePeriodDays"
+                        defaultValue={lt.noticePeriodDays}
+                        aria-label={`Notice period days for ${lt.name}`}
+                        data-testid={`lt-notice-${lt.code}`}
+                        className="input t-num"
+                        style={{ width: 60, padding: "2px 6px" }}
+                      />
                       <button type="submit" className="btn btn-secondary" aria-label={`Save approval policy for ${lt.name}`} style={{ padding: "2px 10px" }}>Save</button>
                     </form>
                   </td>
+                  <td className="t-num">{lt.noticePeriodDays}</td>
                   <td>{lt.active ? "Active" : "Retired"}</td>
                   <td style={{ textAlign: "right" }}>
                     <form action={setLeaveTypeActiveAction}>
@@ -132,6 +142,9 @@ export default async function ConfigSection() {
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="paid" defaultChecked /> Paid</label>
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="noteRequired" /> Note req.</label>
           <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="requiresApproval" defaultChecked /> Requires approval</label>
+          <label className="t-label" style={fieldCol}>Notice (days; negative = allow past)
+            <input type="number" name="noticePeriodDays" defaultValue={0} className="input t-num" data-testid="lt-notice-days" aria-label="Notice period days (negative allows backdating)" />
+          </label>
           <button type="submit" className="btn btn-primary" data-testid="add-leavetype">Add type</button>
         </form>
       </section>

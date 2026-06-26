@@ -83,7 +83,11 @@ const TYPE_SELECT = {
   noteRequired: true,
   attachmentRequired: true,
   attachmentThresholdDays: true,
+  noticePeriodDays: true,
 } as const;
+
+// ponytail: mirrors dubaiToday() in lib/cancellation.ts — one-liner, no shared dep needed
+const dubaiToday = (): ISODate => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 
 function endOf(input: LeaveInput): ISODate {
   return input.mode === "MULTI" && input.endDate ? input.endDate : input.startDate;
@@ -204,6 +208,8 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     attachmentRequired: type.attachmentRequired,
     attachmentThresholdDays: type.attachmentThresholdDays,
     hasAttachment: !!input.attachmentUrl,
+    todayISO: dubaiToday(),
+    noticePeriodDays: type.noticePeriodDays,
   });
 
   const availableBefore = type.deductsAllowance ? available : null;
