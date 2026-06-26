@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import type { AdjustmentKind, AllowanceBucket } from "@prisma/client";
 import { isHR } from "@/core/authz";
-import { addLedgerEntry, resetBalance, rolloverYear, setRemaining } from "@/lib/allowance-admin";
+import { addLedgerEntry, applyBulkBalancePrep, resetBalance, rolloverYear, setRemaining } from "@/lib/allowance-admin";
+import type { BulkBalancePrepSource } from "@/lib/allowance-admin";
 import { setHolidayBalance } from "@/lib/holiday-balance";
 import { AuthError, requireActor } from "@/lib/rbac";
 
@@ -62,6 +63,34 @@ export async function setRemainingAction(_prev: EntryState, formData: FormData):
   revalidatePath("/admin/allowance");
   if (res.ok) return { ok: true, message: "noOp" in res ? res.message : (("warning" in res ? res.warning : undefined) ?? "Applied.") };
   return { ok: false, message: res.error };
+}
+
+export type BulkPrepState = { ok: boolean; message: string } | null;
+
+export async function bulkBalancePrepAction(_prev: BulkPrepState, formData: FormData): Promise<BulkPrepState> {
+  const actor = await hr();
+  const mode = String(formData.get("mode")) as BulkBalancePrepSource["mode"];
+  const year = Number(formData.get("year"));
+  const deptRaw = formData.get("departmentId");
+  const departmentId = deptRaw && String(deptRaw) !== "" ? String(deptRaw) : null;
+
+  if (!Number.isFinite(year) || year < 2020 || year > 2100) {
+    return { ok: false, message: "Invalid year." };
+  }
+
+  let source: BulkBalancePrepSource;
+  if (mode === "FIXED") {
+    const value = Number(formData.get("fixedValue"));
+    if (!Number.isFinite(value) || value < 0) return { ok: false, message: "Fixed value must be a non-negative number." };
+    source = { mode: "FIXED", value };
+  } else {
+    source = { mode: "COPY_PREVIOUS" };
+  }
+
+  const res = await applyBulkBalancePrep(actor.employeeId, departmentId, year, source);
+  revalidatePath("/admin/allowance");
+  if (!res.ok) return { ok: false, message: res.error };
+  return { ok: true, message: `Created ${res.created} period(s). Skipped ${res.skipped} (no prior-year period).` };
 }
 
 export async function setHolidayAction(formData: FormData) {

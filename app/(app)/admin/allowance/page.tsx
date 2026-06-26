@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import AllowanceSection from "../_sections/AllowanceSection";
+import BulkBalancePrepForm from "./BulkBalancePrepForm";
 
 const dubaiYear = () => Number(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }).slice(0, 4));
 
@@ -13,6 +14,7 @@ export default async function AllowanceAdminPage({ searchParams }: { searchParam
   const year = sp.year && /^\d{4}$/.test(sp.year) ? Number(sp.year) : dubaiYear();
 
   const employees = await db.employee.findMany({ orderBy: [{ status: "asc" }, { firstName: "asc" }], select: { id: true, firstName: true, lastName: true } });
+  const departments = await db.department.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
   const selectedId = sp.employee || employees[0]?.id;
   const employee = employees.find((e) => e.id === selectedId);
 
@@ -35,6 +37,18 @@ export default async function AllowanceAdminPage({ searchParams }: { searchParam
       </form>
 
       {!employee ? <p className="t-muted">No employees.</p> : <AllowanceSection employeeId={employee.id} year={year} />}
+
+      {/* Bulk balance prep — department-level next-year period seeding (Epic 31.2). */}
+      {departments.length > 0 && (
+        <section className="card" style={{ padding: "var(--space-5)", marginTop: "var(--space-6)" }} data-testid="bulk-balance-prep-section">
+          <div className="t-label" style={{ marginBottom: "var(--space-2)" }}>Bulk balance prep</div>
+          <p className="t-muted" style={{ marginBottom: "var(--space-4)", fontSize: "var(--text-xs)" }}>
+            Create the next year&rsquo;s opening balance for an entire department — only for staff who do not already have that year&rsquo;s period.
+            Preview first, then apply. Each creation is audited. Existing periods are never modified.
+          </p>
+          <BulkBalancePrepForm departments={departments} defaultYear={year + 1} />
+        </section>
+      )}
     </div>
   );
 }
