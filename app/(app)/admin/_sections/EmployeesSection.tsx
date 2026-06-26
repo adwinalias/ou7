@@ -67,7 +67,7 @@ export default async function EmployeesSection({ selectedId }: { selectedId?: st
 
       <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>
         <div className="t-label" style={{ marginBottom: "var(--space-3)" }}>Add employee</div>
-        <form action={createEmployeeAction} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
+        <form action={createEmployeeAction} className="reflow-1col" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "var(--space-3)", alignItems: "end" }}>
           <label className="t-label" style={fieldCol}>Email<input name="email" type="email" required aria-required="true" className="input" data-testid="emp-email" /></label>
           <label className="t-label" style={fieldCol}>First name<input name="firstName" required aria-required="true" className="input" data-testid="emp-first" /></label>
           <label className="t-label" style={fieldCol}>Last name<input name="lastName" required aria-required="true" className="input" data-testid="emp-last" /></label>
