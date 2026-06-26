@@ -11,6 +11,7 @@ import { recordAudit } from "./audit";
 import { buildCoverageInput } from "./coverage";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
+import { buildClashCounterparts } from "./restrictions";
 import { AuthError } from "./rbac";
 
 export interface PendingItem {
@@ -158,12 +159,17 @@ export async function countPendingForApprover(actor: Actor): Promise<number> {
  * approvals serialize and can't both pass the over-booking check, and the write is a
  * conditional update that only fires while the request is still PENDING (so a racing
  * decision can't double-apply).
+ *
+ * Story 29.2: `overrideReason` — HR-only. When provided (non-empty), a staff clash does not
+ * block; instead the reason is recorded on the LEAVE_APPROVE audit entry. Non-HR actors or
+ * an empty string still produce a hard block.
  */
 export async function decideLeaveRequest(
   actor: Actor,
   requestId: string,
   action: DecisionAction,
   comment?: string,
+  overrideReason?: string,
 ): Promise<DecideResult> {
   // Authorize first (don't leak existence): only the assigned approver or HR may act.
   // Also load the fields needed for the advisory coverage check (done outside the tx).
@@ -182,9 +188,10 @@ export async function decideLeaveRequest(
     throw new AuthError(403, "You can't act on this request.");
   }
 
-  // Build coverage input BEFORE the transaction: advisory read-only work, no lock needed.
+  // Build coverage + clash inputs BEFORE the transaction: read-only advisory work, no lock needed.
   // Exclude this request itself so it isn't counted as "already absent" for its own approver.
   let coverageInput = null;
+  let clashInput = null;
   if (action === "APPROVE") {
     try {
       const startISO = iso(pre.startDate);
@@ -203,19 +210,37 @@ export async function decideLeaveRequest(
         weekendDays: region.weekendDays,
         holidays: new Set(holidayRows.map((h) => iso(h.date))),
       };
-      coverageInput = await buildCoverageInput(
-        pre.employeeId,
-        startISO,
-        endISO,
-        pre.durationMode as "DAY" | "HALF" | "MULTI",
-        cal,
-        { excludeRequestId: requestId, leaveTypeAffectsStaffing: pre.leaveType.affectsStaffingLevels },
-      );
+      // Run coverage + clash fetches in parallel — both are read-only and independent.
+      const [builtCoverage, counterparts] = await Promise.all([
+        buildCoverageInput(
+          pre.employeeId,
+          startISO,
+          endISO,
+          pre.durationMode as "DAY" | "HALF" | "MULTI",
+          cal,
+          { excludeRequestId: requestId, leaveTypeAffectsStaffing: pre.leaveType.affectsStaffingLevels },
+        ),
+        buildClashCounterparts(pre.employeeId, startISO, endISO),
+      ]);
+      coverageInput = builtCoverage;
+      if (counterparts.length > 0) {
+        clashInput = {
+          startISO,
+          endISO,
+          mode: pre.durationMode as "DAY" | "HALF" | "MULTI",
+          cal,
+          counterparts,
+        };
+      }
     } catch (err) {
-      // Coverage check is advisory — never let an error here block approval.
-      console.error("[coverage] buildCoverageInput failed (non-fatal at approval):", err);
+      // Coverage + clash checks are never allowed to block approval on an error — advisory paths.
+      // Clash is a hard gate for valid data, but a DB/infra error here must not block.
+      console.error("[coverage/clash] pre-tx check failed (non-fatal at approval):", err);
     }
   }
+
+  // Story 29.2: HR-only override. An empty or non-HR override is treated as no override.
+  const clashOverride = isHR(actor) && !!overrideReason?.trim();
 
   const outcome = await db.$transaction(async (tx) => {
     const req = await tx.leaveRequest.findUniqueOrThrow({
@@ -249,6 +274,8 @@ export async function decideLeaveRequest(
       remainingExclR,
       otherPending,
       coverage: coverageInput ?? undefined,
+      clash: clashInput ?? undefined,
+      clashOverride,
     });
     if (!decision.ok || !decision.nextStatus) {
       return { ok: false as const, errors: decision.errors };
@@ -271,6 +298,7 @@ export async function decideLeaveRequest(
 
     // Audit the decision atomically with the write (Epic 16.1).
     // ADR-0014: if a coverage breach occurred, record it on the LEAVE_APPROVE audit entry.
+    // Story 29.2: if a clash override was used, record the override reason on the audit entry.
     // ponytail: the warning string already contains the day count; record it verbatim.
     const auditAfter: Record<string, unknown> = {
       status: decision.nextStatus,
@@ -278,8 +306,15 @@ export async function decideLeaveRequest(
       decidedBy: actor.employeeId,
     };
     if (decision.warnings.length > 0) {
-      // ADR-0014: persist ALL breach warnings (both min-staffing and max-per-day can fire on the same day).
-      auditAfter.coverageBreach = decision.warnings;
+      // ADR-0014: separate coverage breaches from clash override warnings.
+      const coverageBreaches = decision.warnings.filter((w) => !w.includes("override"));
+      const clashOverrideWarnings = decision.warnings.filter((w) => w.includes("override"));
+      if (coverageBreaches.length > 0) auditAfter.coverageBreach = coverageBreaches;
+      if (clashOverrideWarnings.length > 0) {
+        // ADR-0014: record the HR-supplied reason alongside the generated override warning.
+        auditAfter.clashOverrideReason = overrideReason?.trim() ?? null;
+        auditAfter.clashOverrideWarning = clashOverrideWarnings;
+      }
     }
 
     await recordAudit(tx, {

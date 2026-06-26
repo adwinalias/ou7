@@ -10,33 +10,50 @@ function dateLabel(item: PendingItem) {
   return `${item.startISO} → ${item.endISO}`;
 }
 
-function Row({ item }: { item: PendingItem }) {
+// Story 29.2: Row receives isHR so it can reveal the override input when a clash blocks.
+function Row({ item, isHR }: { item: PendingItem; isHR: boolean }) {
   const router = useRouter();
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [coverageWarning, setCoverageWarning] = useState<string | null>(null);
+  // Story 29.2: clash block state — set when the server returns a clash error.
+  const [clashBlock, setClashBlock] = useState<string | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
   const [pending, startTransition] = useTransition();
 
-  function decide(action: "APPROVE" | "DECLINE") {
+  function decide(action: "APPROVE" | "DECLINE", override?: string) {
     setError(null);
     setCoverageWarning(null);
+    setClashBlock(null);
     if (action === "DECLINE" && !comment.trim()) {
       setError("A reason is required to decline.");
       return;
     }
     startTransition(async () => {
       try {
-        const res = await decideAction({ requestId: item.id, action, comment: comment.trim() || undefined });
+        const res = await decideAction({
+          requestId: item.id,
+          action,
+          comment: comment.trim() || undefined,
+          overrideReason: override?.trim() || undefined,
+        });
         if (res.ok) {
           // ADR-0014: surface any coverage breach recorded on the LEAVE_APPROVE audit entry.
-          const warn = res.warnings?.[0] ?? null;
-          if (warn) {
-            setCoverageWarning(warn);
+          const coverWarn = res.warnings?.find((w) => !w.includes("override")) ?? null;
+          if (coverWarn) {
+            setCoverageWarning(coverWarn);
           } else {
             router.refresh(); // decided request drops out of the queue
           }
         } else {
-          setError(res.errors.join(" "));
+          // Story 29.2: distinguish clash block (contains "same time") from other errors.
+          const msg = res.errors.join(" ");
+          const isClash = /same time/i.test(msg) || /shared working day/i.test(msg);
+          if (isClash) {
+            setClashBlock(msg);
+          } else {
+            setError(msg);
+          }
         }
       } catch {
         setError("Something went wrong. Please try again.");
@@ -139,7 +156,54 @@ function Row({ item }: { item: PendingItem }) {
         </div>
       )}
 
-      {!coverageWarning && (
+      {/* Story 29.2: clash hard block with HR-only override path. */}
+      {clashBlock && (
+        <div
+          role="alert"
+          style={{
+            marginTop: "var(--space-3)",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderLeft: "3px solid var(--danger)",
+            padding: "var(--space-3) var(--space-4)",
+            color: "var(--text)",
+          }}
+        >
+          <strong>Clash — approval blocked:</strong> {clashBlock}
+          {isHR && (
+            <div style={{ marginTop: "var(--space-3)" }}>
+              <label
+                htmlFor={`override-${item.id}`}
+                className="t-label"
+                style={{ display: "block", marginBottom: "var(--space-1)" }}
+              >
+                Override reason (HR only, required to approve anyway)
+              </label>
+              <textarea
+                id={`override-${item.id}`}
+                className="input"
+                style={{ width: "100%", minHeight: 48, resize: "vertical" }}
+                data-testid="override-reason"
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                aria-required="true"
+              />
+              <button
+                type="button"
+                className="btn btn-danger"
+                style={{ marginTop: "var(--space-2)" }}
+                data-testid="approve-override"
+                disabled={pending || !overrideReason.trim()}
+                onClick={() => decide("APPROVE", overrideReason)}
+              >
+                {pending ? "Working…" : "Approve anyway (override)"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!coverageWarning && !clashBlock && (
         <div style={{ marginTop: "var(--space-4)", display: "flex", gap: "var(--space-3)" }}>
           <button
             type="button"
@@ -165,7 +229,8 @@ function Row({ item }: { item: PendingItem }) {
   );
 }
 
-export default function ApprovalsList({ items }: { items: PendingItem[] }) {
+// Story 29.2: isHR controls whether the clash override input is shown.
+export default function ApprovalsList({ items, isHR = false }: { items: PendingItem[]; isHR?: boolean }) {
   if (items.length === 0) {
     return (
       <section className="card" style={{ padding: "var(--space-6)", textAlign: "center" }} data-testid="approvals-empty">
@@ -178,7 +243,7 @@ export default function ApprovalsList({ items }: { items: PendingItem[] }) {
   return (
     <div style={{ display: "grid", gap: "var(--space-4)" }}>
       {items.map((item) => (
-        <Row key={item.id} item={item} />
+        <Row key={item.id} item={item} isHR={isHR} />
       ))}
     </div>
   );

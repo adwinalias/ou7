@@ -6,7 +6,7 @@
 // request becomes APPROVED, core/allowance counts its days as taken. This function only
 // decides whether that transition may happen — including a fresh over-booking check.
 import { canBook } from "../allowance";
-import { assessCoverage, type CoverageInput } from "../leave";
+import { assessClash, assessCoverage, type ClashInput, type CoverageInput } from "../leave";
 import type { LeaveStatus } from "../types";
 
 export type DecisionAction = "APPROVE" | "DECLINE";
@@ -24,6 +24,13 @@ export interface DecisionInput {
   otherPending: number;
   /** Story 28.1: optional coverage check inputs (ADR-0014). Advisory only — never sets ok:false. */
   coverage?: CoverageInput;
+  /** Story 29.2: optional clash check inputs (ADR-0014). Hard gate at approval. */
+  clash?: ClashInput;
+  /**
+   * HR-only override flag. When true, a clash does not block — but is recorded in warnings.
+   * Over-commit still hard-blocks regardless of this flag.
+   */
+  clashOverride?: boolean;
 }
 
 export interface DecisionResult {
@@ -59,8 +66,20 @@ export function decideLeave(input: DecisionInput): DecisionResult {
     }
   }
 
-  // Coverage check (ADR-0014, story 28.1) — advisory only; approval still succeeds.
+  // Clash gate (ADR-0014, story 29.2) — hard block unless HR overrides.
   const warnings: string[] = [];
+  if (input.clash) {
+    const cl = assessClash(input.clash);
+    if (cl.hasClash) {
+      if (input.clashOverride !== true) {
+        return { ok: false, nextStatus: null, errors: [cl.message!], warnings: [] };
+      }
+      // HR override: proceed but record it in warnings for the audit layer.
+      warnings.push(`Approved despite staff clash with ${cl.clashedNames.join(", ")} (override).`);
+    }
+  }
+
+  // Coverage check (ADR-0014, story 28.1) — advisory only; approval still succeeds.
   if (input.coverage) {
     const cv = assessCoverage(input.coverage);
     warnings.push(...cv.warnings);

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { isApprover } from "@/core/authz";
+import { isApprover, isHR } from "@/core/authz";
 import { listPendingForApprover } from "@/lib/approvals";
 import { requireUser } from "@/lib/rbac";
 import ApprovalsList from "./ApprovalsList";
@@ -17,7 +17,7 @@ export default async function ApprovalsPage() {
       <p className="t-muted" style={{ marginBottom: "var(--space-5)" }}>
         Pending requests awaiting your decision. Approving debits the employee&apos;s allowance.
       </p>
-      <ApprovalsList items={pending} />
+      <ApprovalsList items={pending} isHR={isHR(actor)} />
     </div>
   );
 }

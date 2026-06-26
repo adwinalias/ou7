@@ -13,6 +13,9 @@ function Row({ item }: { item: CompanyPendingItem }) {
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  // Story 29.2: clash block + HR override (company queue is HR-only, so always show override).
+  const [clashBlock, setClashBlock] = useState<string | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
   const [pending, start] = useTransition();
 
   function remind() {
@@ -25,16 +28,22 @@ function Row({ item }: { item: CompanyPendingItem }) {
     });
   }
 
-  function decide(action: "APPROVE" | "DECLINE") {
+  function decide(action: "APPROVE" | "DECLINE", override?: string) {
     setError(null);
+    setClashBlock(null);
     if (action === "DECLINE" && !comment.trim()) {
       setError("Reason required to decline.");
       return;
     }
     start(async () => {
-      const res = await decideAction({ requestId: item.id, action, comment: comment.trim() || undefined });
+      const res = await decideAction({ requestId: item.id, action, comment: comment.trim() || undefined, overrideReason: override?.trim() || undefined });
       if (res.ok) router.refresh();
-      else setError(res.errors.join(" "));
+      else {
+        const msg = res.errors.join(" ");
+        const isClash = /same time/i.test(msg) || /shared working day/i.test(msg);
+        if (isClash) setClashBlock(msg);
+        else setError(msg);
+      }
     });
   }
 
@@ -55,13 +64,46 @@ function Row({ item }: { item: CompanyPendingItem }) {
       <td style={num}>{item.startISO === item.endISO ? item.startISO : `${item.startISO}→${item.endISO}`}</td>
       <td style={num}>{item.daysPending}d</td>
       <td>
-        <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
-          <input className="input" aria-label={`Reason to decline ${item.requesterName}'s request`} placeholder="reason (to decline)" value={comment} onChange={(e) => { setComment(e.target.value); setError(null); }} style={{ flex: "1 1 140px", minWidth: 120, maxWidth: "100%" }} data-testid="pending-reason" />
-          <button className="btn btn-primary" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => decide("APPROVE")} data-testid="pending-approve">Approve</button>
-          <button className="btn btn-danger" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => decide("DECLINE")}>Decline</button>
-          <button className="btn btn-secondary" style={{ padding: "2px 10px" }} disabled={pending} onClick={cancel} data-testid="pending-cancel">Cancel</button>
-          <button className="btn btn-secondary" style={{ padding: "2px 10px" }} disabled={pending} onClick={remind} data-testid="pending-remind">Remind</button>
-        </div>
+        {!clashBlock && (
+          <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
+            <input className="input" aria-label={`Reason to decline ${item.requesterName}'s request`} placeholder="reason (to decline)" value={comment} onChange={(e) => { setComment(e.target.value); setError(null); }} style={{ flex: "1 1 140px", minWidth: 120, maxWidth: "100%" }} data-testid="pending-reason" />
+            <button className="btn btn-primary" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => decide("APPROVE")} data-testid="pending-approve">Approve</button>
+            <button className="btn btn-danger" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => decide("DECLINE")}>Decline</button>
+            <button className="btn btn-secondary" style={{ padding: "2px 10px" }} disabled={pending} onClick={cancel} data-testid="pending-cancel">Cancel</button>
+            <button className="btn btn-secondary" style={{ padding: "2px 10px" }} disabled={pending} onClick={remind} data-testid="pending-remind">Remind</button>
+          </div>
+        )}
+        {/* Story 29.2: clash hard block — HR sees override input (company queue is HR-only). */}
+        {clashBlock && (
+          <div
+            role="alert"
+            style={{
+              borderLeft: "3px solid var(--danger)",
+              paddingLeft: "var(--space-3)",
+              fontSize: "var(--text-xs)",
+            }}
+          >
+            <strong>Clash blocked:</strong> {clashBlock}
+            <div style={{ marginTop: "var(--space-2)" }}>
+              <label htmlFor={`cq-override-${item.id}`} className="t-label" style={{ display: "block", marginBottom: "var(--space-1)", fontSize: "var(--text-xs)" }}>
+                Override reason (required)
+              </label>
+              <input
+                id={`cq-override-${item.id}`}
+                className="input"
+                style={{ width: "100%", marginBottom: "var(--space-2)" }}
+                data-testid="cq-override-reason"
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                aria-required="true"
+              />
+              <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                <button className="btn btn-danger" style={{ padding: "2px 10px" }} disabled={pending || !overrideReason.trim()} onClick={() => decide("APPROVE", overrideReason)} data-testid="cq-approve-override">Approve anyway</button>
+                <button className="btn btn-secondary" style={{ padding: "2px 10px" }} disabled={pending} onClick={() => { setClashBlock(null); setOverrideReason(""); }}>Back</button>
+              </div>
+            </div>
+          </div>
+        )}
         {error && <div role="alert" style={{ color: "var(--danger)", fontSize: "var(--text-xs)" }}>{error}</div>}
         {note && <div role="status" style={{ color: "var(--success)", fontSize: "var(--text-xs)" }} data-testid="remind-note">{note}</div>}
       </td>
