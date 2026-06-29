@@ -3,10 +3,39 @@ import "server-only"; // DB I/O — server-only (ADR-0015, story 30.2).
 // Employee.regionId is the current-region cache; this module gives the effective
 // region for any arbitrary date, used by previewLeave/submitLeave and the wall chart.
 import { regionOnDate } from "@/core/region";
-import type { ISODate } from "@/core/types";
+import type { ISODate, RegionCalendar } from "@/core/types";
 import { db } from "./db";
 
 const toISO = (d: Date): ISODate => d.toISOString().slice(0, 10);
+
+/**
+ * Build one region's working calendar (weekend days + public holidays) for the
+ * years a date range spans. Parallel queries. Shared by previewLeave/submitLeave,
+ * approval coverage, the day-count backfill, and the integrity recompute.
+ *
+ * The wall chart deliberately does NOT use this: it builds calendars for many
+ * regions at once with a single holiday query to avoid N+1 (see lib/wallchart.ts
+ * and tests/integration/wallchart-nplus1.test.ts).
+ */
+export async function buildRegionCalendar(
+  regionId: string,
+  startISO: ISODate,
+  endISO: ISODate,
+): Promise<RegionCalendar> {
+  const startYear = Number(startISO.slice(0, 4));
+  const endYear = Number(endISO.slice(0, 4));
+  const [region, holidayRows] = await Promise.all([
+    db.region.findUniqueOrThrow({ where: { id: regionId }, select: { weekendDays: true } }),
+    db.holiday.findMany({
+      where: { regionId, year: { gte: startYear, lte: endYear } },
+      select: { date: true },
+    }),
+  ]);
+  return {
+    weekendDays: region.weekendDays,
+    holidays: new Set<ISODate>(holidayRows.map((h) => toISO(h.date))),
+  };
+}
 
 /**
  * The regionId effective for a single employee on `dateISO`.

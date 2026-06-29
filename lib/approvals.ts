@@ -11,6 +11,7 @@ import { recordAudit } from "./audit";
 import { buildCoverageInput } from "./coverage";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
+import { buildRegionCalendar } from "./region";
 import { buildClashCounterparts } from "./restrictions";
 import { AuthError } from "./rbac";
 
@@ -196,20 +197,7 @@ export async function decideLeaveRequest(
     try {
       const startISO = iso(pre.startDate);
       const endISO = iso(pre.endDate);
-      const region = await db.region.findUniqueOrThrow({
-        where: { id: pre.employee.regionId },
-        select: { weekendDays: true },
-      });
-      const startYear = Number(startISO.slice(0, 4));
-      const endYear = Number(endISO.slice(0, 4));
-      const holidayRows = await db.holiday.findMany({
-        where: { regionId: pre.employee.regionId, year: { gte: startYear, lte: endYear } },
-        select: { date: true },
-      });
-      const cal = {
-        weekendDays: region.weekendDays,
-        holidays: new Set(holidayRows.map((h) => iso(h.date))),
-      };
+      const cal = await buildRegionCalendar(pre.employee.regionId, startISO, endISO);
       // Run coverage + clash fetches in parallel — both are read-only and independent.
       const [builtCoverage, counterparts] = await Promise.all([
         buildCoverageInput(

@@ -9,8 +9,9 @@ import "server-only";
 // on-demand HR diagnostic over a bounded set, not a hot path.
 import { countDays } from "@/core/calendar";
 import { regionOnDate } from "@/core/region";
-import type { ISODate, RegionCalendar } from "@/core/types";
+import type { ISODate } from "@/core/types";
 import { db } from "./db";
+import { buildRegionCalendar } from "./region";
 
 export interface DayCountDiscrepancy {
   requestId: string;
@@ -23,26 +24,6 @@ export interface DayCountDiscrepancy {
   explanation: string;
 }
 
-/** Build a RegionCalendar for the years spanned by startISO…endISO. */
-async function buildCalendarForRegion(
-  regionId: string,
-  startISO: ISODate,
-  endISO: ISODate,
-): Promise<RegionCalendar> {
-  const startYear = Number(startISO.slice(0, 4));
-  const endYear = Number(endISO.slice(0, 4));
-  const [region, holidayRows] = await Promise.all([
-    db.region.findUniqueOrThrow({ where: { id: regionId }, select: { weekendDays: true } }),
-    db.holiday.findMany({
-      where: { regionId, year: { gte: startYear, lte: endYear } },
-      select: { date: true },
-    }),
-  ]);
-  return {
-    weekendDays: region.weekendDays,
-    holidays: new Set<ISODate>(holidayRows.map((h) => h.date.toISOString().slice(0, 10) as ISODate)),
-  };
-}
 
 /**
  * Returns every PENDING/APPROVED LeaveRequest whose stored day-count snapshot
@@ -108,7 +89,7 @@ export async function findDayCountDiscrepancies(): Promise<DayCountDiscrepancy[]
     const effectiveRegionId =
       regionOnDate(assignments, startISO) ?? req.employee.regionId;
 
-    const cal = await buildCalendarForRegion(effectiveRegionId, startISO, endISO);
+    const cal = await buildRegionCalendar(effectiveRegionId, startISO, endISO);
     const { workingDays: wd, freeDays: fd } = countDays(
       startISO,
       endISO,

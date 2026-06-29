@@ -10,7 +10,7 @@ import { canAddLeaveForOthers } from "@/core/authz";
 import { isWorkingDay } from "@/core/calendar";
 import { eachDate, toISO } from "@/core/dates";
 import { validateLeaveRequest } from "@/core/leave";
-import type { Actor, DateRange, ISODate, RegionCalendar } from "@/core/types";
+import type { Actor, DateRange, ISODate } from "@/core/types";
 import { getOpenPeriodBalance, periodBalanceExcluding } from "./allowance";
 import { getMyApproverEmails } from "./approvals";
 import { recordAudit } from "./audit";
@@ -18,7 +18,7 @@ import { getRestrictedRangesFor } from "./calendars";
 import { buildCoverageInput } from "./coverage";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
-import { regionIdOnDate } from "./region";
+import { buildRegionCalendar, regionIdOnDate } from "./region";
 import { buildClashCounterparts } from "./restrictions";
 import { AuthError } from "./rbac";
 
@@ -123,19 +123,6 @@ function availableInRegion(regionIds: string[], regionId: string): boolean {
   return regionIds.length === 0 || regionIds.includes(regionId);
 }
 
-/** Build the region's working calendar (weekends + holidays) for the years a range spans. */
-async function buildCalendar(regionId: string, startISO: ISODate, endISO: ISODate): Promise<RegionCalendar> {
-  const region = await db.region.findUniqueOrThrow({ where: { id: regionId }, select: { weekendDays: true } });
-  const startYear = Number(startISO.slice(0, 4));
-  const endYear = Number(endISO.slice(0, 4));
-  const holidayRows = await db.holiday.findMany({
-    where: { regionId, year: { gte: startYear, lte: endYear } },
-    select: { date: true },
-  });
-  const holidays = new Set<ISODate>(holidayRows.map((h) => h.date.toISOString().slice(0, 10)));
-  return { weekendDays: region.weekendDays, holidays };
-}
-
 /** Current open allowance period + computed balance for an employee (null if none). */
 async function loadBalance(employeeId: string): Promise<RequestContext["balance"]> {
   const b = await getOpenPeriodBalance(employeeId);
@@ -211,7 +198,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
   }
 
   const endISO = endOf(input);
-  const calendar = await buildCalendar(effectiveRegionId, input.startDate, endISO);
+  const calendar = await buildRegionCalendar(effectiveRegionId, input.startDate, endISO);
   const balance = await loadBalance(employeeId);
 
   // Deducting leave with no allowance period can't be costed — block early and clearly.
