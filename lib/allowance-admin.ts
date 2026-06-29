@@ -236,7 +236,7 @@ export type SetRemainingResult = LedgerResult | { ok: true; noOp: true; message:
  */
 export async function setRemaining(actorId: string, periodId: string, target: number, reason: string): Promise<SetRemainingResult> {
   if (!reason?.trim()) return { ok: false, error: "A reason is required." };
-  if (!Number.isFinite(target)) return { ok: false, error: "Target must be a finite number." };
+  // Target validation (finite check) lives in previewSetRemaining; its error propagates below.
   const preview = await previewSetRemaining(periodId, target);
   if ("ok" in preview && !preview.ok) return preview;
   const { impliedDelta } = preview as SetRemainingPreview;

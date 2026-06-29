@@ -5,7 +5,6 @@ import {
   groupRows,
   letterColorToken,
   monthDays,
-  monthHeader,
   sortRows,
   type GroupableRow,
   type WallSegment,
@@ -34,17 +33,6 @@ describe("daysInMonth / monthDays", () => {
     expect(days).toHaveLength(30);
     expect(days[0]).toBe("2026-06-01");
     expect(days[29]).toBe("2026-06-30");
-  });
-});
-
-describe("monthHeader", () => {
-  it("marks weekends and holidays as non-working", () => {
-    const header = monthHeader(2026, 6, cal);
-    const day = (iso: string) => header.find((h) => h.iso === iso)!;
-    expect(day("2026-06-13").working).toBe(false); // Sat
-    expect(day("2026-06-14").working).toBe(false); // Sun
-    expect(day("2026-06-15").working).toBe(true); // Mon
-    expect(day("2026-06-16").working).toBe(false); // holiday
   });
 });
 

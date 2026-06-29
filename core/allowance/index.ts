@@ -9,11 +9,6 @@ export function round(value: number, decimals = 2): number {
   return Math.round((value + Number.EPSILON) * f) / f;
 }
 
-/** Round to the nearest half day (leave is booked in whole/half days). */
-export function roundToHalf(value: number): number {
-  return Math.round(value * 2) / 2;
-}
-
 /** Remaining = Opening + Carry-over + Adjustments − Approved-taken − Deductions. */
 export function computeRemaining(i: AllowanceInputs): number {
   return round(i.opening + i.carryOver + i.adjustments - i.takenApproved - i.deductions);
