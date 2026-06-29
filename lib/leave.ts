@@ -16,6 +16,7 @@ import { getMyApproverEmails } from "./approvals";
 import { recordAudit } from "./audit";
 import { getRestrictedRangesFor } from "./calendars";
 import { buildCoverageInput } from "./coverage";
+import { dubaiTodayISO } from "./dates";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
 import { buildRegionCalendar, regionIdOnDate } from "./region";
@@ -106,9 +107,6 @@ const TYPE_SELECT = {
   allowConsecutive: true,
   affectsStaffingLevels: true, // Story 28.3: pass to buildCoverageInput to skip non-affecting types
 } as const;
-
-// ponytail: mirrors dubaiToday() in lib/cancellation.ts — one-liner, no shared dep needed
-const dubaiToday = (): ISODate => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 
 function endOf(input: LeaveInput): ISODate {
   return input.mode === "MULTI" && input.endDate ? input.endDate : input.startDate;
@@ -229,7 +227,7 @@ export async function previewLeave(employeeId: string, rawInput: LeaveInput): Pr
     attachmentRequired: type.attachmentRequired,
     attachmentThresholdDays: type.attachmentThresholdDays,
     hasAttachment: !!input.attachmentUrl,
-    todayISO: dubaiToday(),
+    todayISO: dubaiTodayISO(),
     noticePeriodDays: type.noticePeriodDays,
     minLengthDays: type.minLengthDays ?? undefined,
     maxConsecutiveDays: type.maxConsecutiveDays ?? undefined,

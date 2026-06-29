@@ -6,6 +6,7 @@ import { addDays, parseISO, toISO } from "@/core/dates";
 import { buildRow, type WallCell } from "@/core/wallchart";
 import type { ISODate, RegionCalendar } from "@/core/types";
 import { getOpenPeriodBalance, type PeriodBalance } from "./allowance";
+import { dubaiTodayISO } from "./dates";
 import { db } from "./db";
 
 export interface DashboardData {
@@ -35,10 +36,6 @@ const PATTERN_WEEKDAY: { key: "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "s
   { key: "sat", index: 6 },
 ];
 
-function dubaiToday(): ISODate {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
-}
-
 export async function getDashboard(employeeId: string): Promise<DashboardData> {
   const employee = await db.employee.findUniqueOrThrow({
     where: { id: employeeId },
@@ -58,7 +55,7 @@ export async function getDashboard(employeeId: string): Promise<DashboardData> {
     select: { carryOverExpiry: true },
   });
 
-  const todayISO = dubaiToday();
+  const todayISO = dubaiTodayISO();
   const start = parseISO(todayISO);
   const dayList: ISODate[] = Array.from({ length: 7 }, (_, i) => toISO(addDays(start, i)));
   const endISO = dayList[dayList.length - 1]!;
@@ -122,7 +119,7 @@ export async function getUpcomingHolidays(employeeId: string, limit = 5): Promis
     select: { regionId: true },
   });
   const rows = await db.holiday.findMany({
-    where: { regionId: employee.regionId, date: { gte: parseISO(dubaiToday()) } },
+    where: { regionId: employee.regionId, date: { gte: parseISO(dubaiTodayISO()) } },
     orderBy: { date: "asc" },
     take: limit,
     select: { name: true, date: true },
