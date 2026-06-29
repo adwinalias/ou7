@@ -26,14 +26,16 @@ let max3TypeId = "";
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
-// Return a weekday (Mon–Thu UAE) offset far enough into the future to pass noticePeriod=0.
-// UAE weekends: Fri=5 (index 5), Sat=6 (index 6). We start at +10 for safety.
+// Return a working day offset far enough into the future to pass noticePeriod=0.
+// The UAE region seeded by this test has weekendDays [6, 0] = Sat(6) + Sun(0); Friday
+// is a WORKING day. The skip set MUST match the region calendar — skipping Friday too
+// lets a request range straddle a working Friday, inflating the engine's workingDays
+// count and misfiring maxConsecutiveDays on dates where the window crosses a weekend.
+const WEEKEND = [6, 0]; // must match the UAE region weekendDays below
 function futureWeekday(offsetStart = 10): string {
   const d = new Date();
   d.setDate(d.getDate() + offsetStart);
-  // skip if Fri or Sat (UAE weekend = weekendDays [5, 6] in JS day numbering where 0=Sun…6=Sat)
-  // Actually weekendDays stored as [6,0] meaning Sat=6, Sun=0. We just skip Sun & Fri & Sat to be safe.
-  while ([5, 6, 0].includes(d.getDay())) d.setDate(d.getDate() + 1);
+  while (WEEKEND.includes(d.getDay())) d.setDate(d.getDate() + 1);
   return d.toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 }
 
@@ -44,11 +46,11 @@ function addDays(iso: string, n: number): string {
   return d.toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 }
 
-// Next weekday after a given ISO (skip UAE weekends Fri+Sat+Sun).
+// Next working day after a given ISO (skip the UAE weekend Sat+Sun).
 function nextWeekday(iso: string): string {
   const d = new Date(`${iso}T12:00:00.000Z`);
   d.setDate(d.getDate() + 1);
-  while ([5, 6, 0].includes(d.getDay())) d.setDate(d.getDate() + 1);
+  while (WEEKEND.includes(d.getDay())) d.setDate(d.getDate() + 1);
   return d.toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 }
 
