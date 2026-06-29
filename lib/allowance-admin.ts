@@ -4,7 +4,7 @@ import "server-only"; // Epic 22.4: DB-backed HR allowance ledger — server-onl
 // ledger), recomputed under a period-row lock so concurrent writers can't drop a delta.
 // Reset/Add Balance recomputes OPENING only, via the engine, from the entitlement policy.
 // Balances stay engine-derived — only inputs are ever stored.
-import type { AdjustmentKind, AllowanceBucket } from "@prisma/client";
+import type { AdjustmentKind, AllowanceBucket, Prisma } from "@prisma/client";
 import { computeRemaining, computeRollover, proRataOpening, round } from "@/core/allowance";
 import { toCsv } from "@/core/csv";
 import { recordAudit } from "./audit";
@@ -271,6 +271,62 @@ const yearBounds = (year: number) => ({
   lte: atUtc(`${year}-12-31`),
 });
 
+type BulkCandidateDecision =
+  | { employeeId: string; name: string; regionId: string; eligible: true; proposedOpening: number }
+  | { employeeId: string; name: string; regionId: string; eligible: false; reason: string };
+
+/**
+ * Shared candidate selection for bulk balance prep, used by both the preview (db) and the
+ * apply transaction (tx) — pass the client so apply's reads run inside its transaction.
+ * Eligible = ACTIVE, no target-`year` period, no open period; COPY_PREVIOUS additionally
+ * needs a prior-year period. `alreadyHave` counts employees that already have the year period.
+ */
+async function selectBulkCandidates(
+  client: Prisma.TransactionClient,
+  departmentId: string | null,
+  year: number,
+  source: BulkBalancePrepSource,
+): Promise<{ decisions: BulkCandidateDecision[]; alreadyHave: number }> {
+  const emps = await client.employee.findMany({
+    where: { status: "ACTIVE", departmentId: departmentId ?? null },
+    select: { id: true, firstName: true, lastName: true, regionId: true },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+  });
+
+  if (emps.length === 0) return { decisions: [], alreadyHave: 0 };
+
+  const empIds = emps.map((e) => e.id);
+
+  // Load target-year periods and open periods in parallel.
+  const [yearPeriods, openPeriods] = await Promise.all([
+    client.allowancePeriod.findMany({ where: { employeeId: { in: empIds }, startDate: yearBounds(year) }, select: { employeeId: true } }),
+    client.allowancePeriod.findMany({ where: { employeeId: { in: empIds }, endDate: null }, select: { employeeId: true } }),
+  ]);
+  const hasYear = new Set(yearPeriods.map((p) => p.employeeId));
+  const hasOpen = new Set(openPeriods.map((p) => p.employeeId));
+
+  // Candidates = no target-year period.
+  const candidates = emps.filter((e) => !hasYear.has(e.id));
+
+  // For COPY_PREVIOUS, batch-load prior-year openings for non-open candidates only.
+  const needPrior = source.mode === "COPY_PREVIOUS" ? candidates.filter((e) => !hasOpen.has(e.id)) : [];
+  const priorPeriods = needPrior.length > 0
+    ? await client.allowancePeriod.findMany({ where: { employeeId: { in: needPrior.map((e) => e.id) }, startDate: yearBounds(year - 1) }, select: { employeeId: true, opening: true } })
+    : [];
+  const priorMap = new Map(priorPeriods.map((p) => [p.employeeId, p.opening]));
+
+  const decisions: BulkCandidateDecision[] = candidates.map((e) => {
+    const base = { employeeId: e.id, name: `${e.firstName} ${e.lastName}`.trim(), regionId: e.regionId };
+    if (hasOpen.has(e.id)) return { ...base, eligible: false, reason: "has an open period — roll over first" };
+    if (source.mode === "FIXED") return { ...base, eligible: true, proposedOpening: source.value };
+    const prior = priorMap.get(e.id);
+    if (prior === undefined) return { ...base, eligible: false, reason: "no prior-year period" };
+    return { ...base, eligible: true, proposedOpening: prior };
+  });
+
+  return { decisions, alreadyHave: hasYear.size };
+}
+
 /**
  * Preview: which ACTIVE employees in `departmentId` can receive a new `year` AllowancePeriod.
  * Eligible = no open period (endDate:null) AND no target-year period. Employees with an open
@@ -283,56 +339,13 @@ export async function previewBulkBalancePrep(
   year: number,
   source: BulkBalancePrepSource,
 ): Promise<BulkBalancePrepPreview> {
-  const emps = await db.employee.findMany({
-    where: { status: "ACTIVE", departmentId: departmentId ?? null },
-    select: { id: true, firstName: true, lastName: true },
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-  });
-
-  if (emps.length === 0) return { eligible: [], skipped: [], alreadyHave: 0 };
-
-  const empIds = emps.map((e) => e.id);
-
-  // Load target-year periods and open periods in parallel.
-  const [yearPeriods, openPeriods] = await Promise.all([
-    db.allowancePeriod.findMany({ where: { employeeId: { in: empIds }, startDate: yearBounds(year) }, select: { employeeId: true } }),
-    db.allowancePeriod.findMany({ where: { employeeId: { in: empIds }, endDate: null }, select: { employeeId: true } }),
-  ]);
-  const hasYear = new Set(yearPeriods.map((p) => p.employeeId));
-  const hasOpen = new Set(openPeriods.map((p) => p.employeeId));
-
-  // alreadyHave = has a target-year period (regardless of open status).
-  const alreadyHave = hasYear.size;
-
-  // Candidates = no target-year period.
-  const candidates = emps.filter((e) => !hasYear.has(e.id));
+  const { decisions, alreadyHave } = await selectBulkCandidates(db, departmentId, year, source);
 
   const eligible: BulkBalancePrepEligible[] = [];
   const skipped: BulkBalancePrepSkipped[] = [];
-
-  // For COPY_PREVIOUS, batch-load prior-year openings for non-open candidates only.
-  const needPrior = source.mode === "COPY_PREVIOUS" ? candidates.filter((e) => !hasOpen.has(e.id)) : [];
-  const priorPeriods = needPrior.length > 0
-    ? await db.allowancePeriod.findMany({ where: { employeeId: { in: needPrior.map((e) => e.id) }, startDate: yearBounds(year - 1) }, select: { employeeId: true, opening: true } })
-    : [];
-  const priorMap = new Map(priorPeriods.map((p) => [p.employeeId, p.opening]));
-
-  for (const e of candidates) {
-    const name = `${e.firstName} ${e.lastName}`.trim();
-    if (hasOpen.has(e.id)) {
-      skipped.push({ employeeId: e.id, name, reason: "has an open period — roll over first" });
-      continue;
-    }
-    if (source.mode === "FIXED") {
-      eligible.push({ employeeId: e.id, name, proposedOpening: source.value });
-    } else {
-      const prior = priorMap.get(e.id);
-      if (prior === undefined) {
-        skipped.push({ employeeId: e.id, name, reason: "no prior-year period" });
-      } else {
-        eligible.push({ employeeId: e.id, name, proposedOpening: prior });
-      }
-    }
+  for (const d of decisions) {
+    if (d.eligible) eligible.push({ employeeId: d.employeeId, name: d.name, proposedOpening: d.proposedOpening });
+    else skipped.push({ employeeId: d.employeeId, name: d.name, reason: d.reason });
   }
 
   return { eligible, skipped, alreadyHave };
@@ -356,56 +369,21 @@ export async function applyBulkBalancePrep(
   }
 
   return db.$transaction(async (tx) => {
-    const emps = await tx.employee.findMany({
-      where: { status: "ACTIVE", departmentId: departmentId ?? null },
-      select: { id: true, firstName: true, lastName: true, regionId: true },
-      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-    });
-
-    if (emps.length === 0) return { ok: true as const, created: 0, skipped: 0 };
-
-    const empIds = emps.map((e) => e.id);
-
-    // Re-check BOTH guards under the transaction (concurrency safety).
-    const [yearPeriods, openPeriods] = await Promise.all([
-      tx.allowancePeriod.findMany({ where: { employeeId: { in: empIds }, startDate: yearBounds(year) }, select: { employeeId: true } }),
-      tx.allowancePeriod.findMany({ where: { employeeId: { in: empIds }, endDate: null }, select: { employeeId: true } }),
-    ]);
-    const hasYear = new Set(yearPeriods.map((p) => p.employeeId));
-    const hasOpen = new Set(openPeriods.map((p) => p.employeeId));
-
-    // Candidates = no target-year period AND no open period.
-    const candidates = emps.filter((e) => !hasYear.has(e.id));
+    // Re-select candidates UNDER the transaction (concurrency safety / idempotent).
+    const { decisions } = await selectBulkCandidates(tx, departmentId, year, source);
 
     let created = 0;
     let skipped = 0;
 
-    // For COPY_PREVIOUS, batch-load prior-year openings for non-open candidates only.
-    const needPrior = source.mode === "COPY_PREVIOUS" ? candidates.filter((e) => !hasOpen.has(e.id)) : [];
-    const priorPeriods = needPrior.length > 0
-      ? await tx.allowancePeriod.findMany({ where: { employeeId: { in: needPrior.map((e) => e.id) }, startDate: yearBounds(year - 1) }, select: { employeeId: true, opening: true } })
-      : [];
-    const priorMap = new Map(priorPeriods.map((p) => [p.employeeId, p.opening]));
-
-    for (const e of candidates) {
-      // Skip employees with an open period — they must roll over first.
-      if (hasOpen.has(e.id)) { skipped++; continue; }
-
-      let proposedOpening: number;
-      if (source.mode === "FIXED") {
-        proposedOpening = source.value;
-      } else {
-        const prior = priorMap.get(e.id);
-        if (prior === undefined) { skipped++; continue; }
-        proposedOpening = prior;
-      }
+    for (const d of decisions) {
+      if (!d.eligible) { skipped++; continue; }
 
       const period = await tx.allowancePeriod.create({
         data: {
-          employeeId: e.id,
-          regionId: e.regionId,
+          employeeId: d.employeeId,
+          regionId: d.regionId,
           startDate: atUtc(`${year}-01-01`),
-          opening: proposedOpening,
+          opening: d.proposedOpening,
           carryOver: 0,
         },
       });
@@ -415,7 +393,7 @@ export async function applyBulkBalancePrep(
         action: "BULK_BALANCE_PREP",
         entity: "AllowancePeriod",
         entityId: period.id,
-        after: { year, opening: proposedOpening, source: source.mode, departmentId },
+        after: { year, opening: d.proposedOpening, source: source.mode, departmentId },
       });
 
       created++;
