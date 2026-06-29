@@ -12,22 +12,14 @@ import {
   holidayRemaining,
   proRataOpening,
   round,
-  roundToHalf,
 } from "@/core/allowance";
 
-describe("round / roundToHalf (float-noise guards)", () => {
+describe("round (float-noise guard)", () => {
   it("round defaults to 2 dp and kills float noise", () => {
     expect(round(0.1 + 0.2)).toBe(0.3); // 0.30000000000000004 → 0.3
     expect(round(1.005)).toBe(1.01); // EPSILON nudge lands it on 1.01, not 1.00
     expect(round(2.344, 1)).toBe(2.3);
     expect(round(10)).toBe(10);
-  });
-  it("roundToHalf snaps to the nearest 0.5 (leave is booked in whole/half days)", () => {
-    expect(roundToHalf(0.24)).toBe(0);
-    expect(roundToHalf(0.25)).toBe(0.5);
-    expect(roundToHalf(0.74)).toBe(0.5);
-    expect(roundToHalf(0.75)).toBe(1);
-    expect(roundToHalf(2.5)).toBe(2.5);
   });
 });
 

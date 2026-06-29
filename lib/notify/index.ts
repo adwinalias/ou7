@@ -98,14 +98,8 @@ export function resolveRecipients(
       return [requesterEmail];
     case "APPROVER":
       return [...approverEmails];
-    case "STAFF_AND_APPROVER": {
-      // ponytail: dedupe in case requester is also an approver (edge: self-approval config)
-      const seen = new Set<string>();
-      const out: string[] = [];
-      for (const e of [requesterEmail, ...approverEmails]) {
-        if (!seen.has(e)) { seen.add(e); out.push(e); }
-      }
-      return out;
-    }
+    case "STAFF_AND_APPROVER":
+      // dedupe in case requester is also an approver (edge: self-approval config)
+      return [...new Set([requesterEmail, ...approverEmails])];
   }
 }

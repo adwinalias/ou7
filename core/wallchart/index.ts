@@ -30,13 +30,6 @@ export interface WallCell {
   half?: HalfDayPeriod;
 }
 
-export interface MonthDay {
-  iso: ISODate;
-  day: number;
-  weekday: number; // 0=Sun … 6=Sat
-  working: boolean;
-}
-
 /** Number of days in a 1-based month. */
 export function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -47,14 +40,6 @@ export function monthDays(year: number, month: number): ISODate[] {
   const first = `${year}-${String(month).padStart(2, "0")}-01`;
   const last = `${year}-${String(month).padStart(2, "0")}-${String(daysInMonth(year, month)).padStart(2, "0")}`;
   return [...eachDate(first, last)].map(toISO);
-}
-
-/** Header metadata for each day of the month (weekday + working/non-working). */
-export function monthHeader(year: number, month: number, cal: RegionCalendar): MonthDay[] {
-  return monthDays(year, month).map((iso) => {
-    const d = new Date(`${iso}T00:00:00.000Z`);
-    return { iso, day: d.getUTCDate(), weekday: d.getUTCDay(), working: isWorkingDay(d, cal) };
-  });
 }
 
 function covers(seg: WallSegment, iso: ISODate): boolean {

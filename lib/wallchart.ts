@@ -231,7 +231,9 @@ export async function getWallChart(
   const byEmployee = new Map<string, typeof leave>();
   const legendMap = new Map<string, { code: string; name: string; color: string }>();
   for (const l of leave) {
-    (byEmployee.get(l.employeeId) ?? byEmployee.set(l.employeeId, []).get(l.employeeId)!).push(l);
+    const empLeave = byEmployee.get(l.employeeId) ?? [];
+    empLeave.push(l);
+    byEmployee.set(l.employeeId, empLeave);
     if (hr) {
       legendMap.set(l.leaveType.code, { code: l.leaveType.code, name: l.leaveType.name, color: l.leaveType.color });
     }

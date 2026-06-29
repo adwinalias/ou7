@@ -125,7 +125,9 @@ export async function getWhosOff(actor: Actor, days = 7): Promise<WhosOffData> {
   const empById = new Map(employees.map((e) => [e.id, e]));
   const byEmployee = new Map<string, typeof leave>();
   for (const l of leave) {
-    (byEmployee.get(l.employeeId) ?? byEmployee.set(l.employeeId, []).get(l.employeeId)!).push(l);
+    const empLeave = byEmployee.get(l.employeeId) ?? [];
+    empLeave.push(l);
+    byEmployee.set(l.employeeId, empLeave);
   }
 
   const publicEntries: WhosOffEntryPublic[] = [];
