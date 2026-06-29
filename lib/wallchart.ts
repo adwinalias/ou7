@@ -24,6 +24,7 @@ import {
 import { isHR, allowedLeaveTypeVisibilities } from "@/core/authz";
 import { regionOnDate } from "@/core/region";
 import type { Actor, ISODate, RegionCalendar } from "@/core/types";
+import { dubaiTodayISO } from "./dates";
 import { db } from "./db";
 import { batchRegionAssignments } from "./region";
 
@@ -87,11 +88,6 @@ export function buildWallChartCsv(data: WallChartData): string {
     ...row.cells.map(cellCsv),
   ]);
   return toCsv([header, ...body]);
-}
-
-/** Today in Asia/Dubai (all scheduling/date logic is Dubai time). */
-function dubaiToday(): ISODate {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 }
 
 function shiftMonth(year: number, month: number, delta: number): { y: number; m: number } {
@@ -250,7 +246,7 @@ export async function getWallChart(
         color: categoryColor.get(c)!,
       }));
 
-  const todayISO = dubaiToday();
+  const todayISO = dubaiTodayISO();
   const nameFilter = options.name.trim().toLowerCase();
 
   let rows: WallRow[] = employees

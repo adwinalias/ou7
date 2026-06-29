@@ -18,6 +18,7 @@ import { addDays, parseISO, toISO } from "@/core/dates";
 import type { ISODate, RegionCalendar } from "@/core/types";
 import { isHR, allowedLeaveTypeVisibilities } from "@/core/authz";
 import type { Actor } from "@/core/types";
+import { dubaiTodayISO } from "./dates";
 import { db } from "./db";
 
 type WhosOffStatus = "APPROVED" | "PENDING";
@@ -52,18 +53,13 @@ export interface WhosOffData {
   entries: WhosOffEntryPublic[] | WhosOffEntryHR[];
 }
 
-/** Today in Asia/Dubai (all scheduling/date logic is Dubai time). */
-function dubaiToday(): ISODate {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
-}
-
 /**
  * Company-wide absentees for [today, today+days] (Dubai), region-aware. Approved + pending
  * leave on visible-on-calendar types. Non-HR viewers receive only the four categories.
  */
 export async function getWhosOff(actor: Actor, days = 7): Promise<WhosOffData> {
   const hr = isHR(actor);
-  const todayISO = dubaiToday();
+  const todayISO = dubaiTodayISO();
   const start = parseISO(todayISO);
   // Window is "today + next N days" inclusive of today → N+1 calendar days.
   const dayList: ISODate[] = Array.from({ length: days + 1 }, (_, i) => toISO(addDays(start, i)));

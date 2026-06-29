@@ -8,6 +8,7 @@ import { proRataOpening } from "@/core/allowance";
 import { parseEmployeeImport } from "@/core/employee-import";
 import { recordAudit } from "./audit";
 import { getEntitlementPolicy } from "./config";
+import { dubaiTodayISO } from "./dates";
 import { db } from "./db";
 
 const atUtc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
@@ -59,9 +60,6 @@ export interface EmployeeUpdate {
   approverLevel?: ApproverLevel;
   employmentType?: EmploymentType;
 }
-
-const dubaiTodayISO = (): string =>
-  new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 
 export async function updateEmployee(actorId: string, employeeId: string, patch: EmployeeUpdate) {
   const before = await db.employee.findUniqueOrThrow({ where: { id: employeeId } });

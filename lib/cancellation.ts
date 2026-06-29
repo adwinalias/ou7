@@ -8,13 +8,10 @@ import { canCancel } from "@/core/cancellation";
 import type { Actor, ISODate, LeaveStatus } from "@/core/types";
 import { getMyApproverEmails } from "./approvals";
 import { recordAudit } from "./audit";
+import { dubaiTodayISO } from "./dates";
 import { db } from "./db";
 import { notifier, resolveRecipients } from "./notify";
 import { AuthError } from "./rbac";
-
-function dubaiToday(): ISODate {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
-}
 
 export type CancelResult = { ok: true } | { ok: false; error: string };
 
@@ -40,7 +37,7 @@ export async function cancelLeaveRequest(actor: Actor, requestId: string): Promi
     status: req.status as LeaveStatus,
     isOwner,
     isHR: hr,
-    todayISO: dubaiToday(),
+    todayISO: dubaiTodayISO(),
     startISO: req.startDate.toISOString().slice(0, 10),
     cancellationWindowDays: req.leaveType.cancellationWindowDays,
   });
