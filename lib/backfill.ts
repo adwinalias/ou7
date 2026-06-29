@@ -6,22 +6,9 @@ import "server-only";
 // written (workingDays === 0). It MUST NOT be called from any hot path.
 // ponytail: invoke manually before go-live (Epic 33) or after a WhosOff import (Epic 33).
 import { countDays } from "@/core/calendar";
-import type { ISODate, RegionCalendar } from "@/core/types";
+import type { ISODate } from "@/core/types";
 import { db } from "./db";
-
-async function buildCalendar(regionId: string, startISO: ISODate, endISO: ISODate): Promise<RegionCalendar> {
-  const region = await db.region.findUniqueOrThrow({ where: { id: regionId }, select: { weekendDays: true } });
-  const startYear = Number(startISO.slice(0, 4));
-  const endYear = Number(endISO.slice(0, 4));
-  const holidayRows = await db.holiday.findMany({
-    where: { regionId, year: { gte: startYear, lte: endYear } },
-    select: { date: true },
-  });
-  return {
-    weekendDays: region.weekendDays,
-    holidays: new Set<ISODate>(holidayRows.map((h) => h.date.toISOString().slice(0, 10))),
-  };
-}
+import { buildRegionCalendar } from "./region";
 
 /**
  * Idempotent backfill: find PENDING/APPROVED LeaveRequests with workingDays === 0
@@ -55,7 +42,7 @@ export async function backfillLeaveDayCounts(): Promise<number> {
   for (const row of rows) {
     const startISO = row.startDate.toISOString().slice(0, 10) as ISODate;
     const endISO = row.endDate.toISOString().slice(0, 10) as ISODate;
-    const cal = await buildCalendar(row.employee.regionId, startISO, endISO);
+    const cal = await buildRegionCalendar(row.employee.regionId, startISO, endISO);
     const { workingDays, freeDays } = countDays(startISO, endISO, row.durationMode as "DAY" | "HALF" | "MULTI", cal);
     const allowanceDays = row.leaveType.deductsAllowance ? workingDays : 0;
     await db.leaveRequest.update({
